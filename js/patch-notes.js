@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Advanced-map CI readiness",
+    summary:
+      "Large advanced maps now prerender more efficiently and report useful browser diagnostics when CI cannot finish loading them.",
+    items: [
+      "Skip empty and transparent cells while compositing generalized tile layers.",
+      "Keep the 8-second advanced-map load budget while reporting scene, player, overlay, and page-error state on readiness failures.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "CI builds without a local launcher binary",
     summary:
       "Web builds now finish on clean checkouts even when the locally generated Windows launcher is absent.",
