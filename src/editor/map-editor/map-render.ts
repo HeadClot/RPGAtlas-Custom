@@ -61,6 +61,8 @@ import { drawEntryTiles } from "../../shared/layer-composite";
       x: number; y: number;
       role?: string; layerId?: number; tile?: number; region?: number;
     }[];
+    /** Connections/world-map thumbnail: render only the authored map art. */
+    preview?: boolean;
   }
   function viewFromS(): MapView {
     return {
@@ -354,19 +356,21 @@ import { drawEntryTiles } from "../../shared/layer-composite";
     scheduleAnimTick();
     g.globalAlpha = 1;
     g.globalCompositeOperation = "source-over";
-    // grid
-    g.strokeStyle = "rgba(255,255,255,0.09)";
-    g.lineWidth = 1 / v.zoom;
-    g.beginPath();
-    for (let x = 0; x <= m.width; x++) { g.moveTo(x * TILE, 0); g.lineTo(x * TILE, m.height * TILE); }
-    for (let y = 0; y <= m.height; y++) { g.moveTo(0, y * TILE); g.lineTo(m.width * TILE, y * TILE); }
-    g.stroke();
+    if (!v.preview) {
+      // grid
+      g.strokeStyle = "rgba(255,255,255,0.09)";
+      g.lineWidth = 1 / v.zoom;
+      g.beginPath();
+      for (let x = 0; x <= m.width; x++) { g.moveTo(x * TILE, 0); g.lineTo(x * TILE, m.height * TILE); }
+      for (let y = 0; y <= m.height; y++) { g.moveTo(0, y * TILE); g.lineTo(m.width * TILE, y * TILE); }
+      g.stroke();
+    }
     if (v.mode === "pass") drawPassOverlay(g, m, v);
     if (v.mode === "height") drawHeightOverlay(g, m);
     if (v.mode === "region") drawRegionOverlay(g, m);
     // Event pins stay visible while painting so placed events do not appear to
     // vanish when leaving Event mode. Passability/Height keep their overlays clean.
-    if (v.mode !== "pass" && v.mode !== "height" && v.mode !== "region") {
+    if (!v.preview && v.mode !== "pass" && v.mode !== "height" && v.mode !== "region") {
       const interactiveEvents = v.mode === "event" || v.mode === "start";
       for (const ev of m.events) {
         g.fillStyle = interactiveEvents
@@ -390,7 +394,7 @@ import { drawEntryTiles } from "../../shared/layer-composite";
       }
     }
     // start marker
-    if (v.system.startMapId === m.id) {
+    if (!v.preview && v.system.startMapId === m.id) {
       g.fillStyle = "rgba(110,230,140,0.8)";
       g.fillRect(v.system.startX * TILE + 8, v.system.startY * TILE + 8, TILE - 16, TILE - 16);
       g.fillStyle = "#0c2c14";

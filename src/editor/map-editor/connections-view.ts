@@ -3,10 +3,10 @@
    Transfer-Player graph, while this panel edits runtime worldOrigin values. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S, curMap } from "../editor-state";
+import { editorState as S, curMap, TILE } from "../editor-state";
 import { h } from "../dom";
 import { touch } from "../persistence";
-import { renderMap } from "./map-render";
+import { mapAnimFrame, renderMap, renderMapView, type MapView } from "./map-render";
 import { rebuildMapList } from "./map-list";
 import { setStatus, flashStatus } from "./status";
 import { focusPanel, getFocusedPanel, isPanelVisible, togglePanel } from "../dock/dock";
@@ -15,6 +15,7 @@ import { deriveConnections, validateLayout } from "../../shared/map-connections"
 export const CONNECTIONS_PANEL = "connections";
 const TILE_PX = 24;
 const PAD = 80;
+const PREVIEW_MAX_PX = 256;
 
 let root: HTMLElement | null = null;
 let viewport: HTMLElement | null = null;
@@ -58,6 +59,27 @@ function applyZoom() {
 }
 function setZoom(v: number) { zoom = Math.max(0.25, Math.min(2, v)); applyZoom(); }
 
+function mapPreview(m: any): HTMLCanvasElement {
+  const canvas = h("canvas", { class: "cv-map-preview", "aria-hidden": "true" }) as HTMLCanvasElement;
+  const g = canvas.getContext("2d");
+  if (!g) return canvas;
+  const scale = Math.min(1, PREVIEW_MAX_PX / Math.max(1, m.width * TILE), PREVIEW_MAX_PX / Math.max(1, m.height * TILE));
+  const previewWidth = Math.max(1, Math.round(m.width * TILE * scale));
+  const previewHeight = Math.max(1, Math.round(m.height * TILE * scale));
+  canvas.width = previewWidth;
+  canvas.height = previewHeight;
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  const view: MapView = {
+    zoom: scale, mode: "map", layer: "auto", tool: "pen",
+    selection: null, hoverCell: null, hoverQuad: 0, rectStart: null,
+    painting: false, pasteMode: null, clipTiles: null,
+    selectedEvent: null, system: S.proj.system, frame: mapAnimFrame(), preview: true,
+  };
+  renderMapView(g, m, view);
+  return canvas;
+}
+
 function rebuild() {
   if (!stage || !svg) return;
   dirty = false;
@@ -77,7 +99,7 @@ function rebuild() {
       class: "cv-map" + (m.id === selectedId ? " sel" : "") + (m.worldOrigin ? " placed" : " unplaced"),
       style: `left:${p.x}px;top:${p.y}px;width:${Math.max(48, m.width * TILE_PX)}px;height:${Math.max(40, m.height * TILE_PX)}px`,
       title: "Drag to place · double-click to open",
-    }, h("div", { class: "cv-map-name" }, `${m.id}: ${m.name || "—"}`),
+    }, mapPreview(m), h("div", { class: "cv-map-name" }, `${m.id}: ${m.name || "—"}`),
       h("div", { class: "cv-map-dims" }, `${m.width}×${m.height}`));
     el.addEventListener("mousedown", (e: MouseEvent) => beginDrag(e, m.id));
     el.addEventListener("dblclick", () => openMap(m.id));
@@ -143,6 +165,7 @@ function snapOrigin(id: number, candidate: { x: number; y: number }) {
 function beginDrag(e: MouseEvent, id: number) {
   if (e.button !== 0 || !stage) return;
   e.preventDefault(); e.stopPropagation(); selectedId = id;
+  root?.focus({ preventScroll: true });
   const m = S.proj.maps.find((x: any) => x.id === id); if (!m) return;
   const start = worldFromMouse(e), initial = { ...originFor(m, 0) };
   let moved = false;
@@ -191,6 +214,26 @@ function setOrigin(m: any, x: number, y: number) {
   if (!Number.isInteger(x) || !Number.isInteger(y)) return;
   m.worldOrigin = { x, y }; provisional.delete(m.id); touch(); rebuild();
 }
+function nudgeSelected(e: KeyboardEvent) {
+  if (!visible() || getFocusedPanel() !== CONNECTIONS_PANEL || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const target = e.target as HTMLElement | null;
+  if (target && typeof target.closest === "function" &&
+      target.closest("input, textarea, select, button, [contenteditable='true'], [role='textbox']")) return;
+  const delta = e.key === "ArrowLeft" ? { x: -1, y: 0 }
+    : e.key === "ArrowRight" ? { x: 1, y: 0 }
+      : e.key === "ArrowUp" ? { x: 0, y: -1 }
+        : e.key === "ArrowDown" ? { x: 0, y: 1 } : null;
+  if (!delta || selectedId < 0) return;
+  const index = S.proj.maps.findIndex((m: any) => m.id === selectedId);
+  const m = index < 0 ? null : S.proj.maps[index];
+  if (!m) return;
+  const origin = originFor(m, index);
+  m.worldOrigin = { x: origin.x + delta.x, y: origin.y + delta.y };
+  provisional.delete(m.id);
+  e.preventDefault();
+  touch();
+  rebuild();
+}
 function autoArrange() {
   let x = 0;
   for (const m of S.proj.maps) { m.worldOrigin = { x, y: 0 }; x += m.width; }
@@ -216,7 +259,8 @@ export function mountConnectionsView(): HTMLElement {
   stage = h("div", { class: "cv-stage" }) as HTMLElement;
   viewport = h("div", { class: "cv-viewport" }, stage) as HTMLElement;
   hud = h("div", { class: "cv-hud" });
-  root = h("div", { class: "connections-view dock-panel-content" }, viewport, hud) as HTMLElement;
+  root = h("div", { class: "connections-view dock-panel-content", tabindex: "0" }, viewport, hud) as HTMLElement;
+  root.addEventListener("keydown", nudgeSelected);
   bindPan(); applyZoom(); rebuild(); return root;
 }
 export function isConnectionsVisible() { return isPanelVisible(CONNECTIONS_PANEL); }

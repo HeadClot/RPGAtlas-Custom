@@ -5,6 +5,51 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    version: "2.2.5",
+    title: "Playwright uses one canonical configuration",
+    summary:
+      "Playwright now discovers the RPGAtlas end-to-end suite consistently from both the npm script and direct CLI commands.",
+    items: [
+      "Removed the conflicting generated TypeScript configuration that selected network-dependent scaffold tests instead of the built app suite.",
+      "Removed the stale Playwright example spec so direct `npx playwright test` runs the 137 Chromium RPGAtlas tests against the Vite preview server.",
+      "The preview server now starts through Vite's CLI entry directly so Playwright shuts it down cleanly on Windows.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.4",
+    title: "Keyboard nudging for Map Connections",
+    summary:
+      "Selected map cards in the Map Connections editor can now be aligned precisely with the arrow keys.",
+    items: [
+      "Press an arrow key to move the selected card one world-space tile at a time.",
+      "Keyboard nudges persist the card's world origin just like drag placement, while origin number fields keep their normal arrow-key editing behavior.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.3",
+    title: "Map Connections cards fit previews",
+    summary:
+      "Map snapshots now fill their full world-space cards instead of leaving the capped thumbnail at its intrinsic size.",
+    items: [
+      "Preview canvases retain capped backing resolution for performance while scaling across the complete map footprint.",
+      "Map card borders, dragging, snapping, seams, and placement dimensions remain unchanged.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.2",
+    title: "Map Connections previews",
+    summary:
+      "The Map Connections editor now shows a tile-only snapshot of every level inside its world-space card.",
+    items: [
+      "Map cards display scaled terrain, layers, autotiles, shadows, and heights behind their labels.",
+      "Previews remain visual-only, so dragging, snapping, origins, seams, and map opening behave as before.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     version: "2.2.1",
     title: "Playwright uses the built Chromium harness",
     summary:
