@@ -1,0 +1,35 @@
+# Node / Tauri desktop wrapper
+node_modules/
+src-tauri/target/
+src-tauri/dist/
+src-tauri/gen/
+# per-game native packaging stage (scripts/package-game-exe.mjs)
+src-tauri/game-dist/
+src-tauri/game.conf.json
+
+# Build artifacts
+*.log
+
+# Project Beacon (server/): the bundled Node server + any DO build output are
+# reproducible via `npm run build` in server/ — source is checked in, not dist.
+server/dist/
+server/node_modules/
+
+# M6·B community-scale QA fixture (scripts/build-migration-scale-fixture.mjs) —
+# large + regenerable; the round-trip tests build it in memory, never from disk.
+tests/fixtures/scale-project/
+
+# Vite / toolchain build output & caches
+dist/
+.vite/
+*.tsbuildinfo
+
+# Locally generated agent skills (regenerated on demand, not project source)
+.agents/skills/rpgatlas-targeted-testing/SKILL.md
+.agents/skills/rpgatlas-project-workflow/SKILL.md
+
+# Playwright e2e output (reports/traces/videos) — golden baselines under
+# tests-e2e/__snapshots__/ are intentionally NOT ignored; they're checked in.
+/test-results/
+/playwright-report/
+/blob-report/

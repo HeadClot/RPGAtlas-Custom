@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "phase-*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Engine test suites (node --test)
+        run: npm test
+      - name: Unit tests (vitest)
+        run: npm run test:unit
+      # The real-socket / worker suites live in their own vitest project
+      # (vitest.net.config.mjs) because they can't share a worker pool with the
+      # pure ones. They were a defined gate that CI never ran.
+      - name: Networked suites (vitest, real sockets + workers)
+        run: npm run test:net
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build (editor + player + passthrough runtime)
+        run: npm run build
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright's Chromium (+ OS deps)
+        run: npx playwright install --with-deps chromium
+      - name: E2E + golden-image tests (builds first — see playwright.config.mjs webServer)
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+      # Golden-image baselines are resolved per-platform (see
+      # playwright.config.mjs snapshotPathTemplate, which keys on {platform}).
+      # Only a Windows ("win32") baseline is committed so far — this repo's
+      # dev machine. On ubuntu-latest, Playwright's default
+      # `updateSnapshots: "missing"` behavior means the FIRST run here writes
+      # a fresh tests-e2e/__snapshots__/linux/... baseline from whatever this
+      # runner produces and the test still PASSES (there's nothing to diff
+      # against yet) — it does not fail the build, but it also doesn't
+      # protect anything until that baseline is reviewed and committed.
+      # Upload it here so a maintainer can eyeball it and check it in; after
+      # that, subsequent runs diff against the real thing.
+      - name: Upload freshly-written golden baselines (review before committing)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-golden-snapshots-linux
+          path: tests-e2e/__snapshots__/linux/
+          retention-days: 14
+          if-no-files-found: ignore

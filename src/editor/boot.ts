@@ -1,0 +1,378 @@
+/* RPGAtlas — src/editor/boot.ts
+   The editor composition root: loads/creates the project, wires the palette and
+   map-canvas events, installs the global keyboard map, and boots the workspace.
+   This is the last piece of the old editor.js closure; main.ts imports it.
+   Verbatim move from the editor monolith (Phase 1 Stage C, Package 3):
+   logic unchanged, closure vars routed through editor-state.ts. rebuildAll,
+   setMode, and refreshToolbar are now direct imports/exports rather than the
+   editorHooks slots the earlier packages used.
+   Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import {
+  Assets, DataDefaults, RA, TILE, editorI18n, editorState as S, editorHooks,
+} from "./editor-state";
+import { $ } from "./dom";
+import { modalRoot } from "./modals";
+import { loadStored, saveNow, importProject, openFolderRoot } from "./persistence";
+import { renderMap, renderPalette } from "./map-editor/map-render";
+import { undo, redo } from "./map-editor/history";
+import { copySelection, startPaste, clearSelection } from "./map-editor/clipboard";
+import { setStatus } from "./map-editor/status";
+import { rebuildMapList, addMap, deleteMap, openMapGenProps } from "./map-editor/map-list";
+import { openSampleMapsBrowser } from "./map-editor/sample-maps";
+import {
+  deleteSelectedEvent, openCanvasMenu,
+  onCanvasDown, onCanvasMove, onCanvasUp, onCanvasDbl,
+} from "./map-editor/painting";
+import {
+  buildMenubar, buildToolbar, refreshToolbar, runAct,
+  setMode, setTool, setLayer, setZoom, zoomStep, cycleMode,
+  closeMenus, isMenuOpen,
+} from "./workspace";
+import { applyEditorFontScale, openKeyboardShortcuts } from "./help";
+import { dispatchKey, type KeyBinding } from "./keymap";
+import { activeEditScope } from "./edit-scope";
+import { initDockWorkspace } from "./dock/panels";
+import { advFocus } from "./advanced/adv-transform";
+import { initAutotileUI, renderAutotileBar, stepBrush } from "./map-editor/autotile-ui";
+import { syncAutotileRegistry } from "./autotile-store";
+import { initRmImport } from "./importers/rm-import-wizard";
+import { consumeEmbeddedAssets, initAssetLibrary } from "../shared/asset-library";
+import { createDefaultAssetStore } from "../platform/default-asset-store";
+import { ProjectAssetStore } from "../platform/project-asset-store";
+// Project Harbor H2: the desktop Project Manager launcher. managerActive() gates
+// the whole pre-boot screen behind isTauri (or the H2·D ?fakehost test hook), so
+// the pure browser build never mounts it and boots byte-identically to today.
+import { managerActive, hasFakeHostParam, activeManagerHost } from "./project-manager/manager-host";
+import { markEditorBooted } from "./project-manager/project-context";
+// Project Harbor H4·A: when a folder game is open, rescope the asset library to it.
+import { migrateGlobalLibraryAssets, showLegacyMigrationNotice } from "./project-manager/legacy-assets";
+// Project Harbor H4·B: auto-discover files copied into the project's assets/ folder.
+import { installProjectScanFocus, runProjectScan } from "./tools/project-scan";
+// Side effect: registers window.AtlasAudioDeck so imported audio previews
+// (Audio Manager, command "▶ test" buttons) play in the editor too.
+import "../shared/audio-deck";
+
+// The editor's global key bindings (Phase 3 Stage A). This table replaces the
+// old hardcoded keydown cascade one branch per binding, IN ORDER — the order
+// is load-bearing (height digits above layer digits above the zoom reset; the
+// bare {ctrl:true} barrier reproduces "an unmatched Ctrl chord still swallows
+// the event"). Command `key` strings in workspace.ts are display-only; THIS
+// table is the execution truth.
+const mapMode = () => S.mode === "map";
+const mapOrHeight = () => S.mode === "map" || S.mode === "height";
+const EDITOR_KEYS: KeyBinding[] = [
+  { codes: ["Escape"], run() {
+    if (isMenuOpen()) { closeMenus(); return; }
+    if (S.pasteMode || S.selection) { clearSelection(); return; }
+    if (S.selectedEvent) { S.selectedEvent = null; renderMap(); refreshToolbar(); }
+  } },
+  { key: "?", ctrl: false, preventDefault: true, run: () => openKeyboardShortcuts() },
+  // Mode cycle (always available). Tab forward, Shift+Tab back. Skip when Ctrl/Meta held.
+  { codes: ["Tab"], ctrl: false, preventDefault: true, run: (e) => cycleMode(e.shiftKey ? -1 : 1) },
+  // Ctrl/Meta chords
+  { codes: ["KeyZ"], ctrl: true, preventDefault: true, run: () => undo() },
+  { codes: ["KeyY"], ctrl: true, preventDefault: true, run: () => redo() },
+  { codes: ["KeyX"], ctrl: true, preventDefault: true, run: () => copySelection(true) },
+  { codes: ["KeyC"], ctrl: true, preventDefault: true, run: () => copySelection(false) },
+  { codes: ["KeyV"], ctrl: true, preventDefault: true, run: () => startPaste() },
+  { codes: ["KeyS"], ctrl: true, preventDefault: true, run: () => runAct("save") },
+  { codes: ["KeyP"], ctrl: true, preventDefault: true, run: () => runAct("cmdpal") }, // Ctrl+Shift+P too (shift: don't care)
+  { ctrl: true, run() {} }, // barrier: unmatched Ctrl chords never fall through
+  // Application shortcuts — global (any mode). F1/F5 override the browser's Help/Reload.
+  { codes: ["F1"], preventDefault: true, run: () => runAct("db") },
+  { codes: ["F2"], preventDefault: true, run: () => runAct("hdpreview") },
+  { codes: ["F3"], preventDefault: true, run: () => runAct("worldview") },
+  { codes: ["F4"], preventDefault: true, run: () => runAct("panel-advanced") },
+  { codes: ["F5"], preventDefault: true, run: () => runAct("play") },
+  { codes: ["F6"], preventDefault: true, run: () => runAct("focus-next-panel") },
+  // Advanced editor brush transforms (Stage E). Guarded on Advanced-panel focus
+  // so X/Y/R keep their Standard-editor meanings (cut chord / shadow / circle)
+  // everywhere else. Must precede the Map-mode KeyY/KeyR tool bindings below;
+  // when the Advanced panel is focused S.mode is irrelevant, and when it isn't
+  // these `when`s fail and the later bindings run as before.
+  { codes: ["KeyX"], ctrl: false, when: () => advFocus.isFocused(), preventDefault: true, run: () => runAct("adv-flip-h") },
+  { codes: ["KeyY"], ctrl: false, when: () => advFocus.isFocused(), preventDefault: true, run: () => runAct("adv-flip-v") },
+  { codes: ["KeyR"], ctrl: false, when: () => advFocus.isFocused(), preventDefault: true, run: () => runAct("adv-rotate") },
+  // Height mode consumes ALL digits for the painted elevation (0–9). Must stay above the layer gate.
+  // Numpad digits count too (matched by physical code, like the Numpad0/NumpadAdd
+  // zoom keys below — NumLock doesn't matter); both code families end in the digit.
+  { codes: ["Digit0", "Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9",
+            "Numpad0", "Numpad1", "Numpad2", "Numpad3", "Numpad4", "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9"],
+    when: () => S.mode === "height",
+    run(e) { S.heightVal = Number(e.code.slice(-1)); setStatus(); } },
+  // Region mode (Phase 5): digits set the painted id; -/= step it up to 63.
+  { codes: ["Digit0", "Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9",
+            "Numpad0", "Numpad1", "Numpad2", "Numpad3", "Numpad4", "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9"],
+    when: () => S.mode === "region",
+    run(e) { S.regionVal = Number(e.code.slice(-1)); setStatus(); } },
+  { codes: ["Minus"], when: () => S.mode === "region",
+    run() { S.regionVal = Math.max(0, S.regionVal - 1); setStatus(); } },
+  { codes: ["Equal"], when: () => S.mode === "region",
+    run() { S.regionVal = Math.min(63, S.regionVal + 1); setStatus(); } },
+  // Tools (Map or Height mode)
+  { codes: ["KeyQ"], when: mapOrHeight, run: () => setTool("pen") },
+  { codes: ["KeyW"], when: mapOrHeight, run: () => setTool("erase") },
+  { codes: ["KeyE"], when: mapOrHeight, run: () => setTool("rect") },
+  { codes: ["KeyR"], when: mapOrHeight, run: () => setTool("circle") },
+  { codes: ["KeyT"], when: mapOrHeight, run: () => setTool("fill") },
+  { codes: ["KeyY"], when: mapOrHeight, run: () => setTool("shadow") },
+  // Layers (Map mode)
+  { codes: ["Backquote"], when: mapMode, run: () => setLayer("auto") },
+  { codes: ["Digit1"], when: mapMode, run: () => setLayer("ground") },
+  { codes: ["Digit2"], when: mapMode, run: () => setLayer("decor") },
+  { codes: ["Digit3"], when: mapMode, run: () => setLayer("decor2") },
+  { codes: ["Digit4"], when: mapMode, run: () => setLayer("over") },
+  // View / selection
+  { codes: ["Equal", "NumpadAdd"], run: () => zoomStep(1) },
+  { codes: ["Minus", "NumpadSubtract"], run: () => zoomStep(-1) },
+  { codes: ["Digit0", "Numpad0"], run: () => setZoom(1) }, // reset to 100% (height/region modes consume both 0 keys above)
+  { codes: ["BracketLeft"], when: mapMode, run: () => stepBrush(-1) },
+  { codes: ["BracketRight"], when: mapMode, run: () => stepBrush(1) },
+  { codes: ["Delete", "Backspace"], when: () => S.mode === "event", run: () => deleteSelectedEvent() },
+];
+
+export function rebuildAll() {
+  if (!RA.byId(S.proj.maps, S.curMapId)) S.curMapId = S.proj.maps[0].id;
+  rebuildMapList();
+  renderPalette();
+  // Decode this project's autotile sheets, then repaint once they're ready so
+  // saved/imported groups render their blobs (import registers synchronously,
+  // but a freshly loaded project decodes off-thread).
+  syncAutotileRegistry(S.proj, () => { renderMap(); renderAutotileBar(); });
+  renderAutotileBar();
+  renderMap();
+  refreshToolbar();
+  setStatus();
+}
+
+// Boot the editor on an already-resolved project. Project Harbor H2 splits this
+// out of boot() so the Project Manager can hand the editor whichever game the
+// child chose (created/opened from a folder); boot() keeps the classic
+// localStorage-or-default source for the browser build and the no-manager path.
+export async function bootWithProject(project: any) {
+  S.proj = project;
+  // The device asset library must publish its catalog before external-asset
+  // discovery runs (Phase 6); a failed store degrades to shipped-only inside
+  // initAssetLibrary. Pre-strip autosaves never carry embedded assets, but a
+  // file restored by other means might — intake them like a file open.
+  //
+  // Project Harbor H4·A: with a folder game open (desktop, or the ?fakehost hook),
+  // the asset library lives INSIDE the project (assets/ in place + .atlas/) via the
+  // per-project store. openFolderRoot() is bound by the manager before boot; it is
+  // null on the pure browser build, so that path stays the IndexedDB store, unchanged.
+  const folderRoot = openFolderRoot();
+  const store = folderRoot
+    ? new ProjectAssetStore(folderRoot, activeManagerHost())
+    : await createDefaultAssetStore();
+  await initAssetLibrary(store);
+  await consumeEmbeddedAssets(S.proj);
+  // One-time legacy bridge: pull any used-but-still-global assets into this project's
+  // folder so it is self-contained (idempotent; a hiccup never blocks the boot).
+  let migratedAssetCount = 0;
+  if (folderRoot) {
+    try {
+      migratedAssetCount = await migrateGlobalLibraryAssets(S.proj);
+    } catch (e) {
+      console.warn("Legacy asset migration skipped:", e);
+    }
+  }
+  Assets.registerCustomChars(S.proj.customChars);
+  await Assets.loadIconSet(S.proj.assets.icons);
+  // External images (shipped img/ + the device library) bind in the background
+  // and repaint when ready — the library can hold thousands of sliced tiles,
+  // and awaiting every decode here left the whole window dead until it
+  // finished (field report: a 7.7k-tile library never got past a blank shell).
+  // Until the bind lands, imported tiles render empty, exactly like autotile
+  // sheets that are still decoding.
+  const externalAssetsReady = Assets.loadExternalAssets(S.proj)
+    .then(() => { rebuildAll(); saveNow(); })
+    .catch((e: any) => console.warn("External assets failed to bind:", e));
+  void externalAssetsReady;
+  S.mapCanvas = $("mapcanvas");
+  S.mapCtx = S.mapCanvas.getContext("2d");
+  S.palCanvas = $("palette");
+
+  editorI18n.localizeStatic();
+  applyEditorFontScale(); // device UI-font-size setting (Phase 7 Stage B)
+  // Build the dockable workspace (registers the View-menu commands the menubar
+  // references) before the menubar/toolbar are built.
+  initDockWorkspace();
+  buildMenubar();
+  buildToolbar();
+  initAutotileUI();
+  initRmImport(); // wire the RPG Maker MZ/MV import pickers (Project Compass M1·D)
+
+  // palette
+  S.palCanvas.addEventListener("mousedown", (e: any) => {
+    const r = S.palCanvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / TILE), y = Math.floor((e.clientY - r.top) / TILE);
+    const id = y * Assets.paletteCols() + x;
+    if (id >= 0 && Assets.tiles[id]) { S.selectedTile = id; renderPalette(); renderAutotileBar(); setStatus(); }
+  });
+  S.palCanvas.addEventListener("mousemove", (e: any) => {
+    const r = S.palCanvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / TILE), y = Math.floor((e.clientY - r.top) / TILE);
+    const id = y * Assets.paletteCols() + x;
+    S.palCanvas.title = Assets.tiles[id] ? Assets.tiles[id].name : "";
+  });
+
+  // map canvas
+  S.mapCanvas.addEventListener("mousedown", onCanvasDown);
+  S.mapCanvas.addEventListener("mousemove", onCanvasMove);
+  window.addEventListener("mouseup", onCanvasUp);
+  S.mapCanvas.addEventListener("dblclick", onCanvasDbl);
+  S.mapCanvas.addEventListener("contextmenu", (e: any) => {
+    e.preventDefault();
+    if (S.suppressNextCtxMenu) { S.suppressNextCtxMenu = false; return; }
+    if (S.mode === "event") openCanvasMenu(e);
+  });
+  S.mapCanvas.addEventListener("mouseleave", () => { S.hoverCell = null; S.hoverQuad = 0; renderMap(); });
+
+  // ctrl+wheel zooms around the cursor
+  $("mapscroll").addEventListener("wheel", (e: any) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const r = $("mapscroll").getBoundingClientRect();
+    zoomStep(e.deltaY < 0 ? 1 : -1, { x: e.clientX - r.left, y: e.clientY - r.top });
+  }, { passive: false });
+
+  $("import-file").addEventListener("change", (e: any) => {
+    if (e.target.files[0]) importProject(e.target.files[0]);
+    e.target.value = "";
+  });
+  $("map-add").addEventListener("click", addMap);
+  $("map-del").addEventListener("click", deleteMap);
+  $("map-gen").addEventListener("click", openMapGenProps);
+  $("map-samples").addEventListener("click", openSampleMapsBrowser);
+
+  document.addEventListener("keydown", (e: any) => {
+    if (modalRoot().children.length) {
+      // Unified undo (Stage F): Ctrl+Z / Ctrl+Y reach the shared history while
+      // a scoped dialog (Database, Map Properties) is open — except when the
+      // caret is in a text field, where the browser's native text undo wins.
+      if (activeEditScope() && (e.ctrlKey || e.metaKey) && !e.altKey &&
+          (e.code === "KeyZ" || e.code === "KeyY")) {
+        const el = e.target;
+        const textish = el.tagName === "TEXTAREA" || el.isContentEditable ||
+          (el.tagName === "INPUT" && !/^(checkbox|radio|range|color|button|file)$/.test(el.type));
+        if (!textish) {
+          e.preventDefault();
+          if (e.code === "KeyZ") undo(); else redo();
+        }
+      }
+      return;
+    }
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+    dispatchKey(EDITOR_KEYS, e);
+  });
+
+  setTool("pen");
+  setLayer("auto");
+  setMode("map");
+  rebuildAll();
+  saveNow();
+  // The save indicator ships hidden (index.html) and is revealed only here, at
+  // the true end of boot — its visibility is the "editor is interactive" signal
+  // the e2e suite gates on before sending keystrokes. Gating on static markup
+  // raced this function: a Ctrl+P could land before the keydown listener above
+  // was installed and silently vanish (flaked the tile-slicer spec under load).
+  $("save-ind").hidden = false;
+  // Record that the editor is now interactive (Project Harbor H2·C uses this to
+  // decide whether File ▸ New/Open reboots via the manager or boots in place).
+  markEditorBooted();
+  // Project Harbor H4·A: if the legacy bridge copied global-library assets into this
+  // project's folder, tell the child in plain language (after the gate, never before).
+  showLegacyMigrationNotice(migratedAssetCount);
+  // Project Harbor H4·B: discover anything already sitting in assets/ (files copied in
+  // while the game was closed), then keep watching on window focus. Inert on the browser
+  // build (no folder game); fire-and-forget so a slicer prompt never blocks boot.
+  installProjectScanFocus();
+  if (folderRoot) {
+    // H4·C: re-create the assets/ README if the child deleted it (best-effort).
+    void activeManagerHost().ensureAssetsReadme(folderRoot).catch(() => {});
+    void runProjectScan();
+  }
+  // Boot-to-interactive mark (Phase 7 Stage A): read by the load-time budget
+  // e2e; performance.now() is relative to navigation start.
+  (window as any).RPGATLAS_BOOT_MS = performance.now();
+}
+
+// The classic boot source: the stored project (localStorage) or the bundled
+// default. `loadStored()` already runs RA.migrateProject; the fresh-project
+// fallback must too, so a brand-new game gets the same additive backfill (Types
+// lists, and the Beacon MP7 `system.multiplayer` block) — migrateProject is the
+// one boundary every entry path runs.
+async function boot() {
+  await bootWithProject(loadStored() || RA.migrateProject(DataDefaults.newProject()));
+}
+
+// Boot on a manager-chosen project, routing a failure through the same
+// recovery overlay the classic path uses.
+export function runBootWith(project: any): void {
+  bootWithProject(project).catch(showBootFailure);
+}
+
+// The "new" action (workspace.ts) and project import (persistence.ts) rebuild
+// everything; register our impl in the one remaining editorHooks slot.
+editorHooks.rebuildAll = rebuildAll;
+
+// A crash during boot (e.g. a corrupt saved project that slips past
+// migrateProject's normalization) must not leave a blank, unrecoverable shell —
+// surface the error and offer a reset instead of bricking "until restored".
+function showBootFailure(e: any): void {
+  console.error("RPGAtlas editor failed to start:", e);
+  try {
+    const ov = document.createElement("div");
+    ov.style.cssText = "position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#1a1a1f;color:#eee;font:14px/1.5 system-ui,sans-serif;padding:24px;box-sizing:border-box";
+    const box = document.createElement("div");
+    box.style.cssText = "max-width:520px;text-align:center";
+    const msg = e && e.message ? String(e.message) : String(e);
+    box.innerHTML =
+      '<h2 style="margin:0 0 8px;font-size:18px">The editor couldn’t start</h2>' +
+      '<p style="margin:0 0 16px;opacity:.8">Something went wrong while loading your project. Reload to try again, or reset the saved project if it’s damaged.</p>' +
+      '<pre style="text-align:left;white-space:pre-wrap;background:#0006;padding:8px;border-radius:6px;max-height:30vh;overflow:auto;font-size:12px;opacity:.7"></pre>' +
+      '<div style="margin-top:16px;display:flex;gap:8px;justify-content:center">' +
+      '<button id="boot-reload" style="padding:8px 14px">Reload</button>' +
+      '<button id="boot-reset" style="padding:8px 14px">Reset saved project &amp; reload</button>' +
+      "</div>";
+    (box.querySelector("pre") as HTMLElement).textContent = msg;
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+    (box.querySelector("#boot-reload") as HTMLElement).onclick = () => location.reload();
+    (box.querySelector("#boot-reset") as HTMLElement).onclick = () => {
+      try { localStorage.removeItem("rpgatlas_project"); localStorage.removeItem("driftwood_project"); } catch { /* storage may be unavailable */ }
+      location.reload();
+    };
+  } catch (overlayErr) {
+    console.error("Boot-failure overlay failed:", overlayErr);
+    alert("The editor couldn't start. Reload; if that fails, clear this site's data to reset the project.");
+  }
+}
+
+function runBoot(): void { boot().catch(showBootFailure); }
+
+// Project Harbor H2: the entry decision. On desktop (or under the ?fakehost test
+// hook) show the Project Manager first and boot the editor only once a game is
+// chosen; everywhere else boot straight into the editor exactly as before. The
+// manager (and the ~187 KB Atlas Quest template it bundles) load through a
+// dynamic import, so the pure browser build never fetches that chunk.
+async function start(): Promise<void> {
+  if (hasFakeHostParam()) {
+    const { installFakeHost } = await import("./project-manager/test-host");
+    installFakeHost();
+  }
+  if (managerActive()) {
+    const { launchManager } = await import("./project-manager/manager");
+    await launchManager();
+  } else {
+    runBoot();
+  }
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", () => { void start(); }, { once: true });
+} else {
+  void start();
+}

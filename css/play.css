@@ -1,0 +1,682 @@
+/* RPGAtlas — play.css — GPL-3.0-or-later (see LICENSE) */
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; background: #0a0b10; overflow: hidden; }
+body { font: 15px/1.5 "Segoe UI", system-ui, sans-serif; color: #f0f2f8; }
+
+#stage {
+  position: absolute; left: 50%; top: 50%;
+  width: 816px; height: 624px; /* resized at boot from system.screenWidth/Height */
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  background: #101018;
+  box-shadow: 0 0 60px rgba(0,0,0,0.8);
+  /* presentation settings from the Database System tab (set by engine.js) */
+  --font-text: "Segoe UI", system-ui, sans-serif;
+  --font-menu: "Segoe UI", system-ui, sans-serif;
+  --font-size: 15px;
+  --win-op: 0.93;
+  --win-top-rgb: 18, 24, 46;
+  --win-bottom-rgb: 11, 14, 28;
+  --win-name-top-rgb: 28, 37, 71;
+  --win-name-bottom-rgb: 14, 19, 36;
+  --ui-border: #c8d4f0;
+  --ui-text: #f0f2f8;
+  --ui-accent: #ffd86a;
+  --ui-muted: #9adcff;
+  font-family: var(--font-text);
+  /* --ui-scale: the player's Text Size option (Phase 7) over the author size */
+  font-size: calc(var(--font-size) * var(--ui-scale, 1));
+}
+#glcanvas { position: absolute; inset: 0; z-index: 0; image-rendering: pixelated; }
+#gamecanvas { position: absolute; inset: 0; z-index: 1; image-rendering: pixelated; }
+/* map-side battle-animation layer (Phase 5 playAnim): over the canvas, under the UI */
+.map-fx { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
+.uilayer { position: absolute; inset: 0; pointer-events: none; }
+.uilayer > * { pointer-events: auto; }
+.fader {
+  position: absolute; inset: 0; background: #000; pointer-events: none;
+  transition: opacity 0.25s linear; z-index: 90;
+}
+.errbox {
+  position: absolute; left: 8px; top: 8px; z-index: 99; max-width: 90%;
+  background: rgba(120,20,20,0.92); border: 1px solid #f88; border-radius: 6px;
+  padding: 8px 12px; font-size: 13px;
+}
+/* Perf overlay (?perf=1 / F3 — Phase 7) */
+.perf-hud {
+  position: absolute; left: 6px; top: 6px; z-index: 98; pointer-events: none;
+  background: rgba(8,10,18,0.78); border: 1px solid rgba(140,150,190,0.35);
+  border-radius: 5px; padding: 5px 8px; white-space: pre; text-align: left;
+  font: 11px/1.5 Consolas, "Cascadia Mono", monospace; color: #9adcff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- windows ---------- */
+.win {
+  position: absolute;
+  background: linear-gradient(180deg, rgba(var(--win-top-rgb),var(--win-op,0.93)), rgba(var(--win-bottom-rgb),var(--win-op,0.93)));
+  border: 2px solid var(--ui-border, #c8d4f0); border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.55), inset 0 0 18px rgba(90,120,200,0.12);
+  padding: 10px 14px;
+  z-index: 20;
+  font-family: var(--font-menu, inherit);
+  color: var(--ui-text, #f0f2f8);
+  user-select: none; -webkit-user-select: none; /* fast clicks shouldn't drag-select menu text */
+}
+.win-title {
+  font-weight: 700; color: #aeccf0; font-size: 14px;
+  margin-bottom: 8px; padding-bottom: 7px;
+  border-bottom: 1px solid rgba(170,190,240,0.18); /* header rule — separates title from the list */
+}
+.listwin .win-title { text-align: center; }   /* menu titles are centered over their list */
+.win-help { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(170,190,240,0.25); font-size: 12px; color: #b8c2dc; min-height: 16px; }
+
+.menu-list { list-style: none; margin: 0; padding: 0; max-height: 380px; overflow-y: auto; }
+.menu-list li {
+  padding: 5px 12px; border-radius: 6px; cursor: default; white-space: nowrap;
+  min-height: 36px;
+}
+.menu-list li.sel { background: rgba(90,130,220,0.45); outline: 1px solid #9ab8f0; outline-offset: -1px; }
+.menu-list li.disabled { color: #6a7088; }
+.menu-list .cnt { color: #9ab0d8; font-size: 12px; margin-left: 8px; }
+.icon-sprite {
+  display: inline-block; width: 32px; height: 32px; flex: 0 0 32px;
+  background-image: var(--icon-set-url); background-position: var(--icon-x) var(--icon-y);
+  background-repeat: no-repeat; image-rendering: pixelated; vertical-align: middle;
+}
+.menu-icon { transform: scale(0.72); margin: -4px 4px -4px -4px; }
+
+/* default list position: center */
+.listwin { left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 230px; max-width: 88%; }
+
+/* ---------- message window ---------- */
+.msgwin {
+  left: 12px; right: 12px; bottom: 12px; height: 152px;
+}
+.msg-name {
+  position: absolute; top: -30px; left: 10px;
+  background: linear-gradient(180deg, rgba(var(--win-name-top-rgb),var(--win-op,0.95)), rgba(var(--win-name-bottom-rgb),var(--win-op,0.95)));
+  border: 2px solid var(--ui-border, #c8d4f0); border-radius: 8px; padding: 2px 14px;
+  font-weight: 700; color: var(--ui-accent, #ffd86a); font-size: 14px;
+}
+.msg-text { white-space: pre-wrap; font-family: var(--font-text, inherit); font-size: calc(var(--font-size, 15px) + 2px); }
+.msgwin.has-face .msg-text { margin-left: 110px; }
+.msg-face {
+  position: absolute; left: 14px; top: 14px; width: 94px; height: 94px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  border: 1px solid rgba(200,212,240,0.55); border-radius: 8px;
+  background: rgba(5,8,18,0.42);
+}
+.msg-face canvas {
+  width: 94px; height: 94px; image-rendering: pixelated;
+}
+.msg-icon {
+  transform: scale(0.75); margin: -7px -2px -7px -4px;
+  vertical-align: middle;
+}
+/* Procedural input-prompt glyph (\input[...]). Has class "msg-icon" so the typewriter reveals it
+   as one char; these rules (defined after .msg-icon) size it to the running text instead. */
+.input-glyph {
+  display: inline-block; height: 1.3em; width: auto;
+  transform: none; margin: 0 2px; vertical-align: -0.28em;
+  image-rendering: auto;
+}
+.msgwin.msg-done::after {
+  content: "▼"; position: absolute; bottom: 4px; left: 50%;
+  color: #c8d4f0; font-size: 12px; animation: bob 0.8s infinite;
+}
+@keyframes bob { 50% { transform: translateY(3px); } }
+
+.choicewin { left: auto; right: 16px; top: auto; bottom: 176px; transform: none; min-width: 180px; }
+
+/* ---------- message backdrop + position options (Project Compass M2·B) ---------- */
+.msgwin.msg-top { top: 12px; bottom: auto; }
+.msgwin.msg-mid { top: 50%; bottom: auto; transform: translateY(-50%); }
+.msgwin.msg-custom-layout { min-width: 0; max-width: none; }
+.msgwin.msg-dim {
+  background: linear-gradient(180deg, rgba(6,10,20,0.74), rgba(6,10,20,0.34) 72%, rgba(6,10,20,0));
+  border-color: transparent; box-shadow: none;
+}
+.msgwin.msg-transparent { background: none; border-color: transparent; box-shadow: none; }
+.msg-gold { color: #ffd86a; font-weight: 700; }
+/* Zero-width pacing/flow markers (\. \| \! \> \< \^) — read by the typewriter, never shown. */
+.msg-ctl { display: none; }
+
+/* ---------- Input Number scene (M2·B) ---------- */
+.numinputwin { left: 50%; top: 44%; transform: translate(-50%, -50%); min-width: 240px; text-align: center; }
+.numrow { display: flex; gap: 8px; justify-content: center; margin: 12px 0 4px; }
+.numcell {
+  width: 40px; height: 54px; line-height: 54px; font-size: 30px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: #eaf0ff;
+  background: rgba(10,16,32,0.6); border: 2px solid rgba(170,190,240,0.35); border-radius: 8px;
+}
+.numcell.sel { border-color: #9ab8f0; background: rgba(90,130,220,0.4); box-shadow: 0 0 10px rgba(120,160,240,0.5); }
+
+/* ---------- Name Input scene (M2·B) ---------- */
+.nameinputwin { left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 360px; text-align: center; }
+.name-field {
+  font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #ffe8a8;
+  min-height: 30px; margin: 6px 0 12px; padding: 6px 10px;
+  background: rgba(10,16,32,0.55); border-radius: 8px;
+}
+.name-grid { display: inline-flex; flex-direction: column; gap: 5px; }
+.name-row { display: flex; gap: 5px; justify-content: center; }
+.name-row.name-ctrl { margin-top: 8px; }
+.name-key {
+  width: 30px; height: 30px; line-height: 30px; border-radius: 6px;
+  color: #dbe4ff; background: rgba(20,28,52,0.55);
+}
+.name-key.wide { width: auto; padding: 0 14px; }
+.name-key.sel { background: rgba(90,130,220,0.55); outline: 1px solid #9ab8f0; color: #fff; }
+
+/* ---------- options / controls (centered, inherits .listwin positioning) ---------- */
+.optionswin { min-width: 320px; }                /* shared layout class — also Controls + pick-an-action */
+.optionswin-wide { min-width: 420px; }           /* Options root only: room for the slider value column */
+.optionswin .menu-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 28px;
+}
+.optionswin .menu-list li .bind {
+  color: #b8c6e6; opacity: 0.85;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+/* adjustable value rows (volume sliders + cyclers): label left, value column right,
+   all rows share the same value-column width so sliders and words line up. */
+.optionswin .menu-list li .opt-label { flex: 1 1 auto; }
+.optionswin .menu-list li .opt-value {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 10px;
+  color: #cfe0ff; font-variant-numeric: tabular-nums;
+}
+.opt-value .opt-arrow { color: #8fb0ee; opacity: 0.45; font-size: 12px; }
+.menu-list li.sel .opt-value .opt-arrow { opacity: 1; color: #cfe0ff; }
+/* Fixed (not min-) width so every ◄/► lines up vertically across sliders and word-rows. */
+.opt-value .opt-cur {
+  width: 200px; text-align: center; letter-spacing: 1px; font-size: 13px;
+}
+.opt-value .opt-bar { color: #cfe0ff; }
+.opt-value .opt-pct {
+  display: inline-block; min-width: 42px; margin-left: 8px;
+  text-align: right; letter-spacing: 0;
+}
+/* Navigation rows (Controls / Back: "go somewhere") are centered, in any window class. */
+.menu-list li.navrow { display: flex; align-items: center; justify-content: center; }
+/* Clean visual break above a "Back"/return row. The line is drawn in the margin gap via ::before
+   (not as a border on the row's own box) so the row's highlight stays a clean rounded rect — no
+   thin line fused to the top/bottom of the button when it's selected. */
+.menu-list li.sep { margin-top: 16px; position: relative; }
+.menu-list li.sep::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -8px;
+  border-top: 1px solid rgba(170,190,240,0.18);
+}
+.cap-prompt { text-align: center; min-width: 280px; }
+/* The capture prompt's title already carries the header rule, so its hint line drops its own
+   top border (other menus keep the help-bar separator). */
+.cap-prompt .win-help { border-top: none; padding-top: 0; }
+
+/* In-menu rebinder glyphs (Options ▸ Controls): same procedural icons as the editor grid,
+   a touch larger than running-text and vertically centered in the list rows. */
+.menu-list li .input-glyph { vertical-align: middle; }
+.bind-icon { height: 1.45em; vertical-align: middle; margin: 0 1px; }
+.bind-none { color: #7f88a6; opacity: 0.7; }
+.bind-name { margin-left: 6px; vertical-align: middle; }
+
+/* ---------- main menu ---------- */
+.mainmenu { left: auto; right: 14px; top: 14px; transform: none; min-width: 160px; }
+.menupanel { left: 14px; top: 14px; width: 430px; z-index: 15; }
+.menu-party .arow { display: flex; gap: 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(170,190,240,0.15); }
+.arow .aface canvas { image-rendering: pixelated; border-radius: 6px; background: rgba(40,60,110,0.4); }
+.arow .ainfo { font-size: 13px; flex: 1; }
+.arow .lv { color: #ffd86a; }
+.menu-gold { text-align: right; color: #ffd86a; font-weight: 700; margin-top: 6px; }
+.bar {
+  display: inline-block; width: 110px; height: 8px; vertical-align: middle;
+  background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; margin-left: 4px;
+}
+.bar-fill { display: block; height: 100%; border-radius: 4px; }
+
+.partywin, .itemwin, .savewin, .shopwin, .statuswin { min-width: 340px; }
+.statuswin .stats { margin: 8px 0; border-collapse: collapse; }
+.statuswin .stats td { padding: 1px 14px 1px 0; color: #d8e0f4; }
+.statuswin li { white-space: normal; }
+
+.journalwin {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 760px;
+  height: 560px;
+  max-width: 760px;
+  max-height: 560px;
+  min-width: 760px;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.journal-body {
+  display: flex;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.journal-left {
+  flex: 0 0 240px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid rgba(170,190,240,0.18);
+  padding-right: 12px;
+  overflow: hidden;
+}
+.journal-right {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.journal-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(170,190,240,0.18);
+  flex: 0 0 auto;
+}
+.journal-filter {
+  flex: 1 1 0;
+  border: 1px solid rgba(170,190,240,0.35);
+  background: rgba(18,24,46,0.65);
+  color: #d8e0f4;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+}
+.journal-filter.sel {
+  background: rgba(70,100,180,0.35);
+}
+.journal-filter.focus {
+  outline: 1px solid #9ab8f0;
+}
+.journal-list-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.journal-list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding-right: 4px;
+}
+.journal-empty,
+.journal-empty-detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  text-align: center;
+  color: #b8c2dc;
+}
+.journal-entry {
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.02);
+}
+.journal-entry.sel {
+  background: rgba(90,130,220,0.25);
+}
+.journal-entry.focus {
+  outline: 1px solid #9ab8f0;
+}
+.journal-entry-title {
+  font-weight: 700;
+  color: #f0f2f8;
+}
+.journal-entry-short {
+  margin-top: 3px;
+  color: #b8c2dc;
+  font-size: 13px;
+  white-space: normal;
+}
+.journal-detail-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.modal-btns {
+  padding-top: 10px;
+  border-top: 1px solid rgba(170,190,240,0.18);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+.journalwin .modal-btns button {
+  border: 1px solid rgba(170,190,240,0.35);
+  background: rgba(18,24,46,0.65);
+  color: #d8e0f4;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.journalwin .modal-btns button:hover,
+.journalwin .modal-btns button:focus {
+  background: rgba(70,100,180,0.35);
+  outline: 1px solid #9ab8f0;
+}
+.journal-detail-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f0f2f8;
+  margin-bottom: 8px;
+}
+.journal-detail-short {
+  color: #ffd86a;
+  margin-bottom: 12px;
+}
+.journal-detail-body {
+  color: #d8e0f4;
+  margin-bottom: 14px;
+  white-space: normal;
+}
+.journal-detail-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.journal-objective {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #d8e0f4;
+}
+.journal-objective.done {
+  color: #9aa6c4;
+}
+.journal-bullet {
+  width: 14px;
+  flex: 0 0 14px;
+}
+.journal-obj-text {
+  flex: 1;
+}
+.journal-obj-count {
+  color: #9ab0d8;
+  font-size: 12px;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.journal-detail-fail {
+  margin-top: 16px;
+}
+
+/* ---------- title ---------- */
+/* Scrolling text (Project Compass M2·A): a full-screen credits-style crawl.
+   The inner block's translateY is animated by presentation-runtime. */
+.scrolltextwin {
+  position: absolute; inset: 0; z-index: 12; overflow: hidden;
+  background: rgba(6, 8, 16, 0.82); pointer-events: auto;
+}
+.scrolltext-inner {
+  position: absolute; left: 0; right: 0; margin: 0 auto; width: min(80%, 640px);
+  text-align: center; color: #fff; font-size: 22px; line-height: 1.6;
+  white-space: pre-wrap; text-shadow: 0 2px 6px rgba(0,0,0,0.8); will-change: transform;
+}
+.titlewin { position: absolute; top: 70px; left: 0; right: 0; text-align: center; z-index: 10; pointer-events: none; }
+.title-name {
+  font-size: 52px; font-weight: 800; letter-spacing: 2px; color: #fff;
+  text-shadow: 0 4px 0 #1a2c50, 0 8px 24px rgba(0,0,0,0.8);
+}
+.title-sub { color: #f0d8a0; margin-top: 6px; font-style: italic; letter-spacing: 1px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+.titlemenu { top: 62%; min-width: 220px; text-align: center; }
+
+/* ---------- battle ---------- */
+.battlewin { position: absolute; inset: 0; z-index: 18; display: flex; flex-direction: column; background: linear-gradient(180deg, rgba(8,10,22,0.55), rgba(8,10,22,0.8)); }
+/* Battle backgrounds (Project Compass M4·A): the engine sets background-image
+   inline (back2 over back1); this rule sizes them and keeps a dark base so a
+   half-transparent battleback still reads. */
+.battlewin.hasbb { background-size: cover; background-position: center; background-color: #080a16; }
+.battle-fx { position: absolute; inset: 0; z-index: 7; overflow: hidden; pointer-events: none; }
+.battle-field, .battle-enemies, .battle-actors { position: relative; z-index: 4; }
+.battle-log, .battle-party { position: relative; z-index: 9; }
+.battlewin.shake { animation: shake 0.3s; }
+@keyframes shake {
+  20% { transform: translateX(-6px); } 40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); } 80% { transform: translateX(2px); }
+}
+.battle-enemies {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 28px; padding-top: 20px;
+}
+.enemy-spr { position: relative; text-align: center; transition: opacity 0.4s, transform 0.4s; }
+.enemy-spr canvas {
+  image-rendering: pixelated; filter: drop-shadow(0 6px 6px rgba(0,0,0,0.5));
+  transform-origin: 50% 88%; animation: enemy-breathe 2.1s ease-in-out infinite;
+}
+.enemy-slime canvas, .enemy-shroom canvas { animation-name: enemy-squish; animation-duration: 1.65s; }
+.enemy-bat canvas, .enemy-wasp canvas, .enemy-imp canvas { animation-name: enemy-hover; animation-duration: 1.25s; }
+.enemy-ghost canvas, .enemy-crystal canvas { animation-name: enemy-float; animation-duration: 2.4s; }
+.enemy-wolf canvas, .enemy-serpent canvas { animation-name: enemy-prowl; animation-duration: 1.8s; }
+@keyframes enemy-breathe { 50% { transform: scaleY(1.025) scaleX(.99); } }
+@keyframes enemy-squish {
+  0%, 100% { transform: translateY(2px) scale(1.02,.96); }
+  50% { transform: translateY(-3px) scale(.97,1.04); }
+}
+@keyframes enemy-hover {
+  0%, 100% { transform: translateY(3px) rotate(-1deg); }
+  50% { transform: translateY(-7px) rotate(1deg); }
+}
+@keyframes enemy-float {
+  0%, 100% { transform: translateY(4px); filter: drop-shadow(0 6px 6px rgba(0,0,0,.5)) brightness(.96); }
+  50% { transform: translateY(-6px); filter: drop-shadow(0 11px 8px rgba(0,0,0,.35)) brightness(1.08); }
+}
+@keyframes enemy-prowl {
+  0%, 100% { transform: translateX(-2px) rotate(-.6deg); }
+  50% { transform: translateX(3px) rotate(.6deg); }
+}
+.enemy-spr.dead { opacity: 0; transform: translateY(20px); }
+/* Project Compass M3·C: hidden troop members (appear mid-battle) & escapees */
+.enemy-spr.hiddenmem { display: none; }
+.enemy-spr.fled { opacity: 0.12; filter: grayscale(1); }
+.enemy-spr.flash canvas { animation: eflash 0.35s; }
+@keyframes eflash {
+  0%, 60% { filter: brightness(3) drop-shadow(0 6px 6px rgba(0,0,0,0.5)); }
+  30% { filter: brightness(0.4); }
+}
+.enemy-name { font-size: 12px; color: #d8e0f4; text-shadow: 0 1px 3px #000; }
+.battle-log {
+  margin: 0 12px; min-height: 34px; padding: 5px 14px; font-size: 15px;
+  background: rgba(var(--win-bottom-rgb),calc(var(--win-op,0.93) * 0.92)); border: 2px solid #c8d4f0; border-radius: 8px;
+}
+.battle-party { margin: 8px 12px 12px; padding: 6px 14px; background: rgba(var(--win-bottom-rgb),calc(var(--win-op,0.93) * 0.95)); border: 2px solid #c8d4f0; border-radius: 8px; }
+.brow { padding: 2px 0; font-size: 14px; }
+.brow b { display: inline-block; min-width: 90px; }
+.brow.dead { color: #c06a6a; }
+.cmdwin { left: 16px; top: auto; bottom: 150px; transform: none; min-width: 170px; }
+.targetwin { left: 50%; top: 38%; }
+
+/* states (poison / stun / regen) */
+.state-tag {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  border: 1px solid currentColor; border-radius: 8px;
+  font-size: 11px; font-weight: 700; text-shadow: 0 1px 2px #000;
+  background: rgba(0,0,0,0.45); vertical-align: middle;
+}
+.battler-states { min-height: 16px; margin-top: 2px; text-align: center; }
+
+/* ---------- side-view battle ---------- */
+.battlewin.side .battle-field { flex: 1; display: flex; align-items: stretch; }
+.battlewin.side .battle-enemies {
+  flex: 1; justify-content: flex-start; gap: 18px;
+  padding: 20px 0 0 36px; align-items: center;
+}
+.battle-actors {
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 6px; padding: 16px 40px 0 0;
+}
+.actor-spr { position: relative; text-align: center; transition: opacity 0.4s, filter 0.4s, transform 0.25s; }
+.actor-spr canvas {
+  width: 72px; height: 72px; image-rendering: pixelated;
+  filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5));
+  animation: abob 1.7s ease-in-out infinite;
+}
+@keyframes abob { 50% { transform: translateY(-3px); } }
+.actor-name { font-size: 12px; color: #d8e0f4; text-shadow: 0 1px 3px #000; margin-top: -4px; }
+.actor-spr.acting { transform: translateX(-26px); }
+.actor-spr.hurt canvas { animation: ahurt 0.4s; }
+@keyframes ahurt {
+  0%, 60% { filter: brightness(3) sepia(1) saturate(4) hue-rotate(-50deg); }
+  30% { filter: brightness(0.4); }
+  20% { transform: translateX(6px); } 50% { transform: translateX(-5px); }
+}
+.actor-spr.dead { opacity: 0.45; filter: grayscale(1); }
+.actor-spr.dead canvas { animation: none; transform: rotate(90deg); }
+.battlewin.side .enemy-spr { transition: opacity 0.4s, transform 0.25s; }
+.battlewin.side .enemy-spr.acting { transform: translateX(26px); }
+.battlewin.side .enemy-spr.dead { transform: translateY(20px); }
+
+/* ---------- pooled battle particles ---------- */
+.fx-particle {
+  position: absolute; display: block; opacity: 0; pointer-events: none;
+  border-radius: 50%; color: #fff; will-change: transform, opacity;
+}
+.fx-hit { border-radius: 1px; }
+.fx-crit { border-radius: 1px; transform: rotate(45deg); }
+.fx-fire { border-radius: 55% 45% 60% 40%; }
+.fx-ice { border-radius: 0; clip-path: polygon(50% 0, 100% 72%, 58% 100%, 0 68%); }
+.fx-thunder { border-radius: 1px; box-shadow: 0 0 14px #fff36b; }
+.fx-heal { border: 1px solid rgba(255,255,255,.75); }
+.fx-poison { filter: blur(.5px); }
+.fx-status { border-radius: 2px; transform: rotate(45deg); }
+.fx-death { border-radius: 2px; filter: grayscale(.35); }
+.fx-dust { box-shadow: none !important; filter: blur(1px); }
+.fx-projectile {
+  width: 18px !important; height: 18px !important;
+  border: 2px solid rgba(255,255,255,.82); box-shadow: 0 0 18px currentColor, 0 0 7px #fff !important;
+}
+.fx-projectile.fx-fire { border-radius: 65% 35% 60% 40%; }
+.fx-projectile.fx-ice { border-radius: 0; }
+.fx-projectile.fx-thunder { width: 11px !important; height: 24px !important; clip-path: polygon(45% 0,100% 0,65% 42%,100% 42%,20% 100%,40% 54%,0 54%); }
+.fx-pulse {
+  width: 26px !important; height: 26px !important; background: transparent !important;
+  border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 18px currentColor;
+}
+.fx-number {
+  width: auto !important; height: auto !important; white-space: nowrap;
+  color: #fff; background: transparent !important; box-shadow: none !important;
+  font: 900 20px/1 var(--font-menu, "Segoe UI", sans-serif);
+  letter-spacing: .5px; text-shadow: 0 2px 2px #000, 0 0 7px #000;
+}
+.fx-number-damage { color: #fff1d0; }
+.fx-number-crit { color: #ffe263; font-size: 25px; }
+.fx-number-heal { color: #8ff2ad; }
+.fx-number-state { color: #d8b6ff; font-size: 15px; }
+.fx-number-death { color: #d8deef; font-size: 16px; letter-spacing: 2px; }
+
+/* animation-player extras (Phase 5): flashes keep their inline shape; a
+   flipbook is a visible frame holder (it never runs a Web Animation, so it
+   must not inherit the pool's opacity:0 idle state) */
+.fx-anim-flash { box-shadow: none; }
+.fx-anim-flipbook {
+  opacity: 1; border-radius: 0; background: transparent !important;
+  box-shadow: none !important; image-rendering: pixelated;
+}
+.fx-anim-flipbook canvas { display: block; image-rendering: pixelated; }
+
+/* ---------- battle v2 (Phase 5): ATB gauges + CTB order strip ---------- */
+.atbbar {
+  position: relative; display: block; height: 5px; margin-top: 3px;
+  background: rgba(255,255,255,.12); border-radius: 3px; overflow: hidden;
+}
+.enemy-spr .atbbar { width: 64px; margin: 3px auto 0; }
+.atb-fill {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, #4f7fd0, #79c2f0); border-radius: 3px;
+}
+.atb-fill.full { background: linear-gradient(90deg, #f0c04f, #ffe79a); }
+.ctb-order {
+  position: relative; z-index: 9; display: flex; gap: 5px; flex-wrap: wrap;
+  padding: 5px 8px; justify-content: center;
+}
+.ctb-chip {
+  padding: 1px 9px; border-radius: 9px; font-size: 12px;
+  background: rgba(90,138,216,.3); border: 1px solid rgba(150,190,255,.45);
+}
+.ctb-chip.foe { background: rgba(216,90,90,.28); border-color: rgba(255,150,150,.4); }
+.ctb-chip.now { outline: 2px solid #ffe79a; font-weight: 700; }
+
+/* ---------- Visual UI / authored on-map HUD ---------- */
+.hud-root {
+  position: absolute; inset: 0; z-index: 5;
+  pointer-events: none;
+  --hud-panel: #101426; --hud-border: #c8d4f0; --hud-text: #eef1fa;
+  --hud-accent: #ffd86a; --hud-muted: #9adcff;
+}
+.hud-widget {
+  position: absolute; overflow: auto; padding: 7px 10px; border-radius: 8px;
+  background: color-mix(in srgb, var(--hud-panel) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--hud-border) 72%, transparent);
+  box-shadow: 0 2px 10px rgba(0,0,0,.5);
+  color: var(--hud-text); font: 600 12px/1.45 var(--font-menu, "Segoe UI", sans-serif);
+  text-align: left;
+}
+.hud-widget-title { color: var(--hud-accent); font-weight: 700; margin-bottom: 4px; }
+.hud-text { display: flex; align-items: center; }
+.hud-gauge { display: flex; flex-direction: column; justify-content: center; }
+.hud-gauge-value { color: var(--hud-muted); font-variant-numeric: tabular-nums; text-align: right; }
+.hud-gauge-track { height: 10px; margin-top: 5px; overflow: hidden; border-radius: 999px; background: rgba(0,0,0,.48); border: 1px solid color-mix(in srgb, var(--hud-border) 45%, transparent); }
+.hud-gauge-fill { height: 100%; width: 0; border-radius: inherit; transition: width .15s linear; }
+.hud-menu { pointer-events: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; }
+.hud-menu .hud-widget-title { flex: 0 0 100%; }
+.hud-menu-command { padding: 5px 9px; color: var(--hud-text); background: rgba(255,255,255,.08); border: 1px solid color-mix(in srgb, var(--hud-border) 55%, transparent); border-radius: 5px; font: inherit; cursor: pointer; }
+.hud-menu-command:hover, .hud-menu-command:focus-visible { color: var(--hud-accent); border-color: var(--hud-accent); background: rgba(255,255,255,.14); outline: none; }
+.hud-menu-command:active { transform: translateY(1px); }
+.minimap {
+  padding: 0; line-height: 0; overflow: hidden; background: var(--hud-panel);
+}
+.minimap canvas { display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); }
+.quest-hud {
+  overflow-y: auto;
+}
+.qh-quest + .qh-quest { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.12); }
+.qh-name { color: var(--hud-accent); font-weight: 700; margin-bottom: 1px; }
+.qh-obj { opacity: .92; }
+.qh-obj.done { opacity: .55; text-decoration: line-through; }
+.qh-count { color: var(--hud-muted); font-variant-numeric: tabular-nums; }
+.quest-hud.flash { animation: qh-flash .9s ease-out; }
+@keyframes qh-flash {
+  0% { box-shadow: 0 0 0 2px #ffd86a, 0 0 18px rgba(255,216,106,.7); }
+  100% { box-shadow: 0 0 0 0 rgba(255,216,106,0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enemy-spr canvas, .actor-spr canvas { animation: none; }
+  .battlewin.shake { animation: none; }
+  .actor-spr.acting, .battlewin.side .enemy-spr.acting { transform: none; }
+  .quest-hud.flash { animation: none; }
+}
+/* Reduced Motion option (Phase 7): the engine mirrors the resolved
+   preference (option OR media query) onto #stage, so "On" works even when
+   the OS setting is off — same rules as the media query above. */
+#stage.reduced-motion .enemy-spr canvas, #stage.reduced-motion .actor-spr canvas { animation: none; }
+#stage.reduced-motion .battlewin.shake { animation: none; }
+#stage.reduced-motion .actor-spr.acting,
+#stage.reduced-motion .battlewin.side .enemy-spr.acting { transform: none; }
+#stage.reduced-motion .quest-hud.flash { animation: none; }
+
+/* ---------- game over ---------- */
+.gameoverwin {
+  position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  background: rgba(0,0,0,0.85); font-size: 58px; font-weight: 800; letter-spacing: 6px;
+  color: #c03a3a; text-shadow: 0 0 30px rgba(200,40,40,0.5);
+}
+.gameoverwin .go-sub { font-size: 14px; color: #8a8da4; letter-spacing: 1px; }

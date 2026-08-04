@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rpgatlas-exe",
+      "runtimeExecutable": "M:\\AI\\DriftwoodEngine\\RPGAtlas\\RPGAtlas.exe",
+      "runtimeArgs": ["--no-browser"],
+      "port": 8080
+    },
+    {
+      "name": "rpgatlas-editor",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "http-server", "-p", "3742", "-c-1"],
+      "port": 3742
+    },
+    {
+      "name": "vite-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--", "--port", "4318"],
+      "port": 4318
+    },
+    {
+      "name": "vite-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5237", "--strictPort"],
+      "port": 5237
+    },
+    {
+      "name": "vite-dev-alt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5361", "--strictPort"],
+      "port": 5361
+    }
+  ]
+}

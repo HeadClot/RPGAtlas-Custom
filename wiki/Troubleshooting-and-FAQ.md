@@ -1,0 +1,194 @@
+# Troubleshooting & FAQ
+
+Quick fixes for the snags people hit most. If your problem isn't here, check the
+[Resources & Glossary](Resources-and-Glossary) or the project's `README.md`.
+
+---
+
+## Starting up
+
+### Nothing happens / the editor won't load when I double-click `RPGAtlas.exe`
+- Make sure `RPGAtlas.exe` is **inside the RPGAtlas folder**, next to `index.html`. It serves the
+  folder it lives in; moved on its own, it can't find the engine.
+- Look at the little black window — it prints the address (usually `http://localhost:8080/`) and any
+  error. Open that address in your browser manually if a tab didn't pop up.
+
+### "RPGAtlas needs its one-time setup first"
+This only appears when running from a **source checkout** (downloaded copies are pre-built and never
+need it). The editor's tooling has to be downloaded once: open a terminal in the RPGAtlas folder
+(in File Explorer, click the address bar, type `cmd`, press Enter) and run `npm install`. When it
+finishes, double-click `RPGAtlas.exe` again. See
+[Installation & Setup](Installation-and-Setup#running-from-a-source-checkout-git-clone).
+
+### "RPGAtlas could not start Node.js (is it installed?)"
+Running from a source checkout needs [Node.js](https://nodejs.org/) **18 or newer** on your computer.
+Install the LTS version from nodejs.org (one-time), then run `RPGAtlas.exe` again.
+
+### "Windows protected your PC" / unknown publisher
+Expected — the launcher is **unsigned**. Click **More info ▸ Run anyway**. It only starts a local
+server and opens your browser. See [Installation & Setup](Installation-and-Setup#windows-protected-your-pc--unknown-publisher).
+
+### "Could not find a free local port (8080-8099)"
+Other programs are using all of those ports — usually other copies of RPGAtlas. Close other RPGAtlas
+windows and try again; the launcher picks the first free port in the 8080–8099 range automatically.
+
+### I opened `index.html` directly and it's broken
+Browsers block `localStorage` and asset scanning on `file://` pages (and a source checkout's
+TypeScript editor can't run without the dev server at all). You **must** start RPGAtlas properly —
+use `RPGAtlas.exe` (Windows), `python -m http.server 8080` (pre-built copy), or `npm run dev`
+(source checkout). See [Installation & Setup](Installation-and-Setup).
+
+### The browser opens on its own and I don't want it to
+Start the launcher with the `--no-browser` flag (`RPGAtlas.exe --no-browser`), then open the printed
+address yourself.
+
+---
+
+## My work
+
+### Where is my project saved? Will I lose it?
+The editor **auto-saves to your browser** (`localStorage`). That's convenient but fragile: it's tied
+to one browser on one computer, and clearing browser data erases it. **Always keep a `.json` backup**
+via **File ▸ Save Project**. Treat the `.json` as your real save file.
+
+### I switched browsers/computers and my game is gone
+The auto-save doesn't travel between browsers. Use the **`.json`** you exported (**File ▸ Open
+Project** to load it). If you never saved one, the work only exists in the original browser's storage.
+
+### Undo only goes back so far
+Undo/redo is generous (full-map history for tiles, shadows, heights, passability, and events) but not
+infinite. Save `.json` checkpoints at milestones.
+
+---
+
+## Maps & assets
+
+### My custom art doesn't appear in the editor
+- Confirm files are in the **correct `img` subfolder** (`characters`, `facesets`, `enemies`,
+  `tilesets`, `system`) and are valid PNG/WebP/JPG. See
+  [Characters & Custom Assets](Characters-and-Custom-Assets).
+- **Reload the editor** after adding files.
+- On a **source checkout** the Vite dev server (what `RPGAtlas.exe` and `npm run dev` run there)
+  doesn't provide the directory listings the scan reads — run `tools/update-assets.ps1` to write a
+  manifest (`img/assets.json`), then reload. Downloaded copies aren't affected: the launcher's
+  built-in server (and `python -m http.server`) provide listings, so the scan just works.
+
+### The player can walk through a wall (or can't cross a bridge)
+Passability comes from the topmost tile, but you can fix any cell directly: switch to
+**Passability mode** and click the tile to cycle auto → block → pass. For custom tiles, filename
+suffixes like `.pass` and `.terrain` set defaults. See
+[Maps & Tiles](Maps-and-Tiles#passability--where-the-player-can-walk).
+
+### My HD-2D map looks flat / like normal 2D
+HD-2D is **opt-in per map** (enable it in Map Properties) and **falls back to flat 2D** on devices
+that can't run WebGL2. Heights only extrude in HD-2D maps. See
+[Maps & Tiles](Maps-and-Tiles#hd-2d-heights).
+
+---
+
+## Events
+
+### My event does nothing / the wrong page runs
+- Check the **trigger** — Action Button needs the player to face it and press Z/Enter; Player Touch
+  needs them to step on it.
+- Remember pages resolve **last-match-wins**. If a later page's conditions are met, it overrides
+  earlier ones. See [Events](Events#pages-and-conditions).
+
+### The game froze during a cutscene
+An **Autorun** page with no end condition runs forever. Make the page flip a **switch/self-switch** at
+its end, and add an empty page whose condition is that flag, so the event stops. See
+[Events](Events#triggers--what-starts-an-event).
+
+### A chest gives its item every time
+You're missing the **self-switch**. Set Self-Switch A = ON after the reward, and add a second page
+conditioned on Self-Switch A being ON. See
+[Events](Events#recipes).
+
+---
+
+## Battles
+
+### Battles are too hard / too easy
+Tune enemy **stats and rewards** and your **class growth** in the [Database](The-Database). Playtest a
+fresh party through the area. See [Battles & States](Battles-and-States#tips-for-fun-fair-combat).
+
+### Random encounters never happen (or happen constantly)
+Encounters and their **rate** live in **Map Properties**, and the map needs **troops** assigned. A
+lower rate means *more* frequent battles. See [Maps & Tiles](Maps-and-Tiles#random-encounters).
+
+---
+
+## Accessibility
+
+Every game made with RPGAtlas ships with these player-side options (in-game **Options** menu, saved
+per player, no authoring needed):
+
+- **Reduced Motion** (Auto / On / Off) — stills screen shake, battle sprite bobbing and lunges,
+  HUD flash effects, halves full-screen flashes, and thins weather particles. *Auto* follows the
+  player's operating-system "reduce motion" setting.
+- **Text Size** (Small / Normal / Large / Huge) — scales dialogue and menu text over the game's
+  authored base font size.
+- **Colorblind Assist** — switches HP/MP gauges to a colorblind-safe orange/sky-blue palette
+  (damage and healing popups always carry explicit −/+ signs, so color is never the only signal).
+- Screen Shake (Off / Reduced / Full) and per-channel volume sliders have been there since earlier
+  releases.
+
+Editor side: **Help ▸ Interface Language…** now also sets a **UI Font Size** (90–125%) for the
+editor chrome on this device.
+
+---
+
+## Performance
+
+### How do I see what my game's frame rate is?
+Press **F3** during play (playtest or an exported game), or add `?perf=1` to the player URL. The
+performance overlay shows fps, frame time (average and 95th percentile), the engine's per-frame work
+time, HD-2D draw calls and triangles, live GPU resource counts, and JS heap use (Chromium browsers).
+Press F3 again to hide it.
+
+### My HD-2D map is slow on an older machine
+Every HD-2D feature is a per-map toggle in **Map Properties** — shadows, water reflections, SSAO,
+depth of field, and bloom are the heaviest. Turn them off map-by-map, or lower the game's screen
+size in the **Database ▸ System** tab. The engine is tuned to hold 60 fps at 1080p on integrated
+GPUs with everything on, but very old GPUs (or browsers with hardware acceleration disabled —
+check the overlay's frame time) may need trimming.
+
+### Does a huge map hurt performance?
+Big maps are fine: terrain renders in view-culled chunks, so a 160×160 map with hundreds of events
+holds the same frame budget as a small one (this is enforced by an automated stress test). What
+*does* add up is hundreds of **parallel-trigger events running long command loops** — prefer
+touch/action triggers where possible.
+
+---
+
+## Publishing
+
+### My exported EXE triggers a virus/security warning
+The launcher is unsigned, so SmartScreen/antivirus may flag downloaded builds. Players use **More
+info ▸ Run anyway**, or distribute the **Standalone HTML** build instead. See
+[Publishing Your Game](Publishing-Your-Game#the-unsigned-exe-warning).
+
+### Players say their saves disappeared
+Browser saves are **per browser/computer**. If a player switches browsers or clears data, their saves
+go with it — that's inherent to browser games, not a bug.
+
+---
+
+## Frequently asked
+
+**Do I need to know how to code?** No. Maps, events, and the database cover full games. Code (via
+[Plugins](Plugins) or the Script command) is optional.
+
+**Does it cost anything?** No. RPGAtlas is free and open-source (GPL-3.0).
+
+**Can I sell games I make?** Yes — your content is yours, no credit required.
+
+**Does it work offline?** Yes. Once you have the folder, nothing needs the internet.
+
+**Can I use my own music or art?** Yes for art (drop files in `img/`). Audio is procedural; custom
+audio tracks aren't a built-in feature, but plugins can extend the engine.
+
+**Where do old Driftwood Engine projects go?** They open and migrate automatically — autosaves, save
+slots, and bundled plugins all carry forward.
+
+**Next:** [Resources & Glossary →](Resources-and-Glossary)

@@ -1,0 +1,781 @@
+/* RPGAtlas — src/editor/importers/mz/translate-commands.ts
+   Project Compass M1·C: THE TRANSLATION TABLE — the spine of the whole
+   migration (see "The translation table is the spine" in
+   docs/MZ_MV_MIGRATION_ROADMAP.md). This one module owns the MZ/MV
+   event-command-code → Atlas-`AnyCommand` mapping (matrix §8 codes 101–657,
+   §9 move routes, §13 escape codes). Every code either translates to real
+   Atlas command(s) or becomes an additive `mzTodo` placeholder (raw code +
+   params preserved, friendly editor render, engine no-op, one report line) so
+   nothing is a silent drop (locked decision 6) and a re-import after a later
+   phase ships upgrades it in place. Phases M2–M4 flip the `+ Mn` rows below
+   from `mzTodo` to real translations in the same step they ship the feature.
+
+   RM command lists are FLAT arrays with an `indent` level and structural
+   continuation codes (401 text-line, 402/403/404 choices, 411/412 branch,
+   413 loop-end, 601–604 battle result, 605 shop-goods, 655 script-line). The
+   translator walks the list with a cursor and rebuilds Atlas's nested command
+   tree (branches/loops/choices) from the indent + continuation markers.
+
+   Pure — no DOM. Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later. */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import type { AnyCommand, Condition } from "../../../shared/schema";
+import { analyzeMzScript } from "../../../shared/mz-script";
+import { assetKeyOf, slugName } from "../../../shared/asset-library";
+import { slugKey, paramKey } from "./slug";
+import type { CommandTranslator } from "./convert-events";
+import type { ImportReport, ReportKind } from "./report";
+import type { RmCommand, RmMoveRoute } from "./raw-types";
+
+// ---------------------------------------------------------------------------
+// The `+ Mn` table: codes that are a real engine/editor feature in a later
+// phase. They import as `mzTodo` now and the named phase flips them. `what` is
+// the friendly noun the editor label + report line use; `detail` is the report
+// explanation (M1·D rewrites report copy for the audience, D11). ONE aggregated
+// report line per code (D11 "aggregate repeats").
+// ---------------------------------------------------------------------------
+interface TodoInfo { what: string; detail: string; }
+const TODO: Record<number, TodoInfo> = {
+  132: { what: "changing the battle music", detail: "swapping the battle music from an event arrives in a later update" },
+  140: { what: "changing a vehicle's music", detail: "swapping a vehicle's music arrives in a later update" },
+  203: { what: "moving another event", detail: "teleporting an event to a spot arrives in a later update" },
+  356: { what: "a plugin command", detail: "plugin commands are listed in the import report, not run (M5·A)" },
+  357: { what: "a plugin command", detail: "plugin commands are listed in the import report, not run (M5·A)" },
+};
+
+// Codes that are an intentional skip (`−`, matrix §16): dropped with a friendly
+// line, never preserved as a placeholder (they will never "come back").
+const SKIP: Record<number, TodoInfo> = {
+  217: { what: "regrouping the followers", detail: "Atlas keeps the follower trail together automatically" },
+  // 282 decided at M4·A: Atlas paints maps with the tiles themselves (art +
+  // ids bake at import), so a whole-tileset swap has nothing honest to swap.
+  282: { what: "changing the tileset", detail: "Atlas maps carry their tiles directly, so a tileset swap isn't needed — edit the map instead" },
+  261: { what: "a video", detail: "Atlas doesn't play movies; the game runs fine without it" },
+  281: { what: "the map-name popup", detail: "Atlas doesn't show a map-name banner; the map still works" },
+  351: { what: "opening the menu", detail: "the player can always open Atlas's own menu" },
+};
+
+/** RM conditional-branch / gold compare index → Atlas cmp string (matrix §8.6). */
+const CMP = ["==", ">=", "<=", ">", "<", "!="];
+/** RM facing (0 retain · 2 down · 4 left · 6 right · 8 up) → Atlas Dir (0 d/1 l/2 r/3 u). */
+const RM_DIR: Record<number, 0 | 1 | 2 | 3> = { 0: 0, 2: 0, 4: 1, 6: 2, 8: 3 };
+/** RM move-route step code → Atlas `CmdMove.steps` token (matrix §9). Atlas
+ *  move routes carry the whole RM palette since post-2.0, so the diagonals
+ *  (5–8), the dynamic moves (9–11, 13) and the relative turns (20–26) are real
+ *  steps now instead of dropped-and-reported approximations. */
+const MOVE_STEP: Record<number, string> = {
+  1: "down", 2: "left", 3: "right", 4: "up",
+  5: "downleft", 6: "downright", 7: "upleft", 8: "upright",
+  9: "random", 10: "toward", 11: "away", 12: "forward", 13: "back",
+  16: "turn_down", 17: "turn_left", 18: "turn_right", 19: "turn_up",
+  20: "turn_r90", 21: "turn_l90", 22: "turn_180", 24: "turn_random",
+  25: "turn_toward", 26: "turn_away",
+  31: "walk_on", 32: "walk_off", 33: "step_on", 34: "step_off",
+  35: "dirfix_on", 36: "dirfix_off", 37: "through_on", 38: "through_off",
+  39: "transparent_on", 40: "transparent_off",
+};
+
+/** RM Scroll Map direction (2 down · 4 left · 6 right · 8 up) → Atlas dir. */
+const SCROLL_DIR: Record<number, "up" | "down" | "left" | "right"> = { 2: "down", 4: "left", 6: "right", 8: "up" };
+/** RM vehicle index (202/323) → Atlas vehicle type (M4·A). */
+const VEHICLE: Record<number, "boat" | "ship" | "airship"> = { 0: "boat", 1: "ship", 2: "airship" };
+/** RM tone array [r,g,b,gray] → Atlas tone tuple (defaults to normal). */
+const toneOf = (t: any): [number, number, number, number] => {
+  const a = Array.isArray(t) ? t : [0, 0, 0, 0];
+  return [num(a[0]), num(a[1]), num(a[2]), num(a[3])];
+};
+const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
+const hex2 = (n: number): string => ("0" + Math.max(0, Math.min(255, Math.round(n || 0))).toString(16)).slice(-2);
+const rgbHex = (c: any): string => `#${hex2(c?.[0])}${hex2(c?.[1])}${hex2(c?.[2])}`;
+const audioKey = (a: any): string => (a && a.name ? "asset:audio/" + a.name : "");
+/** RM audio-object volume/pitch/pan → Atlas playback options (M4·B). Defaults
+ *  (volume 100 / pitch 100 / pan 0) stay absent so untouched commands keep the
+ *  exact pre-M4·B shape; RM's editor defaults (BGM 90, SE 90, BGS 80) come
+ *  across as the honest mix. */
+const audioOpts = (a: any): { vol?: number; pitch?: number; pan?: number } => {
+  const out: { vol?: number; pitch?: number; pan?: number } = {};
+  if (a && a.volume != null && num(a.volume) !== 100) {
+    out.vol = Math.round(Math.max(0, Math.min(100, num(a.volume)))) / 100;
+  }
+  if (a && a.pitch != null && num(a.pitch) !== 100 && num(a.pitch) > 0) {
+    out.pitch = Math.round(num(a.pitch)) / 100;
+  }
+  if (a && a.pan) {
+    out.pan = Math.round(Math.max(-100, Math.min(100, num(a.pan)))) / 100;
+  }
+  return out;
+};
+
+// ---------------------------------------------------------------------------
+// The cursor-based recursive translator. One instance per top-level list.
+// ---------------------------------------------------------------------------
+class Translator {
+  private i = 0;
+  constructor(private readonly list: RmCommand[], private readonly report: ImportReport) {}
+
+  run(): AnyCommand[] {
+    this.i = 0;
+    return this.parseBlock(0);
+  }
+
+  private peek(): RmCommand | undefined { return this.list[this.i]; }
+  private at(code: number, indent: number): boolean {
+    const c = this.list[this.i];
+    return !!c && c.code === code && c.indent === indent;
+  }
+
+  /** Parse the run of statements at `indent`; stop when the indent drops below
+   *  it (a nested block ended) or the list runs out. Openers consume their own
+   *  same-indent continuations (401/402/411/412/413/604/605/655…). */
+  private parseBlock(indent: number): AnyCommand[] {
+    const out: AnyCommand[] = [];
+    while (this.i < this.list.length) {
+      const c = this.list[this.i];
+      if (c.indent < indent) break;
+      this.i++;
+      this.dispatch(c, indent, out);
+    }
+    return out;
+  }
+
+  // -- report helpers -------------------------------------------------------
+  private bump(key: string, kind: ReportKind, what: string, detail: string, code?: number): void {
+    this.report.bump(key, () => ({ area: "Events", kind, what, detail, code }));
+  }
+  private todoCmd(cmd: RmCommand, info?: TodoInfo): AnyCommand {
+    const t = info || TODO[cmd.code] || { what: "an unusual command", detail: "an RPG Maker command Atlas doesn't recognize yet — it was kept safe for a re-import" };
+    this.bump("cmd-todo-" + cmd.code, "todo", t.what, t.detail, cmd.code);
+    return { t: "mzTodo", code: cmd.code, params: (cmd.parameters as unknown[]) || [], label: cap(t.what) + " — coming in a later update" };
+  }
+
+  // -- the per-code table ---------------------------------------------------
+  private dispatch(c: RmCommand, indent: number, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    switch (c.code) {
+      // ---- §8.1 messages & text ----
+      case 101: out.push(this.showText(c, indent)); return;
+      case 102: out.push(this.showChoices(c, indent)); return;
+      case 103: out.push({ t: "inputNumber", varId: num(p[0]), digits: clampN(num(p[1]) || 1, 1, 8) }); return;
+      case 104: out.push({ t: "selectItem", varId: num(p[0]), itemType: num(p[1]) }); return;
+      case 105: out.push(this.scrollText(c, indent)); return;
+      case 108: this.consumeLines(108, 408, indent); return; // comment → dropped (not report-worthy)
+      // ---- §8.2 flow control ----
+      case 111: this.conditional(c, indent, out); return;
+      case 112: out.push({ t: "loop", body: this.branchThen(indent) }); if (this.at(413, indent)) this.i++; return;
+      case 113: out.push({ t: "breakLoop" }); return;
+      case 115: this.bump("cmd-exit", "partial", "stopping the event early", "Atlas keeps running the rest of the event after this point", 115);
+                out.push({ t: "mzTodo", code: 115, params: p, label: "Stop this event here — Atlas keeps going" }); return;
+      case 117: out.push({ t: "commonEvent", commonEventId: num(p[0]) }); return;
+      case 118: out.push({ t: "label", name: String(p[0] ?? "") }); return;
+      case 119: out.push({ t: "jump", name: String(p[0] ?? "") }); return;
+      // ---- §8.3 party / progression ----
+      case 121: this.controlSwitches(p, out); return;
+      case 122: this.controlVariables(c, out); return;
+      case 123: out.push({ t: "selfsw", key: String(p[0] ?? "A"), val: p[1] === 0 }); return;
+      case 124: out.push({ t: "timer", op: num(p[0]) === 0 ? "start" : "stop", seconds: num(p[1]) }); return;
+      case 125: this.changeGold(c, out); return;
+      case 126: this.changeItem(c, "item", out); return;
+      case 127: this.changeItem(c, "weapon", out); return;
+      case 128: this.changeItem(c, "armor", out); return;
+      case 129: out.push({ t: "party", op: p[1] === 0 ? "add" : "remove", actorId: num(p[0]) }); return;
+      // ---- §8.4 system settings (access toggles + window color) ----
+      // RM's access dialogs list "Enable" first (index 0); param 0 = enabled.
+      // 133/139 Change Victory/Defeat ME (M4·B): a keyless ME = silence it.
+      case 133: out.push({ t: "jingle", channel: "victory", key: audioKey(p[0]) }); return;
+      case 139: out.push({ t: "jingle", channel: "defeat", key: audioKey(p[0]) }); return;
+      case 134: out.push({ t: "access", kind: "save", enabled: num(p[0]) === 0 }); return;
+      case 135: out.push({ t: "access", kind: "menu", enabled: num(p[0]) === 0 }); return;
+      case 136: out.push({ t: "access", kind: "encounter", enabled: num(p[0]) === 0 }); return;
+      case 137: out.push({ t: "access", kind: "formation", enabled: num(p[0]) === 0 }); return;
+      case 138: out.push({ t: "windowTone", tone: [num((p[0] || [])[0]), num((p[0] || [])[1]), num((p[0] || [])[2])] }); return;
+      // ---- §8.5 movement & map ----
+      case 201: this.transfer(c, out); return;
+      case 202: // Set Vehicle Location (M4·A): [vehicle, designation 0/1, mapId, x, y]
+        out.push({ t: "setVehiclePos", vehicle: VEHICLE[num(p[0])] || "boat", byVar: num(p[1]) === 1, mapId: num(p[2]), x: num(p[3]), y: num(p[4]) });
+        return;
+      case 204: out.push({ t: "scrollMap", dir: SCROLL_DIR[num(p[0])] || "right", distance: num(p[1]), speed: num(p[2]) || 4, wait: true }); return;
+      case 205: this.moveRoute(c, out); return;
+      case 206: out.push({ t: "vehicle" }); return; // Get on/off Vehicle (M4·A toggle)
+      case 283: // Change Battle Back (M4·A): [back1Name, back2Name]
+        out.push({ t: "battleback", back1: this.battlebackKey(p[0]), back2: this.battlebackKey(p[1]) });
+        return;
+      case 284: this.changeParallax(c, out); return; // Change Parallax (M4·A)
+      case 323: { // Change Vehicle Image (M4·A): [vehicle, imageName, imageIndex]
+        const vname = String(p[1] || "");
+        const charset = vname ? slugKey(vname) + (num(p[2]) ? "-" + num(p[2]) : "") : "";
+        if (charset) this.bump("cmd-vehicle-image", "partial", "a vehicle's picture change", "add the matching sprite art to your Assets library and the new vehicle look appears");
+        out.push({ t: "vehicleImage", vehicle: VEHICLE[num(p[0])] || "boat", charset });
+        return;
+      }
+      case 211: out.push({ t: "transparency", val: p[0] === 0 }); return;
+      case 212: out.push({ t: "playAnim", animationId: num(p[1]), target: p[0] === -1 ? "player" : "this", wait: true }); return;
+      case 213: out.push({ t: "balloon", target: num(p[0]) === -1 ? "player" : num(p[0]) === 0 ? "this" : num(p[0]), balloonId: num(p[1]) || 1, wait: !!p[2] }); return;
+      case 214: out.push({ t: "erase" }); return;
+      case 216: out.push({ t: "followers", show: num(p[0]) === 0 }); return; // RM "Show" is index 0
+      case 285: this.getLocationInfo(c, out); return;
+      // ---- §8.6 screen effects ----
+      case 221: out.push({ t: "tint", tone: [-255, -255, -255, 0], frames: 24, wait: true }); return; // Fadeout → fade to black
+      case 222: out.push({ t: "tint", tone: [0, 0, 0, 0], frames: 24, wait: true }); return;             // Fadein → back to normal
+      case 223: out.push({ t: "tint", tone: toneOf(p[0]), frames: num(p[1]) || 60, wait: !!p[2] }); return;
+      case 224: out.push({ t: "flash", color: rgbHex(p[0]), opacity: clamp01(num((p[0] || [])[3]) / 255) || 0.5, duration: num(p[1]) || 15, wait: !!p[2] }); return;
+      case 225: out.push({ t: "shake", power: num(p[0]) || 5, speed: num(p[1]) || 5, duration: num(p[2]) || 30, wait: p[3] !== false }); return;
+      case 236: out.push({ t: "weather", kind: weatherKind(p[0]), power: num(p[1]) || 5 }); return;
+      // ---- §8.8 pictures ----
+      case 231: this.showPic(c, out); return;
+      case 232: this.movePic(c, out); return;
+      case 233: out.push({ t: "rotatePic", id: num(p[0]) || 1, speed: num(p[1]) }); return;
+      case 234: out.push({ t: "tintPic", id: num(p[0]) || 1, tone: toneOf(p[1]), frames: num(p[2]) || 60, wait: !!p[3] }); return;
+      case 235: out.push({ t: "erasePic", id: num(p[0]) || 1 }); return;
+      // ---- §8.7 timing ----
+      case 230: out.push({ t: "wait", frames: num(p[0]) || 1 }); return;
+      // ---- §8.9 audio & video (options + BGS/ME channels: M4·B) ----
+      case 241: out.push({ t: "music", theme: audioKey(p[0]) || "none", ...audioOpts(p[0]) }); return;
+      case 242: out.push({ t: "music", theme: "none", fadeMs: (num(p[0]) || 0) * 1000 }); return;
+      case 243: out.push({ t: "saveBgm" }); return;
+      case 244: out.push({ t: "resumeBgm" }); return;
+      case 245: { const k = audioKey(p[0]); if (k) out.push({ t: "bgs", key: k, ...audioOpts(p[0]) }); return; }
+      case 246: out.push({ t: "bgs", key: "", fadeMs: (num(p[0]) || 0) * 1000 }); return;
+      case 249: { const k = audioKey(p[0]); if (k) out.push({ t: "me", key: k, ...audioOpts(p[0]) }); return; }
+      case 250: { const k = audioKey(p[0]); if (k) out.push({ t: "se", name: k, ...audioOpts(p[0]) }); return; }
+      case 251: out.push({ t: "stopSe" }); return;
+      // ---- §8.10 scene control ----
+      case 301: this.battle(c, out, indent); return;
+      case 302: out.push(this.shop(c, indent)); return;
+      case 303: out.push({ t: "nameInput", actorId: num(p[0]), maxChars: clampN(num(p[1]) || 8, 1, 16) }); return;
+      case 352: out.push({ t: "save" }); return;
+      case 353: out.push({ t: "gameover" }); return;
+      case 354: out.push({ t: "totitle" }); return;
+      // ---- §8.11 actor/party data (the "change" family) ----
+      case 311: this.changeHpMp(c, "hp", out); return;
+      case 312: this.changeHpMp(c, "mp", out); return;
+      case 313: this.changeState(c, out); return;
+      case 314: this.recoverAll(c, out); return;
+      case 315: this.changeExpLevel(c, out, "exp"); return;
+      case 316: this.changeExpLevel(c, out, "level"); return;
+      case 317: this.changeParam(c, out); return;
+      case 318: this.changeSkill(c, out); return;
+      case 319: out.push({ t: "changeEquip", actorId: num(p[0]), slot: num(p[1]) === 0 ? "weapon" : "armor", itemId: num(p[2]) }); return;
+      case 320: out.push({ t: "changeName", actorId: num(p[0]), name: String(p[1] ?? "") }); return;
+      case 321: this.changeClass(c, out); return;
+      case 322: this.changeActorImage(c, out); return;
+      case 324: out.push({ t: "changeNickname", actorId: num(p[0]), nickname: String(p[1] ?? "") }); return;
+      case 325: out.push({ t: "changeProfile", actorId: num(p[0]), profile: String(p[1] ?? "") }); return;
+      case 326: this.changeTp(c, out); return; // M3·B — the TP system.
+      case 342: // Change Enemy TP: [enemyIndex(−1 = all), op, operandType, operand].
+        if (num(p[2]) !== 0) { this.changeActorVarValue(c, out); return; }
+        out.push({ t: "changeEnemyTp", enemyIndex: num(p[0]), op: num(p[1]) === 1 ? "sub" : "add", value: num(p[3]) });
+        return;
+      // ---- §8.12 in-troop enemy commands (M3·C) ----
+      case 331: // Change Enemy HP: [index, op, operandType, operand, allowKo].
+        if (num(p[2]) !== 0) { this.changeActorVarValue(c, out); return; }
+        out.push({ t: "changeEnemyHp", enemyIndex: num(p[0]), op: num(p[1]) === 1 ? "sub" : "add", value: num(p[3]), allowKo: !!p[4] });
+        return;
+      case 332: // Change Enemy MP: [index, op, operandType, operand].
+        if (num(p[2]) !== 0) { this.changeActorVarValue(c, out); return; }
+        out.push({ t: "changeEnemyMp", enemyIndex: num(p[0]), op: num(p[1]) === 1 ? "sub" : "add", value: num(p[3]) });
+        return;
+      case 333: out.push({ t: "changeEnemyState", enemyIndex: num(p[0]), op: num(p[1]) === 1 ? "remove" : "add", stateId: num(p[2]) }); return;
+      case 334: out.push({ t: "enemyRecoverAll", enemyIndex: num(p[0]) }); return;
+      case 335: out.push({ t: "enemyAppear", enemyIndex: num(p[0]) }); return;
+      case 336: out.push({ t: "enemyTransform", enemyIndex: num(p[0]), enemyId: num(p[1]) }); return;
+      case 337: // MZ's targetAll flag (p[2]) folds into index −1 (whole troop).
+        out.push({ t: "playAnim", animationId: num(p[1]), target: "enemy", enemyIndex: p[2] === true ? -1 : num(p[0]), wait: true });
+        return;
+      case 339: // Force Action: [desig 0 enemy/1 actor, index-or-actorId, skillId, target].
+        out.push({ t: "forceAction", side: num(p[0]) === 1 ? "actor" : "enemy", index: num(p[1]), skillId: num(p[2]), target: num(p[3]) });
+        return;
+      case 340: out.push({ t: "abortBattle" }); return;
+      // ---- §8.10 battle-result branch openers ----
+      // 601/602/603 are consumed by battle() right after a 301; ones that
+      // appear orphaned (hand-broken lists) skip their body structurally.
+      case 601: case 602: case 603: this.branchThen(indent); return;
+      case 604: return; // structural: end battle branches
+      // ---- §8.13 script ----
+      case 355: this.script(c, out); return;
+      // ---- structural terminators / orphaned continuations → skip ----
+      case 0: case 401: case 402: case 403: case 404: case 405:
+      case 408: case 411: case 412: case 413: case 605: case 655: return;
+      // ---- the `−` skip set ----
+      default:
+        if (SKIP[c.code]) { const s = SKIP[c.code]; this.bump("cmd-skip-" + c.code, "skipped", s.what, s.detail, c.code); return; }
+        out.push(this.todoCmd(c)); return; // everything else (incl. all TODO codes) → mzTodo
+    }
+  }
+
+  // -- §8.1 Show Text (101 + 401 lines) ------------------------------------
+  private showText(c: RmCommand, indent: number): AnyCommand {
+    const p = (c.parameters as any[]) || [];
+    const lines: string[] = [];
+    while (this.at(401, indent)) lines.push(String(((this.list[this.i++].parameters as any[]) || [])[0] ?? ""));
+    const cmd: AnyCommand = { t: "text", text: lines.join("\n") } as any;
+    // MZ carries a speaker name as the 5th param (MV has none — that's the §0 delta).
+    if (typeof p[4] === "string" && p[4]) (cmd as any).name = p[4];
+    // faceName+faceIndex → a portrait; Atlas links faces after the wizard slices art (M1·D).
+    if (p[0]) this.bump("text-face", "partial", "message portraits", "message face pictures get linked after the import finishes");
+    // Window backdrop + position (M2·B): background 0 window / 1 dim / 2 transparent,
+    // positionType 0 top / 1 middle / 2 bottom (default). Store only the non-defaults.
+    const bg = num(p[2]);
+    if (bg) (cmd as any).background = clampN(bg, 0, 2);
+    if (p[3] != null && num(p[3]) !== 2) (cmd as any).position = clampN(num(p[3]), 0, 2);
+    return cmd;
+  }
+
+  // -- §8.1 Show Choices (102 + 402/403/404) -------------------------------
+  private showChoices(c: RmCommand, indent: number): AnyCommand {
+    const p = (c.parameters as any[]) || [];
+    const options: string[] = Array.isArray(p[0]) ? (p[0] as any[]).map((s) => String(s)) : [];
+    const branches: AnyCommand[][] = options.map(() => []);
+    while (this.i < this.list.length) {
+      if (this.at(402, indent)) {
+        const wp = (this.list[this.i++].parameters as any[]) || [];
+        const idx = num(wp[0]);
+        const body = this.parseBlock(indent + 1);
+        if (idx >= 0 && idx < branches.length) branches[idx] = body;
+      } else if (this.at(403, indent)) {
+        this.i++; this.parseBlock(indent + 1); // When Cancel → no Atlas home
+        this.bump("choices-cancel", "partial", "the Cancel choice", "what happens when the player cancels a choice needs to be redone in Atlas");
+      } else if (this.at(404, indent)) { this.i++; break; }
+      else break;
+    }
+    return { t: "choices", options: options.length ? options : ["OK"], branches } as any;
+  }
+
+  // -- §8.2 Conditional Branch (111 + 411/412) -----------------------------
+  private conditional(c: RmCommand, indent: number, out: AnyCommand[]): void {
+    const cond = this.convertCond((c.parameters as any[]) || []);
+    if (!cond) {
+      // Unmappable condition: preserve as a placeholder, drop the bodies (report).
+      this.bump("cmd-if-todo", "todo", "a special condition check", "some conditional-branch checks (timer/enemy/button/script/…) arrive in a later update", 111);
+      out.push({ t: "mzTodo", code: 111, params: (c.parameters as any[]) || [], label: "A special condition check — coming in a later update" });
+      this.branchThen(indent);
+      if (this.at(411, indent)) { this.i++; this.parseBlock(indent + 1); }
+      if (this.at(412, indent)) this.i++;
+      return;
+    }
+    const then = this.branchThen(indent);
+    let els: AnyCommand[] = [];
+    if (this.at(411, indent)) { this.i++; els = this.parseBlock(indent + 1); }
+    if (this.at(412, indent)) this.i++;
+    out.push({ t: "if", cond, then, else: els } as any);
+  }
+
+  /** Parse an opener's primary child block (indent+1). */
+  private branchThen(indent: number): AnyCommand[] { return this.parseBlock(indent + 1); }
+
+  private convertCond(p: any[]): Condition | null {
+    switch (num(p[0])) {
+      case 0: return { kind: "switch", id: num(p[1]), val: p[2] === 0 };
+      case 1: {
+        if (num(p[2]) !== 0) return null; // operand is a variable/script → M2·C
+        return { kind: "var", id: num(p[1]), cmp: CMP[num(p[4])] || ">=", val: num(p[3]) };
+      }
+      case 2: {
+        if (p[2] === 1) this.bump("cond-selfsw-off", "partial", "a self-switch OFF check", "Atlas checks a self-switch is ON; an 'is OFF' check needs a quick edit");
+        return { kind: "selfsw", key: String(p[1] ?? "A"), val: p[2] === 0 };
+      }
+      case 4: {
+        const check = num(p[2]);
+        if (check === 0) return { kind: "actor", actorId: num(p[1]), check: "inParty" };
+        if (check === 4) return { kind: "actor", actorId: num(p[1]), check: "weapon", itemId: num(p[3]) };
+        if (check === 5) return { kind: "actor", actorId: num(p[1]), check: "armor", itemId: num(p[3]) };
+        return null; // name/class/skill/state checks → M2·C
+      }
+      case 7: {
+        const cmp = num(p[2]) === 1 ? "<=" : num(p[2]) === 2 ? "<=" : ">=";
+        if (num(p[2]) === 2) this.bump("cond-gold-lt", "partial", "a 'gold less than' check", "Atlas compares gold with ≤; a strict 'less than' becomes 'or equal'");
+        return { kind: "gold", cmp, val: num(p[1]) };
+      }
+      case 8: return { kind: "item", itemKind: "item", id: num(p[1]) };
+      case 9: return { kind: "item", itemKind: "weapon", id: num(p[1]) };
+      case 10: return { kind: "item", itemKind: "armor", id: num(p[1]) };
+      case 12: {
+        // Script condition (M5·B, D5): a read-only $game* expression becomes a
+        // real branch that evaluates through the compat shim. Writes/other data
+        // → null (mzTodo + the branch bodies drop, like any unmappable check).
+        const expr = String(p[1] ?? "");
+        if (analyzeMzScript(expr).ok) {
+          this.bump("cond-script-ok", "converted", "a script condition that reads game data", "conditional-branch scripts that read your switches, variables, or party now decide the branch in Atlas");
+          return { kind: "mzScript", code: expr };
+        }
+        return null;
+      }
+      default: return null; // 3 timer · 5 enemy · 6 character · 11 button · 13 vehicle
+    }
+  }
+
+  // -- §8.3 party / progression --------------------------------------------
+  private controlSwitches(p: any[], out: AnyCommand[]): void {
+    const a = num(p[0]), b = num(p[1]) || num(p[0]), val = p[2] === 0;
+    for (let id = Math.min(a, b); id <= Math.max(a, b); id++) out.push({ t: "switch", id, val });
+  }
+  private controlVariables(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const a = num(p[0]), b = num(p[1]) || num(p[0]), oper = num(p[2]), operandType = num(p[3]);
+    const OP: Record<number, "set" | "add" | "sub"> = { 0: "set", 1: "add", 2: "sub" };
+    if (operandType === 0 && OP[oper]) {
+      const val = num(p[4]);
+      for (let id = Math.min(a, b); id <= Math.max(a, b); id++) out.push({ t: "var", id, op: OP[oper], val });
+      return;
+    }
+    if (operandType === 2 && oper === 0) { // random, set
+      const lo = num(p[4]), hi = num(p[5]);
+      for (let id = Math.min(a, b); id <= Math.max(a, b); id++) out.push({ t: "var", id, op: "rnd", val: lo, val2: hi });
+      return;
+    }
+    this.bump("cmd-var-todo", "todo", "advanced variable math", "reading game data (item counts, positions…) or multiply/divide into a variable arrives in a later update (M2·C)", 122);
+    out.push({ t: "mzTodo", code: 122, params: p, label: "Advanced variable math — coming in a later update" });
+  }
+  private changeGold(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    // p[1] operand type: 0 = constant p[2]; 1 = variable p[2], now a real
+    // translation via CmdGold.valVarId (read at run time, like RM).
+    if (num(p[1]) !== 0) { out.push({ t: "gold", op: num(p[0]) === 0 ? "add" : "sub", val: 0, valVarId: num(p[2]) }); return; }
+    out.push({ t: "gold", op: num(p[0]) === 0 ? "add" : "sub", val: num(p[2]) });
+  }
+  private changeItem(c: RmCommand, kind: "item" | "weapon" | "armor", out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    // p[2] operand type: 0 = constant p[3]; 1 = variable p[3], now a real
+    // translation via CmdItem.valVarId (read at run time, like RM).
+    if (num(p[2]) !== 0) { out.push({ t: "item", kind, id: num(p[0]), op: num(p[1]) === 0 ? "add" : "sub", val: 0, valVarId: num(p[3]) }); return; }
+    out.push({ t: "item", kind, id: num(p[0]), op: num(p[1]) === 0 ? "add" : "sub", val: num(p[3]) });
+  }
+
+  // -- §8.5 movement -------------------------------------------------------
+  private transfer(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    if (num(p[0]) !== 0) { this.bump("cmd-transfer-var", "todo", "a transfer to a variable spot", "transfers whose destination is stored in variables arrive in a later update (M2·C)", 201); out.push({ t: "mzTodo", code: 201, params: p, label: "Transfer to a variable spot — coming in a later update" }); return; }
+    out.push({ t: "transfer", mapId: num(p[1]), x: num(p[2]), y: num(p[3]), dir: RM_DIR[num(p[4])] ?? 0 });
+  }
+  private moveRoute(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const charId = num(p[0]);
+    const route = p[1] as RmMoveRoute;
+    // Atlas move routes can aim at another event by id since post-2.0, so an
+    // RM route targeting event N comes across whole instead of becoming a todo.
+    const target = charId === -1 ? "player" : charId > 0 ? "other" : "this";
+    const cmd: any = { t: "move", target, steps: this.routeSteps(route), wait: !!(route && route.wait) };
+    if (target === "other") cmd.eventId = charId;
+    if (route && route.repeat) { cmd.repeat = true; cmd.wait = false; }
+    if (route && route.skippable) cmd.skippable = true;
+    else if (route) cmd.skippable = false; // RM's default is "wait for the way to clear"
+    out.push(cmd);
+  }
+  /** Move-route step list → Atlas `CmdMove.steps` (matrix §9). Atlas carries
+   *  the whole RM palette now; only Change Blend Mode (43) and Script (45) are
+   *  still dropped, and they are reported as they always were. */
+  private routeSteps(route: RmMoveRoute | undefined): (string | Record<string, unknown>)[] {
+    const steps: (string | Record<string, unknown>)[] = [];
+    let simplified = false;
+    for (const mc of (route && route.list) || []) {
+      const mp = (mc.parameters as any[]) || [];
+      if (MOVE_STEP[mc.code]) { steps.push(MOVE_STEP[mc.code]); continue; }
+      switch (mc.code) {
+        case 0: continue; // route terminator
+        case 14: // Jump (dx, dy) — a bare 0,0 is RM's hop in place
+          steps.push({ k: "jump", dx: num(mp[0]), dy: num(mp[1]) });
+          continue;
+        case 15:
+          steps.push({ k: "wait", frames: num(mp[0]) || 15 });
+          continue;
+        case 23: // turn 90° right OR left at random — Atlas rolls it at author time
+          steps.push("turn_random");
+          continue;
+        case 27:
+        case 28:
+          steps.push({ k: "switch", id: num(mp[0]), on: mc.code === 27 });
+          continue;
+        case 29:
+          steps.push({ k: "speed", value: num(mp[0]) || 3 });
+          continue;
+        case 30:
+          steps.push({ k: "freq", value: num(mp[0]) || 3 });
+          continue;
+        case 41: { // Change Image (name, index) — same slug rule as 322/323
+          const name = String(mp[0] || "");
+          steps.push({ k: "graphic", charset: name ? slugKey(name) + (num(mp[1]) ? "-" + num(mp[1]) : "") : "" });
+          continue;
+        }
+        case 42:
+          steps.push({ k: "opacity", value: num(mp[0]) });
+          continue;
+        case 44:
+          steps.push({ k: "se", name: audioKey(mp[0]) });
+          continue;
+        default:
+          simplified = true; // 43 blend mode, 45 script
+          continue;
+      }
+    }
+    if (simplified) this.bump("route-steps", "partial", "a couple of movement details", "blend-mode changes and in-route script steps were left out; every other movement step came across");
+    return steps;
+  }
+
+  // -- §8.10 scene control -------------------------------------------------
+  /** 301 Battle Processing. Trailing 601/602/603 siblings (M3·C) fold their
+   *  bodies into the command's onWin/onEscape/onLose; 604 closes the set. A
+   *  variable-chosen troop still mzTodos — its branch bodies are consumed by
+   *  the 601–603 dispatch fallback (structurally skipped, reported once). */
+  private battle(c: RmCommand, out: AnyCommand[], indent: number): void {
+    const p = (c.parameters as any[]) || [];
+    if (num(p[0]) !== 0) { this.bump("cmd-battle-var", "todo", "a battle chosen by a variable", "battles whose troop is chosen at random or by a variable arrive in a later update", 301); out.push({ t: "mzTodo", code: 301, params: p, label: "Battle chosen by a variable — coming in a later update" }); return; }
+    const cmd: AnyCommand = { t: "battle", troopId: num(p[1]), escape: !!p[2], lose: !!p[3] };
+    for (;;) {
+      if (this.at(601, indent)) { this.i++; (cmd as any).onWin = this.branchThen(indent); }
+      else if (this.at(602, indent)) { this.i++; (cmd as any).onEscape = this.branchThen(indent); }
+      else if (this.at(603, indent)) { this.i++; (cmd as any).onLose = this.branchThen(indent); }
+      else if (this.at(604, indent)) { this.i++; break; }
+      else break;
+    }
+    out.push(cmd);
+  }
+  private shop(c: RmCommand, indent: number): AnyCommand {
+    const goods: { kind: "item" | "weapon" | "armor"; id: number }[] = [];
+    const KIND: Record<number, "item" | "weapon" | "armor"> = { 0: "item", 1: "weapon", 2: "armor" };
+    let custom = false;
+    const add = (g: any[]) => {
+      const kind = KIND[num(g[0])]; if (!kind || !num(g[1])) return;
+      goods.push({ kind, id: num(g[1]) });
+      if (num(g[2]) === 1) custom = true; // custom price override
+    };
+    add((c.parameters as any[]) || []);
+    while (this.at(605, indent)) add((this.list[this.i++].parameters as any[]) || []);
+    if (custom) this.bump("shop-price", "partial", "custom shop prices", "Atlas shops sell items at their normal price");
+    return { t: "shop", goods } as any;
+  }
+
+  // -- §8.11 actor/party data ----------------------------------------------
+  private changeHpMp(c: RmCommand, field: "hp" | "mp", out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    // Only the simple case maps: whole party (fixed, actorId 0), increase, constant.
+    if (num(p[0]) === 0 && num(p[1]) === 0 && num(p[2]) === 0 && num(p[3]) === 0) {
+      this.bump("cmd-heal-partywide", "partial", "restoring " + field.toUpperCase(), "restored " + field.toUpperCase() + " to the whole party (Atlas heals everyone together)");
+      out.push({ t: "heal", [field]: num(p[4]) } as any);
+      return;
+    }
+    out.push(this.todoCmd(c, TODO[c.code]));
+  }
+  private recoverAll(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    if (num(p[1]) !== 0) this.bump("cmd-recover-one", "partial", "a full heal", "Atlas fully heals the whole party together");
+    out.push({ t: "heal", full: true });
+  }
+
+  // -- §8.11 change-actor family (313, 315–325) ----------------------------
+  /** Resolve the change-family actor id. RM designation index 1 means the hero
+   *  is chosen by a variable — not resolvable at import, so it becomes an
+   *  mzTodo (kept for a re-import) + report. Otherwise returns the actor id
+   *  (0 = whole party). */
+  private changeActorTarget(c: RmCommand, out: AnyCommand[], desigIdx: number, actorIdx: number): number | null {
+    const p = (c.parameters as any[]) || [];
+    if (num(p[desigIdx]) === 1) {
+      this.bump("cmd-actor-var-" + c.code, "todo", "changing a hero chosen by a variable", "changing the hero a variable points at arrives in a later update", c.code);
+      out.push({ t: "mzTodo", code: c.code, params: p, label: "Change a hero chosen by a variable — coming in a later update" });
+      return null;
+    }
+    return num(p[actorIdx]);
+  }
+  /** Emit an mzTodo for a change-family command whose value comes from a
+   *  variable (only constant operands map, like Control Variables / gold). */
+  private changeActorVarValue(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    this.bump("cmd-actor-var-val-" + c.code, "todo", "changing a hero by a variable amount", "changing a hero's stats by a variable amount arrives in a later update", c.code);
+    out.push({ t: "mzTodo", code: c.code, params: p, label: "Change a hero by a variable amount — coming in a later update" });
+  }
+  private changeState(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const aid = this.changeActorTarget(c, out, 0, 1);
+    if (aid === null) return;
+    out.push({ t: "changeState", actorId: aid, op: num(p[2]) === 1 ? "remove" : "add", stateId: num(p[3]) });
+  }
+  /** 315 Change EXP / 316 Change Level share a layout: [desig, actor, op,
+   *  operandType, value]. op 0 = add, 1 = subtract; only a constant operand
+   *  (operandType 0) maps — a variable amount → mzTodo. */
+  private changeExpLevel(c: RmCommand, out: AnyCommand[], kind: "exp" | "level"): void {
+    const p = (c.parameters as any[]) || [];
+    const aid = this.changeActorTarget(c, out, 0, 1);
+    if (aid === null) return;
+    if (num(p[3]) !== 0) { this.changeActorVarValue(c, out); return; }
+    const op = num(p[2]) === 1 ? "sub" : "add";
+    out.push(kind === "exp"
+      ? { t: "changeExp", actorId: aid, op, value: num(p[4]) }
+      : { t: "changeLevel", actorId: aid, op, value: num(p[4]) });
+  }
+  /** 317 Change Parameters: [desig, actor, paramId, op, operandType, value].
+   *  All eight params map since post-1.1 (`luk` is a real Atlas stat now). */
+  private changeParam(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const aid = this.changeActorTarget(c, out, 0, 1);
+    if (aid === null) return;
+    const key = paramKey(num(p[2]));
+    if (!key) return; // out-of-range paramId — RM never writes one
+    if (num(p[4]) !== 0) { this.changeActorVarValue(c, out); return; }
+    out.push({ t: "changeParam", actorId: aid, param: key, op: num(p[3]) === 1 ? "sub" : "add", value: num(p[5]) });
+  }
+  /** 318 Change Skills: [desig, actor, op(0 learn/1 forget), skillId]. */
+  private changeSkill(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const aid = this.changeActorTarget(c, out, 0, 1);
+    if (aid === null) return;
+    out.push({ t: "changeSkill", actorId: aid, op: num(p[2]) === 1 ? "forget" : "learn", skillId: num(p[3]) });
+  }
+  /** 326 Change TP (M3·B): [desig, actor, op, operandType, operand] — the
+   *  same shape as Change EXP. */
+  private changeTp(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const aid = this.changeActorTarget(c, out, 0, 1);
+    if (aid === null) return;
+    if (num(p[3]) !== 0) { this.changeActorVarValue(c, out); return; }
+    out.push({ t: "changeTp", actorId: aid, op: num(p[2]) === 1 ? "sub" : "add", value: num(p[4]) });
+  }
+  /** 321 Change Class: [actor, classId, keepExp]. Atlas keeps the hero's level
+   *  either way; report when RM would have reset it. */
+  private changeClass(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    if (p[2] === false || num(p[2]) === 0) this.bump("cmd-class-keeplevel", "partial", "a class change", "Atlas keeps the hero's level when their class changes");
+    out.push({ t: "changeClass", actorId: num(p[0]), classId: num(p[1]) });
+  }
+  /** 322 Change Actor Images: [actor, faceName, faceIndex, charName, charIndex].
+   *  Atlas faces derive from the map charset, so the charset carries both. */
+  private changeActorImage(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const name = String(p[3] || "");
+    const charset = name ? slugKey(name) + (num(p[4]) ? "-" + num(p[4]) : "") : "";
+    this.bump("cmd-actor-image", "partial", "a hero's picture change", "Atlas uses one image for a hero's map sprite and face; add the matching art to your Assets library and it appears");
+    out.push({ t: "changeActorImage", actorId: num(p[0]), charset });
+  }
+
+  // -- §8.5 Get Location Info (285) ----------------------------------------
+  /** [varId, infoType, designation(0 direct/1 variable), x, y]. Terrain tags,
+   *  region, event id, and tile id all read real values (terrain since M4·A).
+   *  A variable-designated tile reports + falls back to the direct
+   *  coordinates. */
+  private getLocationInfo(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const INFO: Record<number, "terrain" | "eventId" | "tileId" | "region"> = { 0: "terrain", 1: "eventId", 2: "tileId", 3: "tileId", 4: "tileId", 5: "region" };
+    const varDesig = num(p[2]) === 1;
+    if (varDesig) this.bump("cmd-locinfo-var", "partial", "reading a tile chosen by a variable", "reading a tile whose position comes from a variable uses a fixed spot for now");
+    out.push({ t: "getLocationInfo", varId: num(p[0]), infoType: INFO[num(p[1])] || "terrain", x: varDesig ? 0 : num(p[3]), y: varDesig ? 0 : num(p[4]) });
+  }
+
+  // -- §8.13 script (355 + 655 lines) --------------------------------------
+  /** A Script command folds its 655 continuation lines into one snippet. If it
+   *  reads only `$gameSwitches`/`$gameVariables`/`$gameParty` (M5·B read-only
+   *  subset, D5) it becomes a runnable `mzScript` that plays under the compat
+   *  shim; anything that writes game state or reaches other data stays an
+   *  `mzTodo` placeholder + one honest report line (nothing is dropped). */
+  private script(c: RmCommand, out: AnyCommand[]): void {
+    const lines = [String(((c.parameters as any[]) || [])[0] ?? "")];
+    while (this.at(655, c.indent)) lines.push(String(((this.list[this.i++].parameters as any[]) || [])[0] ?? ""));
+    const code = lines.join("\n");
+    if (analyzeMzScript(code).ok) {
+      this.bump("cmd-script-ok", "converted", "a script that reads game data", "small scripts that read your switches, variables, or party now run in Atlas");
+      out.push({ t: "mzScript", code } as AnyCommand);
+      return;
+    }
+    this.bump("cmd-script", "todo", "a script snippet", "scripts that change game data (or read things Atlas doesn't have yet) are listed here and don't run — your game still plays");
+    out.push({ t: "mzTodo", code: 355, params: [code], label: "A script snippet — coming in a later update" });
+  }
+
+  // -- §8.1 Show Scrolling Text (105 + 405 lines) --------------------------
+  private scrollText(c: RmCommand, indent: number): AnyCommand {
+    const p = (c.parameters as any[]) || [];
+    const lines: string[] = [];
+    while (this.at(405, indent)) lines.push(String(((this.list[this.i++].parameters as any[]) || [])[0] ?? ""));
+    return { t: "scrollText", text: lines.join("\n"), speed: num(p[0]) || 2, noFast: !!p[1] } as AnyCommand;
+  }
+
+  // -- §8.8 Pictures (231 / 232) -------------------------------------------
+  /** RM picture name → an Atlas "asset:pictures/<slug>" key, and one aggregated
+   *  report line: pictures play now, but their art must be re-added (M1's asset
+   *  pipeline doesn't import img/pictures — matrix §16 / mig-2 spec). */
+  private pictureKey(raw: any): string {
+    const name = String(raw || "");
+    if (!name) return "";
+    this.bump("pic-art", "partial", "picture image files",
+      "your pictures now play in Atlas — add their image files to the Assets library and they'll appear (the picture names are kept for you)");
+    return assetKeyOf("pictures", slugName(name));
+  }
+  /** RM battleback name → an Atlas "asset:pictures/<slug>" key + one
+   *  aggregated "add the art" line (M4·A — same pattern as pictures). */
+  private battlebackKey(raw: any): string {
+    const name = String(raw || "");
+    if (!name) return "";
+    this.bump("battleback-art", "partial", "battle background image files",
+      "your battle backgrounds now show in Atlas — add their image files to the Assets library and they'll appear");
+    return assetKeyOf("pictures", slugName(name));
+  }
+  /** RM parallax name → asset key (M4·A; `!` prefix = locked to the map). */
+  private parallaxKey(raw: any): string {
+    const name = String(raw || "");
+    if (!name) return "";
+    this.bump("parallax-art", "partial", "background picture files",
+      "your scrolling backgrounds now show in Atlas — add their image files to the Assets library and they'll appear");
+    return assetKeyOf("pictures", slugName(name));
+  }
+  /** 284 Change Parallax (M4·A): [name, loopX, loopY, sx, sy]. */
+  private changeParallax(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const name = String(p[0] || "");
+    const cmd: any = { t: "parallax", key: name ? this.parallaxKey(name) : "" };
+    if (p[1]) cmd.loopX = true;
+    if (p[2]) cmd.loopY = true;
+    if (num(p[3])) cmd.sx = num(p[3]);
+    if (num(p[4])) cmd.sy = num(p[4]);
+    if (name.startsWith("!")) cmd.lock = true;
+    out.push(cmd);
+  }
+
+  private picVarPos(): void {
+    this.bump("pic-var-pos", "partial", "a picture placed by a variable",
+      "pictures positioned from a variable use a fixed spot for now (variable positions arrive in a later update, M2·C)");
+  }
+  private showPic(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const varDesig = num(p[3]) === 1;
+    if (varDesig) this.picVarPos();
+    out.push({
+      t: "showPic", id: num(p[0]) || 1, name: this.pictureKey(p[1]), origin: num(p[2]),
+      x: varDesig ? 0 : num(p[4]), y: varDesig ? 0 : num(p[5]),
+      scaleX: p[6] == null ? 100 : num(p[6]), scaleY: p[7] == null ? 100 : num(p[7]),
+      opacity: p[8] == null ? 255 : num(p[8]), blend: num(p[9]),
+    });
+  }
+  private movePic(c: RmCommand, out: AnyCommand[]): void {
+    const p = (c.parameters as any[]) || [];
+    const varDesig = num(p[2]) === 1;
+    if (varDesig) this.picVarPos();
+    out.push({
+      t: "movePic", id: num(p[0]) || 1, origin: num(p[1]),
+      x: varDesig ? 0 : num(p[3]), y: varDesig ? 0 : num(p[4]),
+      scaleX: p[5] == null ? 100 : num(p[5]), scaleY: p[6] == null ? 100 : num(p[6]),
+      opacity: p[7] == null ? 255 : num(p[7]), blend: num(p[8]),
+      frames: num(p[9]) || 1, wait: !!p[10],
+    });
+  }
+
+  /** Consume `openerCode`'s following continuation lines (`lineCode`) at `indent`. */
+  private consumeLines(_openerCode: number, lineCode: number, indent: number): void {
+    while (this.at(lineCode, indent)) this.i++;
+  }
+}
+
+const num = (v: any): number => (typeof v === "number" ? v : Number(v) || 0);
+const clampN = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
+const cap = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
+function weatherKind(v: any): string {
+  const k = String(v || "none");
+  return k === "rain" || k === "storm" || k === "snow" || k === "fog" ? k : "none";
+}
+
+/** Translate one RM command list into Atlas commands (matrix §8/§9/§13). */
+export function translateCommands(list: RmCommand[] | undefined, report: ImportReport): AnyCommand[] {
+  return new Translator(Array.isArray(list) ? list : [], report).run();
+}
+
+/** Build the `CommandTranslator` seam M1·A/M1·B left injected — the real spine.
+ *  Every command-bearing record (common events, troop pages, map event pages)
+ *  runs its list through this. */
+export function makeTranslator(report: ImportReport): CommandTranslator {
+  return (list: RmCommand[]) => translateCommands(list, report);
+}

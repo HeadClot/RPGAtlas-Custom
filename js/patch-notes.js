@@ -1,0 +1,1670 @@
+/* RPGAtlas - patch-notes.js
+   Keep newest entries first. See AGENTS.md for the update policy. */
+"use strict";
+
+export const PATCH_NOTES = [
+  {
+    date: "August 2, 2026",
+    version: "2.1.0",
+    title: "Move routes, dice damage, and a condition builder you can read",
+    summary:
+      "Set Move Route grows into a real cutscene tool, damage formulas learn to roll dice, wandering events can be kept on a leash, conditions are built in one place instead of three — and a game over no longer talks over the title screen.",
+    items: [
+      "Conditional Branch is rebuilt. Every condition is edited right where you see it — one line of controls — instead of read-only text with an “Edit…” button that opened a second window. No more windows inside windows.",
+      "The ALL (AND) / ANY (OR) choice is now visible from your very first condition, so you can see what it does before you need it, and each row is labelled “if / and / or” so the list reads like a sentence.",
+      "“+ Add group” adds brackets — “A and (B or C)” — as an indented card with its OWN ALL/ANY picker, already containing a condition. That's how you mix AND and OR in one gate, and it's now something you can see rather than guess at.",
+      "A plain-language line under the builder reads your whole condition back to you as you edit it: “Switch 1 (Crystal Found) is ON AND Has Potion ≥ 3 AND (Quest Rescue is completed OR Self-Switch A is ON)”.",
+      "The same builder is used by Show Choices' “Only if…” and by every condition in Dialogue & Cutscenes, so all three now work the same way.",
+      "Fixed: picking a different condition type left its own settings blank — a Self-Switch condition made that way never matched anything, and a Quest one showed “#undefined”.",
+      "Fixed: after losing a battle, the rest of the event used to keep running once the game-over had already sent you back to the title — so a “you have fallen…” text box appeared on top of the title screen. The event now finishes speaking where it was written, then the game-over screen takes over, and nothing from a finished game can run over the title.",
+      "Set Move Route is a proper cutscene tool. Point it at This Event, The Player, or Another Event on the map — one event can now direct the whole cast.",
+      "Move routes understand every step: the eight directions, forward/backward, random, toward or away from the player, jump (straight ahead or an exact number of tiles), all the turns (90° each way, around, random, face the player), an exact-frame wait, and changes to move speed, opacity, graphic, sound, switches, invisibility, walking animation, direction fix, and walking through walls.",
+      "Move routes can Repeat forever (a guard pacing back and forth) and can wait for the way to clear instead of skipping a blocked step — with a five-second give-up so a scene can never freeze. The step list can be reordered, and each step says in plain words what it does.",
+      "New event-page setting — Max wander: how many tiles an event may get from where you placed it. A wandering shopkeeper with 3 stays in their shop, and an Action Combat enemy set to Chase gives up at the end of its rope instead of following you across the map. 0 means no limit, exactly like before.",
+      "Damage formulas roll dice: 2d6, d20, 4d6kh3 (roll four, drop the lowest), 2d20kh1 for advantage and 2d20kl1 for disadvantage, plus roll(a.level, 6) for a spell that grows. Six ready-made rolls are one click away, and “🎲 Roll it five times” shows you what the dice actually do.",
+      "Items have an Advanced recovery formula now too — a classic potion is simply “2d4 + 2”.",
+      "Games imported from RPG Maker bring their move routes across whole: diagonals, chase steps, relative turns, speed and frequency changes, graphic swaps, in-route sounds and switches, and routes aimed at another event by number.",
+      "Fixed: “Continue” on the title screen was greyed out for a game that only ever autosaved, leaving no way back in.",
+      "Fixed: loading a save while the game was running left the old game's background events running too — one extra copy per load, forever.",
+      "Fixed: a background (Parallel) event kept running after a map change and wrote its self-switch onto the new map, flipping an unrelated event there. Self-switches now always belong to the map the event lives on, even after a Transfer Player.",
+      "Fixed: Control Variable “random” with an upper bound of 0 always produced the lower number; a range typed high-to-low now rolls the same as low-to-high.",
+      "Fixed: Change Parallax ignored the “Locked to map” tick.",
+      "Fixed: “Actor has weapon equipped” missed a weapon in the second hand of a two-weapon fighter.",
+      "Fixed: an Actor condition was described as a Gold condition everywhere in the editor.",
+      "Fixed: resizing a map left extra Advanced-editor tile layers at the old size, shearing their artwork permanently.",
+      "Fixed: dragging a widget in the HUD Designer resized the preview screen instead of moving the widget.",
+      "Fixed: the Starting party dropdowns replaced the wrong hero after you emptied a slot, and a troop's “hidden at start” tick moved to the wrong enemy after you cleared a slot.",
+      "Fixed: a fresh New Game remembered which “ask once” dialogue topics had already been used.",
+      "Fixed: walking into a transfer zone let you keep walking during the fade — long enough to start a battle on the map you were leaving.",
+    ],
+  },
+  {
+    date: "July 25, 2026",
+    title: "Dialogue topics, and as many conditions as you need",
+    summary:
+      "The Dialogue & Cutscenes workspace gets per-choice conditions and a new Topic Hub that shows every question an NPC can answer right now — and conditions everywhere can be combined with AND/OR.",
+    items: [
+      "Any condition can now be a LIST of conditions. Click “+ Add condition” a second time and you choose whether ALL of them must be true (AND) or ANY one of them (OR) — “only if you're in the Mage guild AND have met Ravel”. “+ Add group” nests one level for “A and (B or C)”.",
+      "Dialogue & Cutscenes: choice options finally have their own “Only if…” button, the same as Show Choices on event pages. An option whose condition isn't met is left out of the list, and the options that remain keep their own targets — hiding one can never send the player down the wrong branch.",
+      "Dialogue & Cutscenes: conditions here now use the full event-system condition picker, so self-switches, variable-vs-variable, item counts, and online state work in conversations too — not just the nine kinds the old panel offered.",
+      "New node type — Topic Hub: instead of wiring every question into a branch, you fill a Topic Pool and the hub shows every topic whose condition is met, all in one list. Pick one, hear the answer, and you're back at the list. This is the “talk to an NPC and see everything you can ask them” style of dialogue.",
+      "Topics have a Priority (higher shows first), an “Ask once” tick that retires a topic after it's used, and their own conditions. A hub can also borrow topics from another dialogue, so one shared “Guild topics” asset can hang off every guild member.",
+      "The conversation tree shows it all: topics appear under their hub in the order the player will see them, with their priority, once-only mark and condition spelled out.",
+      "As always this is additive — every dialogue and event you already made behaves exactly as it did.",
+    ],
+  },
+  {
+    date: "July 22, 2026",
+    title: "Choices can hide themselves — and smarter conditions",
+    summary:
+      "Show Choices options can now appear only when a condition is met, and Conditional Branch learns to compare two variables or count your items.",
+    items: [
+      "Show Choices: give any choice its own condition with the new “Only if…” button — a locked door can offer “Use the Rusty Key” only when the player actually has it. Hidden choices keep their branches; if every choice is hidden, the event just moves on.",
+      "Show Choices: a new “Player can cancel” checkbox lets Esc (or the B button) close the window without picking — nothing runs and the event continues. Great for optional shops and menus.",
+      "Conditional Branch: Variable conditions can compare against another variable, not just a fixed number — “if Coins Collected ≥ Coins Needed” finally reads the way you think it.",
+      "Conditional Branch: Has-item conditions can count — check for “Potion ≥ 3” or even “Herb == 0”, instead of only “has at least one”.",
+      "The event list shows all of it at a glance: conditional choices are marked in the command line, and each “When [choice]” branch label says which condition guards it.",
+      "Everything is optional and backwards-friendly: events you made before behave exactly as they always did.",
+    ],
+  },
+  {
+    date: "July 21, 2026",
+    title: "Play Together connects to Cloudflare-hosted play servers",
+    summary:
+      "Create and Join now work when a game's play server runs on Cloudflare — the game quietly tries the second way of connecting before giving up.",
+    items: [
+      "A play server hosted on Cloudflare Workers answers a slightly different handshake (it needs the room code in the address before it can pick the right room). Play Together now handles that by itself: it tries the normal connection first, and if that gets no answer it asks the server for a room code the Cloudflare way. Nothing to configure.",
+      "Joining a friend's room by code does the same, so the code your friend shares works whether their room lives on a home computer or on Cloudflare.",
+      "If neither way answers, you still get the same friendly “can't reach the play server” message as before.",
+    ],
+  },
+  {
+    date: "July 21, 2026",
+    title: "Typing your name in Play Together works for every name",
+    summary:
+      "Text boxes now get every letter you type. Before, the game grabbed its own control keys — W, A, S, D, M, Space and more — so typing \"Mike\" came out as \"ike\".",
+    items: [
+      "Fixed in the Play Together window (your name, room code, and world address) and the chat box: while you're typing in a text box, the game no longer treats your letters as move or menu keys.",
+      "This also means the character can't wander off or open menus while you type. Click back on the game when you're done typing and the controls work again.",
+    ],
+  },
+  {
+    date: "July 20, 2026",
+    title: "Detailed Tutorials — step-by-step guides in the Help menu",
+    summary:
+      "A new Help ▸ Detailed Tutorials dialog walks you through the big features in small, friendly steps — starting with running your own multiplayer server.",
+    items: [
+      "Six guides at launch: Set Up a Multiplayer Server (for developers — build and run the Beacon server, connect your game, go public safely), Turn On Multiplayer (Play Together), Use the Advanced Map Editor, Configure Map Properties, Create Your First Events, and Export & Share Your Game.",
+      "Every guide is written for newer developers: numbered steps, checkpoints so you know it worked, plain words, and honest troubleshooting sections.",
+      "Pick a guide from the list, and jump back with the ← All Tutorials button. Quick Help stays the one-page cheat sheet.",
+    ],
+  },
+  {
+    date: "July 20, 2026",
+    title: "Play Together — online multiplayer is here (RPGAtlas 2.0.0)",
+    summary:
+      "Friends can join your game online with a room code in under a minute — the feature RPG Maker never had, built right into the engine.",
+    items: [
+      "Turn it on with one checkbox: Database ▸ Multiplayer ▸ Enable Play Together. Your game stays byte-for-byte the same offline until you do — single-player is completely untouched.",
+      "Friends share a short room code, walk the same maps together, wave with emotes and preset phrases you write, party up, and fight battles side by side. Loot and experience go to each player's own party, and nobody's game ends because a shared fight went badly.",
+      "Kid-safe by design: no accounts, no email, no personal information — a player is just a display name. Players only ever connect to a play server, never to each other, so nobody's location is ever exposed.",
+      "Chat is OFF by default (emotes + your preset phrases only). You can opt into filtered free-text chat per game — and even then every player can mute anyone instantly and report a problem, and room owners can kick or ban.",
+      "Dream bigger? Run the open-source Beacon server yourself — a persistent world for hundreds of players, on a plain computer or Cloudflare's free tier, with authored NPCs and cutscenes running server-side and durable, passport-based moderation.",
+      "New help pages: \"Making Your Game Multiplayer\", \"Hosting a World\", and a plain-language \"Online Safety\" page you can show a parent or teacher. Try the built-in Driftwood Shore co-op demo to see it all in action.",
+    ],
+  },
+  {
+    date: "July 19, 2026",
+    title: "Change Items can read its count from a variable",
+    summary:
+      "Give or take however many a variable holds - items, weapons and armors join Change Gold.",
+    items: [
+      "The Change Items command gains an 'Amount from' picker: choose Constant for a fixed count (exactly as before) or Variable to read the count from a game variable when the command runs.",
+      "Works for items, weapons and armors alike, and the event list shows which variable it reads.",
+      "RPG Maker imports improve too: Change Items/Weapons/Armors events that use a variable count now import as the real thing instead of a to-do note.",
+    ],
+  },
+  {
+    date: "July 19, 2026",
+    title: "Change Gold can read its amount from a variable",
+    summary:
+      "Pay out however much a variable holds - perfect for scaling rewards, bets, and counters.",
+    items: [
+      "The Change Gold command gains an 'Amount from' picker: choose Constant for a fixed number (exactly as before) or Variable to read the amount from a game variable when the command runs.",
+      "Works with every currency, so 'Gain Var 3 Gems' is one command - the event list shows which variable it reads.",
+      "RPG Maker imports improve too: Change Gold events that use a variable amount now import as the real thing instead of a to-do note.",
+    ],
+  },
+  {
+    date: "July 19, 2026",
+    title: "Enemies can drop any currency",
+    summary:
+      "Give every enemy its own currency rewards - a dragon that always leaves Gems behind.",
+    items: [
+      "Database > Enemies > Stats & rewards gains a Currency rewards list: pick a currency and an amount, and add as many rows as you like per enemy.",
+      "Every defeated enemy pays its rows on victory, the totals join the Victory! message ('+4 Gems, +2 Tokens'), and the wallet updates instantly.",
+      "Rewards stack across the troop and across duplicate enemies, and always pay in full - no drop roll.",
+      "The Gold Double party ability still doubles only classic gold, so currency rewards stay predictable.",
+    ],
+  },
+  {
+    date: "July 19, 2026",
+    title: "Multiple currencies: wallet, shops, and events",
+    summary:
+      "Your Currency Types are now real money - earn them, spend them in shops, and gate events on them.",
+    items: [
+      "The party carries a wallet with a balance for every Currency Types entry; the first entry stays your classic gold, so existing games work unchanged.",
+      "Change Gold gains a Currency picker - grant or take Gems, Tokens, or any currency you define.",
+      "Open Shop gains a Currency picker: a shop priced in Gems shows every price as Gems and pays sell-backs in Gems too.",
+      "If conditions (events and dialogue lines) can compare any currency balance, so a ferryman can demand 3 Tokens.",
+      "The pause menu lists extra balances beside gold once you own any, and saves carry the wallet; older saves simply start the extras at zero.",
+    ],
+  },
+  {
+    date: "July 19, 2026",
+    title: "Tag gear with rarities and enemies with categories",
+    summary:
+      "Items, weapons, armors and enemies can now carry the new Types-tab labels.",
+    items: [
+      "Items, weapons and armors gain a Rarity dropdown fed by the Database > Types > Item Rarities list.",
+      "Enemies gain a Category dropdown fed by the Enemy Categories list, right in their identity row.",
+      "Both default to (none), and renaming a rarity or category in the Types tab updates every entry that uses it - references are stored by id.",
+      "These stay organisational labels: drops, damage and shops behave exactly as before.",
+    ],
+  },
+  {
+    date: "July 19, 2026",
+    title: "More category lists in the Types tab",
+    summary:
+      "Name your game's currencies, enemy families and item rarities from Database > Types.",
+    items: [
+      "Three new columns join the Types tab: Currency Types (Gold, Gems, Tokens), Enemy Categories (Beast, Undead, Humanoid, Dragon, Elemental) and Item Rarities (Common, Uncommon, Rare, Epic, Legendary).",
+      "They work like the other lists - rename, add or delete entries freely; they are planning labels for organising your world, so nothing in combat changes.",
+      "Existing projects and RPG Maker imports gain the default lists automatically the next time they are opened.",
+      "Pair them with the Generator Hub's Currency and Enemy generators to fill the lists with original names.",
+    ],
+  },
+  {
+    date: "July 15, 2026",
+    title: "Extensive Generator Hub",
+    summary:
+      "Create large batches of setting-ready names and story prompts from a new top-level Generators workspace.",
+    items: [
+      "The new Generators menu opens quick links and a searchable Generator Hub with 20 original generators spanning gear, magic, people, places, and adventures.",
+      "Weapon, Armor, Spell, Currency, Item, Enemy, Character, Faction, Settlement, Kingdom, Dungeon, Tavern, Potion, Artifact, Quest, Deity, Ship, Book, Plant, and Festival word banks provide thousands to millions of combinations per tool.",
+      "Filter each generator by subtype and tone, then choose Concise, Evocative, or Legendary naming styles and generate batches of 5, 10, or 20 results.",
+      "Optional alliteration, formal 'The' titles, world keywords, and one-line story hooks make results easy to fit into an existing setting.",
+      "Copy individual names or full batches, and star favorites into a browser-local saved-name shelf for later use.",
+    ],
+  },
+  {
+    date: "July 15, 2026",
+    title: "Eight-direction Character Generator studio",
+    summary:
+      "Build, animate, save, and export characters with true diagonal sprite poses from a redesigned compass-based generator.",
+    items: [
+      "The Character Generator now offers 4 Directions and 8 Directions modes, with a large animated stage and clickable compass preview for every facing.",
+      "Generated eight-direction characters save four dedicated diagonal rows and use those poses during diagonal movement in playtests and exported games.",
+      "Export 4-dir PNG creates the standard 144 x 192 sheet, while Export 8-dir PNG creates a 144 x 384 sheet ordered D, L, R, U, DL, DR, UL, UR.",
+      "Classic Pixel, Chibi, Heroic, and Storybook builds all generate crisp diagonal silhouettes; legacy four-direction characters retain their compatible side-pose fallback.",
+    ],
+  },
+  {
+    date: "July 15, 2026",
+    title: "Optional eight-direction movement",
+    summary:
+      "Let players move and face diagonally on the tile grid without changing the collision model or existing games' four-direction controls.",
+    items: [
+      "New Database > System > Map systems option: Eight-direction movement combines held horizontal and vertical controls into diagonal steps.",
+      "Diagonal movement works with keyboard, D-Pad, and analog-stick input while four-direction movement remains the default for existing and new projects.",
+      "Blocked neighboring tiles prevent corner-cutting, including while riding vehicles, and diagonal facings carry through interactions, followers, saves, and action combat.",
+      "Existing four-row character sheets automatically use their matching left or right pose while moving diagonally.",
+    ],
+  },
+  {
+    date: "July 15, 2026",
+    title: "Dialogue & Cutscenes workspace",
+    summary:
+      "Author reusable branching conversations and command-driven cutscenes in a dedicated production workspace instead of rebuilding them inside generic event pages.",
+    items: [
+      "New Tools ▸ Dialogue & Cutscenes workspace organizes reusable conversation assets as readable trees of Line, Choice, and Cutscene nodes.",
+      "Define shared speakers and portraits, then give individual lines portrait overrides, imported voice cues, runtime conditions, and stable localization keys.",
+      "Choice nodes route every player response to another node; unlinked drafts stay visible, and Generate keys fills missing line and choice localization identifiers without overwriting authored keys.",
+      "Cutscene nodes embed the full event-command editor, including movement, camera, pictures, screen effects, audio, waits, switches, battles, and plugin commands.",
+      "A built-in interactive Preview walks the conversation tree before playtest and summarizes cutscene commands while keeping the real runtime path unchanged.",
+      "New Play Dialogue event command runs a reusable asset from event lists or Atlas Graph; scripts can await game.callDialogue(id).",
+      "Dialogue portraits, voice clips, and assets referenced by embedded cutscene commands are tracked for project files, renames, and standalone exports.",
+    ],
+  },
+  {
+    date: "July 15, 2026",
+    title: "Visual UI and HUD Designer",
+    summary:
+      "Design the in-game HUD and dialogue layout visually instead of relying on a fixed minimap and quest tracker.",
+    items: [
+      "New Database ▸ System ▸ Visual UI / HUD designer supports drag-to-position and corner-resize editing on the project's real game-screen ratio.",
+      "Add minimaps, quest trackers, bound text, gauges, and clickable custom-menu widgets anywhere on the map HUD.",
+      "Bind widgets to variables, switches, gold, party-leader HP/MP/TP/level, step count, or the current map name.",
+      "Custom menu commands can open the pause menu or run a selected Common Event through the normal blocking event flow.",
+      "An optional draggable message-window rectangle controls dialogue position, size, padding, and text alignment.",
+      "Atlas, Parchment, and Neon theme presets coordinate HUD colors with shared menu and message-window styling.",
+    ],
+  },
+  {
+    date: "July 15, 2026",
+    title: "Dungeon Depths Deluxe tileset",
+    summary:
+      "Build richly detailed indoor dungeons with a cohesive new collection of floors, colored waters, modular walls, and ceiling pieces.",
+    items: [
+      "New Asset Browser pack: Dungeon Depths Deluxe installs 48 matching native 48×48 indoor tiles in one click.",
+      "Eight seamless floors cover ancient flagstone, basalt, mossy stone, temple marble, rune stone, worn brick, iron grating, and timber.",
+      "Eight distinct liquid tiles add blue, toxic green, blood red, arcane violet, shallow turquoise, abyssal black, icy cyan, and molten amber water.",
+      "A complete sixteen-piece wall family adds straight variants, inner and outer corners, junctions, a cracked section, and a barred arch at room scale.",
+      "Sixteen ceiling and upper-layer pieces add vaults, beams, reinforced stone, a collapse, chains, chandelier, arches, stalactites, and glowing crystals.",
+      "Walkable floors and overhead pass-through pieces carry sensible defaults; walls, hazardous waters, and solid ceilings remain blocked.",
+    ],
+  },
+  {
+    date: "July 15, 2026",
+    title: "Village & Countryside Deluxe tileset",
+    summary:
+      "Build beautiful outdoor villages with a complete new collection of richly layered terrain, paths, buildings, foliage, props, and boundaries.",
+    items: [
+      "New Asset Browser pack: Village & Countryside Deluxe installs 80 matching native 48×48 tiles in one click.",
+      "Sixteen seamless grounds cover summer and dry grass, clover, dirt, mud, cobblestone, flagstone, mossy stone, timber decking, tilled soil, meadows, snow, sand, and water.",
+      "A complete modular path kit adds every straight, corner, junction, and crossroads shape, plus cobbled lanes, timber bridges, and a market square.",
+      "Sixteen detailed structures add cottages, an inn, blacksmith, bakery, apothecary, chapel, town hall, barn, windmill, market stall, well, fountain, and gatehouse.",
+      "Trees, flowers, shrubs, farm props, fences, walls, gates, and a hedge arch turn the collection into a full outdoor map-building kit instead of a scenery sampler.",
+      "Terrain, overlays, gates, water, buildings, and boundaries carry sensible walkability defaults and bind to the live tile palette immediately after installation.",
+    ],
+  },
+  {
+    date: "July 14, 2026",
+    title: "Add your own project icons",
+    summary:
+      "Extend the built-in icon set from any icon picker and keep those additions with the game project.",
+    items: [
+      "New Add Icons… button in Choose Icon imports individual 32×32 PNG, WebP, or JPEG images.",
+      "Larger sheets whose dimensions are multiples of 32 are split into ready-to-pick icon cells automatically.",
+      "Imported icons appear immediately in every icon picker and travel with project saves, playtests, and standalone game exports.",
+    ],
+  },
+  {
+    date: "July 14, 2026",
+    title: "World Map Deluxe — hand-painted tileset overhaul",
+    summary:
+      "Replace the placeholder overworld art with a cohesive premium tileset built from high-resolution hand-painted pixel artwork.",
+    items: [
+      "World Map Deluxe now installs 48 matching native 48×48 tiles, each rebuilt for crisp in-game readability.",
+      "Sixteen seamless terrains span meadows, forests, deserts, tundra, swamps, ocean, shallows, volcanic earth, ancient stone, dungeons, badlands, and crystal caverns.",
+      "Sixteen detailed landmarks and barriers add villages, towns, castles, ports, ruins, shrines, mountains, cliffs, a volcano, monolith, logging camp, oasis, and crystal cave.",
+      "A complete sixteen-piece route kit adds modular dirt roads, bridges, ancient stone causeways, and a cobblestone plaza with clean edge connections.",
+      "Pack cards can now show a large visual preview, so the entire art collection is visible before installation.",
+    ],
+  },
+  {
+    date: "July 14, 2026",
+    title: "Ctrl Through movement for map playtests",
+    summary:
+      "Inspect maps outside their normal collision rules by holding Ctrl during an editor playtest, without exposing the developer control in deployed games.",
+    items: [
+      "Hold Ctrl while moving in Playtest to walk through blocked tiles, collision zones, ledges, and solid events.",
+      "The override keeps the player inside map boundaries and turns off immediately when Ctrl is released.",
+      "Standalone exports and deployed builds never receive the developer binding, even if a playtest-looking query string is added to their URL.",
+    ],
+  },
+  {
+    date: "July 14, 2026",
+    title: "Character Generator rebuilt with distinct sprite bodies",
+    summary:
+      "Create genuinely different heroes and NPCs with four separately drawn sprite constructions plus expanded body, wardrobe, hair, face, and accessory controls.",
+    items: [
+      "Four real sprite builds replace the old visual filters: Classic Pixel, big-eyed Chibi, long-legged Heroic, and higher-detail Storybook each use different proportions, faces, and silhouettes.",
+      "New Body, Outfit, and Accessory controls add balanced/slim/broad/compact builds, tunics/robes/armor/coats, and capes/scarves/glasses/headbands.",
+      "Expanded hair options add bobs, ponytails, mohawks, and hoods; new Eye and Accent colors control facial and outfit details.",
+      "Every art-style card now shows a live thumbnail of the current character before you choose it.",
+      "New Randomize Look button keeps your chosen art style while generating a coordinated body, hair, wardrobe, and color combination.",
+      "New Surprise Me button randomizes both the character design and art style for faster inspiration.",
+      "Existing generated characters remain compatible and open as Classic Pixel characters with safe defaults for the new controls.",
+    ],
+  },
+  {
+    date: "July 14, 2026",
+    title: "World Map Essentials tileset",
+    summary:
+      "Build overworld maps faster with a new installable set of matching pixel-art biomes, roads, barriers, settlements, and landmarks.",
+    items: [
+      "New Asset Browser pack: World Map Essentials installs 34 matching 48×48 map tiles in one click.",
+      "Paint nine overworld biomes, including plains, forests, deserts, tundra, swamps, highlands, volcanic ground, ocean, and shallows.",
+      "Connect regions with a complete 13-piece road-and-bridge kit, then place mountains, cliffs, a volcano, villages, towns, a castle, a port, a tower, ruins, a cave, and a shrine.",
+      "Terrain, routes, water, and barriers carry sensible walkability defaults and work in the existing tile palette immediately after installation.",
+    ],
+  },
+  {
+    date: "July 9, 2026",
+    title: "Turn your older game into a folder (RPGAtlas 1.2.0)",
+    summary:
+      "RPGAtlas 1.2.0 finishes the big \"your game is a folder\" update on the desktop app — and now it brings your older games along too. If you open the desktop app and it finds a game you made before games became folders, it greets you with a friendly one-click \"let's put your game in a folder\" wizard: pick a name and a place, and RPGAtlas makes a proper folder for your game and tidily copies its pictures and sounds in, so nothing is left behind and you're never stranded. You can also do it later from the launcher — the offer stays one click away until you take it. There's a fresh help page too (\"Your Game Is a Folder\"), and the web version now has a gentle File-menu note explaining where your game is saved and what the desktop app's folders add. (The web version's own saving is unchanged.)",
+    items: [
+      "New: open an older desktop game and RPGAtlas offers a one-click “put your game in a folder” wizard — the name is filled in from your game's title, and its pictures and sounds are copied into the new folder for you.",
+      "Not ready? Choose “Not now” and the offer waits for you as a button on the launcher — your old game is never stranded behind the scenes.",
+      "New help pages: “Your Game Is a Folder” and “Adding Your Own Art and Music”, plus a refreshed manual.",
+      "Web version: a new File ▸ “Where's my game saved?” note explains that your game lives in your browser here, and that the desktop app keeps each game in its own folder.",
+    ],
+  },
+  {
+    date: "July 9, 2026",
+    title: "Open your game by double-clicking it",
+    summary:
+      "On the desktop app, your game's game.rpgatlas file is now a real, openable file: double-click it (or drop your game's folder onto RPGAtlas) and the editor opens straight into that game, skipping the launcher — just like the big game-makers. If RPGAtlas is already open, double-clicking another game brings the window to the front and switches to it instead of opening a second copy — and it saves the game you were working on first, so nothing is lost. On Windows you tell the app to open .rpgatlas files once (right-click a game.rpgatlas ▸ Open with ▸ choose RPGAtlas ▸ “Always use this app”), and from then on every game is one double-click away. If you ever hand it a path that isn't a game, it just opens the friendly launcher with a note instead of breaking. (The web version is unchanged.)",
+    items: [
+      "New: double-click a game.rpgatlas file (or pass a game folder to RPGAtlas-Desktop.exe) and the editor opens straight into that game.",
+      "Only one RPGAtlas: opening another game while the app is running brings the window to the front and switches to it — after saving your current game first — instead of launching a second copy.",
+      "Windows: set .rpgatlas to open with RPGAtlas once (Open with ▸ Always use this app) and every game becomes a double-click; see the README for the steps.",
+      "A path that isn't a game opens the launcher with a kind “we can't find that game” note — never a crash.",
+    ],
+  },
+  {
+    date: "July 9, 2026",
+    title: "Your pictures and sounds live in your game's folder now",
+    summary:
+      "On the desktop app, your game's art and audio now live right inside your game's folder — in plain \"assets\" folders (characters, facesets, enemies, tilesets, audio) you can see and open. The best part: just copy a picture or a sound into the matching folder with your file manager, switch back to the editor, and it's there — no importing, no dialogs. Big tile sheets still open the friendly 48-tile slicer, and duplicates are still skipped automatically. Your files stay exactly where you put them: renaming or deleting an asset in the editor never moves or erases the real file. If a file goes missing, the Asset Browser says so kindly instead of breaking — put it back and it heals itself. And because everything a game needs is now in one folder, you can zip it, move it to another computer, and open it — all the art and music come along. (Opening an older desktop game tidily brings its pictures and sounds into the new folder for you. The web version is unchanged.)",
+    items: [
+      "New: copy a picture or sound into your game's assets folder (assets/characters, assets/tilesets, …) and it appears in the editor on its own when you come back — or click “Scan for New Files”.",
+      "Your files stay put: the editor references them where they are and never moves, renames, or deletes them. Renaming an asset only changes its name in the editor.",
+      "Big tile sheets still open the 48px slicer with the same “that's a lot of tiles!” safety check; identical files are skipped automatically.",
+      "Missing a picture or sound? The Asset Browser shows a friendly “missing” card instead of breaking — put the file back and it comes home.",
+      "Your whole game is one folder now: zip it, move it, reopen it elsewhere and every picture and sound loads. New “Open Project Folder” button in the Asset Browser.",
+    ],
+  },
+  {
+    date: "July 9, 2026",
+    title: "Your desktop game saves right into its own folder now",
+    summary:
+      "On the desktop app, your game now saves straight into its project folder — the game.rpgatlas file updates by itself as you work, exactly like the big game-makers. There's no more “save to a file” step to remember: your folder IS your game. Every save is written safely (so a crash mid-save can never scramble it), and the app quietly keeps the last few versions in a backup folder in case you ever want to step back. If your computer ever shuts down before a save finishes, RPGAtlas notices next time and offers to bring your unsaved changes back. And if you (or another program) change the game's file outside the editor, RPGAtlas spots it when you come back and offers to load the newer version. Playtest still works exactly as before, and “Export” still makes a shareable single-file copy with all its pictures and sounds baked in. (The web version is unchanged.)",
+    items: [
+      "New: on the desktop app, editing autosaves into your project folder's game.rpgatlas — no more first-time “Save As”. Ctrl+S still saves right now.",
+      "Safe saves: each save is written atomically and the last few versions are kept in a backup folder, so a crash can't scramble your game.",
+      "Crash recovery: if a save didn't finish last time, RPGAtlas offers to “Bring your changes back” when you reopen the game.",
+      "Changed outside the editor? When the game's file changes on your computer, RPGAtlas offers to load the newer version — or keep yours.",
+      "Export ▸ Export Project As File still makes a shareable single-file copy with pictures and sounds embedded; Playtest is unchanged.",
+    ],
+  },
+  {
+    date: "July 9, 2026",
+    title: "RPGAtlas Desktop opens with a Project Manager — make or open a game",
+    summary:
+      "The desktop app now works like the big game-makers: instead of dropping you straight into the editor, it opens a friendly launcher where you make a brand-new game or open one you already have. Making a game asks for a name (and shows you the exact folder it will create — “My Game!!!” becomes “My Game” before your eyes), lets you pick where it lives, and lets you start from an Empty map, the Starter game, or the Atlas Quest sample. Your recent games are one click away, and if you ever move or delete a game's folder the launcher says so kindly instead of breaking. Once you pick a game, the editor opens just like before — and the window title now shows your game's name. (The web version is unchanged.)",
+    items: [
+      "New: a Project Manager launcher on the desktop app — big “New Project” and “Open Project” buttons plus your recent games.",
+      "New Project: type a name and watch the live preview show the safe folder name; choose where to save it; start from Empty map, Starter game, or the Atlas Quest sample.",
+      "Open Project: reopen a recent game in one click, or Browse to your game's folder.",
+      "Friendly by design: “You already have a game with that name here”, “That folder isn't an RPGAtlas game”, and “We can't find this game anymore” (with a Remove button) replace any scary errors.",
+      "File ▸ New Project / Open Project now take you back to the launcher, and the window title reads “<Your Game> — RPGAtlas”.",
+    ],
+  },
+  {
+    date: "July 9, 2026",
+    title: "A damaged map can't lock you out of the editor anymore",
+    summary:
+      "A field report (fixed by community contributor baz — thank you!): a project holding a map that was missing one of its invisible layers (shadows, passability, heights, or regions) crashed the editor on every launch, and the only way back in was restoring the whole project. Now every project heals those layers automatically the moment it loads — saved projects, RPG Maker imports, and playtests alike. And if the editor ever does hit a startup problem, you get a plain-language recovery screen with Reload and Reset buttons instead of a blank window.",
+    items: [
+      "Fixed: a saved or imported map missing an under-the-hood layer crashed the editor at launch “until restored” — those maps now heal themselves on load and open fine.",
+      "New: if the editor can't start, a friendly screen explains what happened and offers “Reload” and “Reset saved project & reload” — no more staring at a blank page.",
+      "Imported RPG Maker maps now arrive carrying every Atlas layer from the start, including the HD-2D heights layer.",
+      "The status bar's “✓ saved” indicator now appears only once the editor is actually ready, so it can never claim your project is saved while things are still loading.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "RPG Maker add-ons now convert into Atlas plugins — credits included",
+    summary:
+      "Importing an RPG Maker game now runs a plugin converter: every add-on listed in your project becomes a real entry in Tools ▸ Plugin Manager, keeping its name, its original author's credit, its description, and every setting you had chosen. When the add-on's .js file is in your project folder, Atlas also reads its info card (the author, settings, and commands it declared) and carries the original code along as reference — clearly marked, never run. Honesty note: RPG Maker add-on code talks to RPG Maker's own insides, which Atlas doesn't have, so the converted plugin is a faithful shell — the import report still tells you which Atlas feature covers what each add-on did.",
+    items: [
+      "New: the RPG Maker import automatically converts each add-on from js/plugins.js into an Atlas plugin — no extra step, it happens during File ▸ Import from RPG Maker.",
+      "Credits are sacred: the original author's name (from the add-on's own @author tag) shows in the Plugin Manager, in the generated plugin's header, and in the import report — converting never takes a name off someone's work.",
+      "Every setting you picked in RPG Maker rides along, readable in the plugin and at atlas.rm.plugins for plugin writers.",
+      "The original add-on code comes too (when it isn't huge) as clearly-marked reference text — Atlas never runs RPG Maker code, so nothing can break or misbehave.",
+      "Converted add-ons keep their ON/OFF switch from RPG Maker and show a “from RPG Maker” badge in Tools ▸ Plugin Manager.",
+      "The import report's add-ons section now names each author and says “now in your Plugin Manager.”",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Five more things now come across: Luck, dual wield, autosave, and custom menus",
+    summary:
+      "The RPG Maker import report's “left out on purpose” list just got a lot shorter. Atlas grew a real Luck stat (the eighth battle number — it nudges how often ailments and stat drops land), two-weapon fighting (dual-wield heroes get a second weapon slot in the Equip menu), autosave (the game quietly saves after map moves and won battles), custom pause-menu commands (hide Items, Skills, Save, or any command you don't want), and item-menu categories with a proper Key Items tab — story items can't be used up by accident anymore. Every one of these imports automatically from MZ/MV projects and can be switched on for your own games in Database ▸ System. Projects that don't use them play byte-for-byte the same as before.",
+    items: [
+      "New Luck stat (LUK) on classes, enemies, and equipment — higher Luck makes your ailments land more and enemy ailments land less, exactly like RPG Maker. It only appears once your game actually uses it.",
+      "Two-weapon fighting: give a class the “Two-weapon fighting” bonus (Classes ▸ Traits) and its heroes get a second weapon slot; both weapons' stats count.",
+      "Autosave (Database ▸ System): the game writes a dedicated Autosave slot after map transfers and survived battles; players load it from the Load menu.",
+      "Custom pause-menu commands (Database ▸ System): untick Items, Skills, Equip, Status, Formation, or Save to hide it from the pause menu.",
+      "Item-menu categories (Database ▸ System): the item menu can open with Items / Weapons / Armor / Key Items tabs; mark story items as key items on the Items tab.",
+      "Imports pick all five up automatically — Luck values, dual-wield heroes (their second weapon lands in the right slot now), autosave, hidden menu commands, and key items all convert instead of being “left out on purpose.”",
+      "Damage formulas that read a.luk or b.luk now run for real instead of falling back.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Polish pass: sturdier imports and a tidier editor",
+    summary:
+      "A bug-hunting sweep right after 1.1, including a fix for a real imported-game report: bringing in an RPG Maker project whose first map had no shadows painted failed with a confusing “reading '0'” error. Clicking an imported read-only Script command in the event editor now opens a friendly read-only view instead of breaking the panel — and no command type, however unusual, can crash the inspector anymore. Importing a project folder that's missing its map files now lands you on a fresh starter map with an honest report line instead of failing halfway. And the import safety check got even stricter about which script snippets it vouches for.",
+    items: [
+      "Fixed: importing an RPG Maker game whose maps had empty shadow/region/passability layers failed with “Cannot read properties of undefined (reading '0')” — those maps now come in and play fine.",
+      "Fixed: selecting or editing an imported “Script (from RPG Maker)” command could break the event editor — it now shows the script read-only, with advice on replacing it.",
+      "Fixed: importing an RPG Maker folder with no readable map files now keeps a starter map and says so in the report, instead of failing after replacing your project.",
+      "Imported script snippets using backtick text are now politely declined and listed in the report — Atlas only runs code it can fully check.",
+      "Internal tidy-up: the last few code-style warnings are gone, so contributor builds are fully clean.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "RPGAtlas 1.1 — the RPG Maker import update is complete",
+    summary:
+      "Project Compass has landed. Since 1.0, RPGAtlas learned to import RPG Maker MV and MZ games — and grew every engine feature those games actually use: pictures and screen effects, the full message toolkit, the whole trait book, real damage formulas, boss-fight battle events, living map tiles, jingles and background sounds, honest add-on guidance, and read-only script snippets that really run. Import your game, read the friendly report, press Playtest. Everything is additive: projects made in RPGAtlas 1.0 open and play exactly as before.",
+    items: [
+      "File ▸ Import from RPG Maker… turns an MV or MZ project folder (or .zip) into a playable RPGAtlas project, with a plain-language report of what came along.",
+      "Seven updates' worth of new engine features shipped along the way — scroll down this list to see each one in detail.",
+      "Re-import the same game any time: RPGAtlas keeps learning, and the report's banner tells you exactly what's newly supported.",
+      "The wiki gained a full “Coming from RPG Maker” guide, with a term-by-term cheat sheet.",
+      "Nothing about your existing projects changed: the project format, plugin API, and every 1.0 game stay exactly as they were.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Smoother RPG Maker imports: live progress, re-import, and a savable report",
+    summary:
+      "Bringing an RPG Maker MV or MZ game into RPGAtlas got friendlier. The importer now shows a live progress bar as it reads and converts your game, so a big project no longer looks frozen. You can save the import report as a text file or copy it, to keep a checklist of anything to touch up. And you can re-import the same game any time: RPGAtlas keeps learning to convert more, so a fresh import picks up whatever's newly supported — the report has a banner that tells you exactly how many things that were “coming later” now come across. There's also a new wiki guide, “Coming from RPG Maker.”",
+    items: [
+      "The import wizard shows a live, stage-by-stage progress bar (reading → converting → building → done) instead of a frozen “please wait.”",
+      "Save your import report as a text file (“💾 Save as Text…”) or copy it (“📋 Copy”) — handy as a to-do list or to paste into a question.",
+      "Re-import the same game any time to pick up newly supported conversions; the report's 🔁 banner celebrates how many “saved for later” things now come across.",
+      "The Import from RPG Maker dialog nudges you toward re-importing when your project already came from an import.",
+      "New wiki page “Coming from RPG Maker” walks through the whole move, with a term-by-term cheat sheet (Actor → Hero, Troop → Battle group, and so on).",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Simple RPG Maker scripts now run: switches, variables & party checks",
+    summary:
+      "Some RPG Maker events use little JavaScript snippets — a “Script” command, or a Conditional Branch that asks a question in code. Atlas now understands the most common ones: anything that just reads your switches, variables, or party (how much gold you have, who's in the group, whether an item is owned) is converted and runs for real, so those branches decide the right way in your game. Scripts that change game data, or reach for things Atlas doesn't have yet, are still listed honestly in the import report and left out — your game keeps playing either way. For safety, imported scripts only ever read game data; they can't change anything.",
+    items: [
+      "Read-only “Script” commands and Conditional-Branch “Script” conditions that use $gameSwitches, $gameVariables, or $gameParty now convert and run in Atlas.",
+      "Supported reads: $gameSwitches.value(n), $gameVariables.value(n), and $gameParty.size() / .gold() / .members() / .hasItem(id).",
+      "A conditional branch that asks a code question (like “is switch 3 on and variable 1 above 5?”) now picks the correct path when you play.",
+      "Scripts that write game data (setValue, gainGold…) or read other data ($gameActors, $gameMap…) are listed in the import report and don't run — nothing is silently dropped, and your game still plays.",
+      "Your safety comes first: imported scripts run read-only — they can't change your game's data.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Import report now explains your RPG Maker add-ons (plugins)",
+    summary:
+      "RPG Maker games often use add-ons (plugins) — little programs Atlas can't run. When you import a game, the report now has an “Add-ons” section that names every plugin from your project, remembers whether it was on or off and how many settings it had, and tells you in plain words whether Atlas already does that thing, does something close, or doesn't do it — with a pointer to where to look. Popular add-ons like quest journals, message boxes, and battle systems are recognized by name; anything we don't know is kept safely with an honest note. No plugin code is ever run — Atlas only reads the list.",
+    items: [
+      "The import report gained an “🔌 Add-ons (plugins)” section listing each plugin from js/plugins.js.",
+      "Each add-on gets an honest verdict: “Atlas already does this” (quest journals → the Quests panel), “Atlas has something close” (message and battle add-ons), “Atlas doesn't do this — your game still plays” (pixel movement, lighting, HUDs), or “kept your settings, but it won't run” for add-ons we don't recognize.",
+      "The report remembers whether each add-on was switched on or off and how many settings it carried.",
+      "Recognition covers the most common community add-on families (quest, message, battle, item/equip, movement, HUD, lighting, encounters, and more) across YEP_, VisuMZ_, MOG_, and Orange naming styles.",
+      "Your safety comes first: plugin code is never executed — Atlas only reads the add-on list as text.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Imported animations & the full soundtrack: jingles, background sounds, pitch & pan",
+    summary:
+      "Imported RPG Maker games look and sound like themselves now. MV's sheet-based battle animations convert into real Atlas animations (add the sheet image and they play frame by frame), and MZ's Effekseer effects honestly borrow the closest Atlas animation while keeping your own flashes, sounds, and screen shakes. The soundtrack grew a whole channel rack: victory/defeat/game-over jingles, looping background sounds like rain, remember-and-replay music, and volume/pitch/pan on music and sounds. Atlas-made games play exactly as before — every new behavior stays off until something asks for it.",
+    items: [
+      "RPG Maker MV animations convert for real: frames become flipbook timelines over the animation sheet, flashes and sound timings come along — drop the sheet PNG into the Assets library as a picture and it plays.",
+      "RPG Maker MZ animations can't bring their Effekseer particle files, so each one borrows the nearest Atlas animation by name and element (Fire → Fire Burst) and keeps its own flashes, sounds, and quakes — the import report lists every substitution.",
+      "Victory, defeat, and game-over jingles: imported games play their own MEs at those moments, and the new Change Victory/Defeat Jingle command swaps them mid-game.",
+      "Six new event commands: Background Sound (play/stop looping rain, waves…), Play Jingle (pauses the music and resumes it after — real ME behavior), Remember Music & Replay Remembered Music (picks up where it left off), Stop All Sounds, and Change Victory/Defeat Jingle.",
+      "Play Music, Play Sound, and map background-sound layers now honor volume, pitch, and stereo pan — imported commands keep their RPG Maker mix, and the editor forms grew the same knobs.",
+      "Replaying the music that's already playing with new settings retunes it in place instead of restarting it, just like MZ.",
+      "A map whose RPG Maker settings auto-play a background sound (BGS) now starts that layer on entry, at its authored volume.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Living maps: bushes, ladders, counters, damage floors & looping worlds",
+    summary:
+      "Maps caught up with battles. Tiles can now behave: tall grass hides your hero's feet, ladders make you climb, shop counters let you talk across them, and lava floors hurt to walk on. Maps can wrap around at the edges like a little planet, scroll a background picture behind the tiles, and bring their own battle backdrop. Vehicles obey events too. Everything is off until you turn it on — Atlas-made games play exactly as before, and imported RPG Maker MV/MZ games get all of it automatically.",
+    items: [
+      "Tile behaviors are live: the Bush, Ladder, Counter, and Damage-floor flags in Database ▸ Tilesets (and imported RPG Maker tilesets) now do their thing in play.",
+      "Damage floors follow RPG Maker's rules — 10 damage per step (heroes' Floor Damage trait scales it), never lethal unless the game says so.",
+      "Terrain tags read for real: Get Location Info's “terrain” option returns the tile's tag instead of 0.",
+      "Looping maps: check “Loop left↔right / top↕bottom” in Map Properties and walking off one edge brings you out the other.",
+      "Parallax backgrounds: give a map a background picture (Map Properties ▸ General) — it can loop, drift, or lock to the map, and the Change Parallax event command swaps it mid-scene.",
+      "Battle backgrounds: a map (or the whole game) can name floor + walls images for its battles, and Change Battle Back overrides them from an event.",
+      "Region-scoped encounters: imported RPG Maker encounter lists tied to painted regions now roll only inside those regions (Atlas region pools already did this — now the importer fills them in).",
+      "Three new event commands for vehicles: Set Vehicle Location, Get on/off Vehicle, and Change Vehicle Image.",
+      "Poison on the go: with RPG Maker battle pacing on, walk-regen and slip-damage traits tick every 20 steps, just like MZ.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Boss-fight tools: mid-battle commands, loot drops & surprise rounds",
+    summary:
+      "Battles learned their last RPG Maker tricks. Battle events can now heal, poison, reveal, transform, or force-act enemies mid-fight; defeated enemies can drop loot; troops can hide a member until the story says “appear!”; and random encounters can open with a first strike or a surprise round. Win/escape/lose branches on Start Battle run for real, and party abilities like Double Gold work from any hero. Atlas-made games play exactly as before unless you turn these on; imported RPG Maker MV/MZ games get them automatically.",
+    items: [
+      "Eight new battle-event commands: Change Enemy HP/MP/State, Enemy Recover All, Enemy Appear, Enemy Transform, Force Action, and Abort Battle — plus battle animations aimed at enemies.",
+      "Start Battle grew If-Win / If-Escape / If-Lose branches, edited right under the command like a conditional — imported RPG Maker battles bring their branches along.",
+      "Enemies can drop loot: give an enemy “1 in N” drop rows (Enemies ▸ Stats & rewards) and victory rolls them with a “Found a Potion!” line.",
+      "Troop members can start hidden and join mid-battle when a battle event runs Enemy Appear — classic boss-summons-minions staging.",
+      "Party abilities work: Half/No random encounters, More first strikes, Never surprised, Double gold, and Double drops — carried by any hero's class or starting gear.",
+      "New “RPG Maker battle pacing” toggle (System ▸ Battle): random encounters can open with a first strike or surprise round, and escaping uses RPG Maker's agility-ratio odds that improve after each failed try. Imported games turn it on automatically.",
+      "Smoke-bomb escapes: a skill or item marked “Escapes the battle” lets the party slip away — and an enemy with one flees the fight (no rewards from it).",
+      "Auto-battle and Covers-weak-allies traits act now: an auto-battler fights on its own, and a bodyguard steps in front of allies below a quarter of their health.",
+      "Enemy AI conditions grew MP ≤ %, Party level ≥, and Switch ON kinds; battle-event pages can wait for the end of a turn.",
+      "Victory EXP and gold now come from enemies you actually defeated — ones that fled or never appeared pay nothing.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Traits everywhere, buffs & debuffs, and the TP gauge",
+    summary:
+      "The battle system learned the whole RPG Maker trait book. Enemies and states can now carry traits (a Slime weak to Ice, a Silence that seals magic), skills and items can raise or lower stats for a few rounds, grow a stat forever, or teach a skill — and an optional TP gauge charges as heroes take hits and pays for special skills. Atlas-made games play exactly as before unless you turn these on; imported RPG Maker MV/MZ games get them automatically.",
+    items: [
+      "Traits moved into a shared editor and now live on Classes, Enemies, AND States — so a state can seal magic (Silence), blind a fighter (Hit chance down), or poison-proof a hero (Resist).",
+      "Every RPG Maker trait converts now: counterattacks, magic reflection, magic evasion, critical dodge, HP/MP regen, attack elements (a fire sword really burns), on-attack states (a poison blade really poisons), extra attack hits, extra actions per round, attack speed, guard strength, healing received, physical/magic damage taken, EXP earned, how often enemies aim at you, always-guarding, and more.",
+      "Skills grant and seal: a class (or state) can grant a whole skill type, seal one skill, or seal a type — sealed skills grey out in battle and in the menu.",
+      "Buffs & debuffs: skills and items can raise or lower ATK/DEF/and friends by 25% a step (up to two steps) for a few rounds, with ↑/↓ pop-ups; Grow adds to a stat permanently and Teach hands over a new skill.",
+      "TP: flip on “Show TP in battle” (System tab) or give a skill a TP cost — heroes build TP from damage taken and spend it on their big moves. New Change TP / Change Enemy TP event commands too.",
+      "States got their full removal rules: walk them off after N steps, shake them off when hit, shed them when stunned, or clear them after battle.",
+      "Items can cure and inflict states at last — the imported Antidote finally cures Poison.",
+      "Fix: a state added by the Change State event command now actually shows up (and ticks) in battle.",
+      "Equipment special effects from imported games (like the Cutlass's fire attacks) move onto the wearer's class, reported in plain language; re-import an RPG Maker MV/MZ game to switch everything on.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Real damage formulas — skills can now do the math themselves",
+    summary:
+      "Skills (and healing items) can carry a damage formula like a.atk * 4 - b.def * 2, and battles run it with the classic RPG Maker rules: variance wiggle, critical hits, guarding cutting damage in half, HP/MP draining attacks, and heals that restore a % of max HP. Games imported from RPG Maker MV/MZ get their custom formulas working automatically — and safely: formulas are read by Atlas's own checker, never run as raw code.",
+    items: [
+      "Skills have a new Advanced damage box (Effects & preview tab): an optional formula that replaces Power, plus Variance % and a Can critical toggle. a = the user, b = the target, v[n] = game variables, and Math helpers like Math.randomInt are allowed.",
+      "Formula battles follow the RPG Maker order exactly: element rate, then critical (×3), then variance, then guard (half damage) — so imported games feel the way they did.",
+      "Draining skills (HP Drain / MP Drain) give what they deal back to the attacker, and MP-damage skills hit the target's MP pool.",
+      "Heals can restore a % of max HP on top of a flat amount — and items can too, including % of max MP.",
+      "Accuracy and evasion from imported games now work: heroes with a Hit or Evade bonus can miss or dodge, with a MISS/EVADED pop-up. Atlas-made games are untouched — no bonuses, no misses, exactly as before.",
+      "A formula Atlas can't run safely is kept, reported in plain language, and the skill falls back to its simple Power damage — nothing breaks, nothing is lost.",
+      "Re-import an RPG Maker MV/MZ game to switch its formulas on.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Change a hero's stats, jump around your events, and lock the menu — new event commands",
+    summary:
+      "A big batch of classic event commands lands: change a hero's EXP, level, stats, skills, equipment, name, class, nickname, profile, or status right from an event; make your own loops with Labels and Jump to Label; turn the menu, saving, encounters, or party-arranging on and off; recolour the windows; and read map info into a variable. Games imported from RPG Maker MV/MZ bring all of these across.",
+    items: [
+      "Change-hero commands: Change EXP, Change Level, Change Parameters (a permanent stat bonus), Change Skills (learn / forget), Change Equipment, Change Name, Change Class, Change Actor Image, Change Nickname, Change Profile, and Change State — each can target one hero or the whole party.",
+      "Labels & Jump to Label: drop a named Label in your command list and leap to it with Jump to Label — handy for building your own loops and skips.",
+      "Change Access: turn the pause Menu, Saving, random Encounters, or the Formation option on or off (greyed out in the menu while locked) — remembered in your save file.",
+      "Change Followers: show or hide the party members trailing behind the leader.",
+      "Change Window Color: recolour the message and menu windows for the rest of the game.",
+      "Get Location Info: read a map tile's region id, event id, or tile id into a variable.",
+      "Importing an RPG Maker MV/MZ game now converts all of these — re-import an older import to pick them up.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Fancier messages: text codes, number & item prompts, and a name-entry screen",
+    summary:
+      "Show Text learned the classic message tricks, and three new commands let the player type things back. Make text \\{bigger\\} or \\}smaller\\}, pause the typing with \\. and \\|, show the current gold with \\$, and more — plus you can now ask the player for a number, let them pick an item, or let them name a hero. Games imported from RPG Maker MV/MZ bring all of this across.",
+    items: [
+      "New message text codes in Show Text and Show Choices: \\p[n] (a party member's name), \\$ (show the current gold), \\{ … \\} (bigger / smaller text), \\. and \\| (short pauses while typing), \\! (wait for a button), \\> … \\< (type the rest instantly), and \\^ (close without waiting). The little “Text codes” panel under the box lists them all.",
+      "Show Text now has Window (Window / Dim / Transparent) and Position (Top / Middle / Bottom) options, so a message can sit at the top of the screen or fade into a dim backdrop.",
+      "Input Number: pop up a little number pad the player dials in; the number is saved to a variable — great for “enter the code” puzzles.",
+      "Select Item: let the player pick one of the items they're carrying; the item's id is saved to a variable.",
+      "Name Input: open an on-screen keyboard so the player can name a hero (works with keyboard and gamepad).",
+      "Importing an RPG Maker MV/MZ game now converts all of these — re-import an older import to pick them up.",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Pictures, screen tint, a timer & more — new event commands for cutscenes",
+    summary:
+      "Ten new event commands land the classic “presentation” toolkit: show and move pictures on the screen, tint or fade the whole screen, run a count-down timer, scroll the map for a reveal, pop a speech-balloon over a character, and roll full-screen scrolling text. Games imported from RPG Maker MV/MZ that used these now bring them across automatically.",
+    items: [
+      "Pictures: Show Picture, Move Picture, Rotate Picture, Tint Picture, and Erase Picture — place an image (from your Assets library or an image URL) anywhere on screen, then slide, spin, recolour, or fade it. Point it at a slot number 1–100.",
+      "Tint Screen: colour-wash the whole screen — pick a preset (Dark, Night, Sepia, Sunset) or dial in your own red/green/blue/gray. Fade-outs and fade-ins from imported games map to this too.",
+      "Control Timer: a count-down clock shows at the top of the screen; when it hits 0 it can fire a common event — perfect for “escape before time runs out!” puzzles.",
+      "Scroll Map: pan the camera in a direction for a cutscene reveal (it slides back when the player moves).",
+      "Show Balloon Icon: pop a “!”, “?”, heart, music note and more over the player or any event.",
+      "Show Scrolling Text: full-screen credits-style text the player can speed up by holding OK or skip with Cancel.",
+      "Pictures, screen tint, and the timer are remembered in your save file, so a saved game looks exactly as you left it.",
+      "Importing an RPG Maker MV/MZ game now converts all of these — re-import an older import to pick them up. (Picture art needs adding to your Assets library; the import report tells you which.)",
+    ],
+  },
+  {
+    date: "July 5, 2026",
+    title: "Import from RPG Maker MZ / MV — bring your own game into RPGAtlas",
+    summary:
+      "Made a game in RPG Maker MV or MZ? File ▸ Import from RPG Maker… brings it in — maps, database, common events, and event pages all convert, and you get a friendly report of what came along and what didn't. Nothing is ever dropped silently.",
+    items: [
+      "New File ▸ Import from RPG Maker… wizard: pick your game's project folder (the one with a “data” folder) or a .zip of it, and RPGAtlas converts it into a playable project.",
+      "Works with both RPG Maker MV and MZ, and unlocks your project's own encrypted artwork using its own key (only your own project is supported).",
+      "Maps keep their shapes, layout, encounters, and events; the whole database — heroes, classes, skills, items, weapons, armor, enemies, battle groups, states, switches, variables, and common events — comes across.",
+      "Anything that can't convert yet is kept, not thrown away: it appears as a plain-language “coming in a later update” note so you always know what happened.",
+      "A plain-language Import Report opens when the import finishes — what came along, what changed a little, and what to do next. Reopen it any time from File ▸ Import Report.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Add art & sound by copying files into a folder — the Asset Browser picks them up",
+    summary:
+      "No more guessing where your pictures and sound files should go. On the desktop app the Asset Browser now has an import folder with a labelled sub-folder for each kind of asset — copy files in with Windows Explorer (or your file manager) and they show up in the editor on their own.",
+    items: [
+      "New “Add your own pictures & sounds” banner at the top of the Asset Browser with an “Open Folder” button that opens the import folder in Explorer/Finder, and the full folder path shown so you can find it yourself.",
+      "Drop files into the matching sub-folder — characters, facesets, enemies, tilesets, or audio — and they import automatically: when you open the Asset Browser, when you switch back to the app after adding files, or when you click “Scan for New Files”.",
+      "Imported pictures immediately appear in the same pickers and palettes as the built-in art, and sounds appear in the Audio Manager and event sound/music lists.",
+      "Each file you add is copied into your library and then tucked into an “Imported” folder so the drop folders stay tidy — nothing is ever deleted, and adding the same file twice is harmless.",
+      "A plain-language READ ME is created in the folder explaining what goes where.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Bring fallen heroes back: a Revive mechanic, the Phoenix Feather & four new states",
+    summary:
+      "When a party member's HP hits 0 they're out of the fight — and now you can bring them back. New projects start with a Revive skill and a Phoenix Feather item that raise a fallen ally, plus four fresh status effects to spice up battles. Ordinary Potions and heals still can't touch the fallen, so reviving means something.",
+    items: [
+      "Revive skill: a heal skill that targets a fallen ally and restores them to life (the Cleric and Sage learn it). Tick the new “Revives fallen ally” box on any heal skill in the Skills tab to make your own.",
+      "Phoenix Feather item: sold at the village merchant, it revives one fallen ally with 80 HP and does nothing on the living. The Items tab has a matching “Revives fallen ally” box.",
+      "Only revive items and revive skills can select a fallen ally — regular restoratives are refused, so the mechanic actually matters.",
+      "Four new states: Burn and Bleed deal damage each round, Sleep makes a battler skip its turns, and Blessing steadily heals. They're wired into existing skills — Flame Slash/Inferno burn, Bone Crush bleeds, Moonbeam sleeps, and Sanctuary grants Blessing.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Six more Quick Events: Door, Save Point, Healing Crystal, Monster, Gift NPC & Quest Giver",
+    summary:
+      "The New Quick Event menu keeps growing. Right-click an empty tile in Event mode and six more RPG staples are one dialog away — answer a couple of plain questions and the finished, playable event drops onto the map. As always, open one afterwards in the event editor to see exactly how its pages and commands fit together.",
+    items: [
+      "Door: a press-to-open door — pick where it leads and it plays the door sound, then transfers the player (great alongside the walk-on Transfer).",
+      "Save Point: a glowing crystal that opens the Save screen, and can fully heal the party first.",
+      "Healing Crystal: touch it to restore the whole party's HP and MP, with your own message.",
+      "Monster: a guardian that blocks the way and fights (no escape); beat it and it hands over an optional gold reward and vanishes for good.",
+      "Gift NPC: hands the player an item, weapon, armor, or gold once — then only repeats its farewell line.",
+      "Quest Giver: speaks, starts a quest you pick, and afterwards just repeats its follow-up line.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Four new Quick Events: Villager, Shopkeeper, Innkeeper & Locked Door",
+    summary:
+      "Right-click the map in Event mode and the New Quick Event menu now builds four more classics for you — answer two or three plain questions and the finished event appears, ready to play. Open it afterwards in the event editor to see exactly how it works: every template is made of ordinary pages and commands, so they double as little lessons.",
+    items: [
+      "Villager: pick a look, type what they say, and choose whether they wander — done.",
+      "Shopkeeper: pick a look, a greeting, and the goods; talking to them opens a shop stocked with your wares.",
+      "Innkeeper: set the price per night — they take the gold, the screen fades to black, and the party wakes up fully rested (and they politely turn you away if you can't afford it).",
+      "Locked Door: choose the key item and the destination; the door blocks the way and says it's locked until the player has the key, then works like a normal door forever after. Optionally the key is used up.",
+      "The Villager, Shopkeeper, and Innkeeper dialogs show a live preview of the chosen look, and their spoken lines automatically use that face.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Advanced Map Editor — polish, docs & a showcase village",
+    summary:
+      "The Advanced Map Editor is finished! A new Advanced menu on the menu bar gathers everything in one place, the sample game ships a showcase map built with the new tools, and the wiki has a full guide. The bundled sample game also got a repair: a recent update accidentally overwrote it — your adventure starts in Meridian Village again, and Driftwood Shore is back on the map.",
+    items: [
+      "New Advanced menu: the panel (F4), Terrain & Autotile Studio, Automap rules with Preview/Apply, brush flip/rotate, and stamps — every advanced action is now one click away (they're all in the command palette too).",
+      "New sample map “Meridian Village — Advanced”: the familiar village rebuilt with extra layers (a lantern glow and an evening haze), one gameplay zone of every kind, two ready-to-run Automap rules, and a reusable stamp — open it and press F4 to explore.",
+      "The Keyboard Shortcuts dialog now lists the Advanced editor's keys.",
+      "New wiki guide: Advanced Map Editor — layers, terrain brushes, stamps, zones, and Automap rules, all in one page; the Plugin & Script API page now documents atlas.zonesAt(x, y).",
+      "Sample game restored: start position back in Meridian Village, Driftwood Shore and the cave's shore passage back, the Cottage's cozy HD-2D interior back.",
+      "Big maps stay fast: a new automated benchmark keeps a 64×64 map with 8 layers and 50 zones at a locked 60 fps.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Advanced Map Editor — automap rules",
+    summary:
+      "The Advanced tab gets a bottom Automap drawer: write simple IF/THEN rules that reshape your map with one click, no scripting. Say “IF this tile is grass AND it's next to water, THEN scatter reeds 35% of the time” and the editor fills in the detail for you. Press Preview to see exactly what will change (highlighted right on the map), then Apply — and it all undoes in a single step. Rules are an editor tool only; they're saved with the map but never run in the finished game, so exports are byte-for-byte the same.",
+    items: [
+      "Build a rule from plain conditions — terrain is / tile is / near / not near / region is / passable — all ANDed together, and actions that place a tile, drop a saved stamp, or set a region.",
+      "Pick terrains and tiles straight from the palette (🎯) or from your terrain brushes; choose the layer, radius, and a percentage chance for scatter.",
+      "Preview paints the pending changes as a green (tiles) / magenta (regions) overlay so you see the result before committing; Apply writes them as one undoable step.",
+      "Every rule has an on/off switch and a 🎲 to reshuffle its random scatter; the same seed always previews and applies identically.",
+      "Reach it from the Advanced panel's Automap drawer or the command palette (Automap Rules, Preview, Apply).",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Terrain & Autotile Studio",
+    summary:
+      "Turn any tile sheet into a smart terrain brush with a five-step wizard (open it from the Advanced tab or the command palette). Pick your sheet, let the Studio guess how it's laid out, name the terrain, and paint — the tiles automatically pick the right edge, corner, and inside pieces for you. Water and lava can animate, and you can add extra sheets so the ground looks less repetitive. Old projects that don't use it are saved exactly as before.",
+    items: [
+      "Five steps — Source, Layout, Terrain Types, Rules, Preview — with a live preview that paints exactly like the real map.",
+      "Auto-detection guesses the arrangement (A2 terrain, A1 animated, fences, corners, walls, roofs) from the sheet's size; change it any time.",
+      "Animate a terrain by setting frames + speed — water and lava now flow in the editor, the HD-2D viewport, and play-testing.",
+      "Add weighted variations: drop in alternate sheets and each cell randomly picks one, so large fields of grass stop tiling obviously.",
+      "Pattern-completion flags fill in shapes you didn't draw by mirroring or rotating the ones you did.",
+      "Save Draft keeps your work-in-progress; the classic one-click A2 import is still there as the Quick path.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Advanced Map Editor — stamps, flip & rotate, searchable tiles",
+    summary:
+      "The Advanced tab gets three big painting upgrades. Flip or rotate the tile you're painting (X, Y, and R keys, or the toolbar buttons) so one tile can face any direction. Save any selection as a reusable Stamp and drop it anywhere — with a random-scatter mode for quickly sprinkling grass, rocks, or props. And the new right-hand tile palette is searchable and sorted into simple categories (Terrain, Water, Floor, Walls, Nature, Objects). A map that uses none of this saves exactly as before.",
+    items: [
+      "Press X to flip the brush left-right, Y to flip up-down, R to rotate 90° — the little indicator by the zoom shows the current brush transform. Flipped and rotated tiles look right in the editor, in play-testing, and in exported games.",
+      "Select an area in the Map view, then Save Selection as Stamp to add it to the Stamps tab; click 📌 and place it anywhere. Undo works on stamp placement like any other paint.",
+      "Turn on 🎲 random scatter to sprinkle a stamp across your brush with an adjustable chance per spot — great for foliage and rubble.",
+      "The Advanced editor's Tiles tab has a search box and category chips, so you can find the tile you want without scrolling the whole sheet.",
+      "Autotile terrain brushes keep resolving their own shape — flip/rotate applies to ordinary tiles.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Advanced Map Editor — objects & gameplay zones",
+    summary:
+      "The Advanced tab gains an Objects palette: draw gameplay zones straight onto the map and give them behaviour. Fence off an area that spawns tougher monsters, a doorway that warps the player elsewhere, a grove that loops birdsong, a storm that only rains in one valley, or invisible walls and walkways — no scripting. Each zone kind has its own little inspector, and a map with no zones plays exactly as before.",
+    items: [
+      "Switch the right rail to Objects, pick a zone kind, and draw a Rectangle, Ellipse, Polygon, or Point on the canvas (double-click finishes a polygon). Select tool drags the corner handles to reshape a zone.",
+      "Encounter zones replace the map's random-battle pool while you stand inside — with a one-click “Test Encounter in This Area” that playtests right there and forces a battle.",
+      "Transfer zones warp the player on entry; Sound zones loop an ambience (with optional distance falloff); Weather zones apply weather while inside and restore it on exit.",
+      "Collision zones make tiles solid and Navigation zones make them walkable — baked in at load, so movement stays fast.",
+      "Custom zones do nothing on their own but are readable by plugins and Script through atlas.zonesAt(x, y) — build whatever you like on top.",
+      "Everything round-trips through save/load and Undo (Ctrl+Z), and a map you never give a zone is byte-for-byte identical to before.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Advanced Map Editor — paintable layers",
+    summary:
+      "The Advanced tab's layer list is now fully editable. Add your own tile layers on top of the classic four, paint straight onto whichever layer is selected, and give each one an opacity, a blend mode (add / multiply / screen), or a colour tint. Everything you build shows up identically in the regular editor, in play-testing, and in exported games — and a map you never touch here is saved exactly as before.",
+    items: [
+      "Add Layer (＋) makes a new tile layer; paint it with the Pen, Eraser, Fill, or Rectangle tools using the same tile palette as the Map view.",
+      "Set each layer's Opacity, Blend (Normal / Add / Multiply / Screen), and Tint in the properties box below the list.",
+      "Group layers together, reorder with ▲ / ▼, toggle the 👁 eye to hide a layer or the lock to protect it, and double-click to rename.",
+      "Tile layers draw below or above the characters — your pick — so you can build overhead canopies and ground overlays.",
+      "The four base layers (Ground, Decor, Decor 2, Overhead) are always kept and shared with the regular editor; Undo (Ctrl+Z) works across both.",
+    ],
+  },
+  {
+    date: "July 4, 2026",
+    title: "Advanced Map Editor — first look",
+    summary:
+      "A new Advanced tab opens next to the Map view (View menu or F4). It shows the same map as the regular editor — nothing moves or changes — with a map tree you can organize into folders, a layer list, and its own zoom. This is the foundation for terrain brushes, zones, stamps, and auto-mapping coming in the next updates.",
+    items: [
+      "View ▸ Advanced Map Editor (or press F4) opens the new tab beside Map.",
+      "Map Tree: press ＋ to make folders, then drag maps onto a folder to file them. Double-click a folder to rename it.",
+      "Folders only organize the tree — your maps and games are untouched.",
+      "The Layers panel lists this map's layers top to bottom, with Events and Collision rows on top.",
+      "Everything you paint in the regular editor shows up here instantly, and clicking a map here switches the regular editor too.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Map Properties gets tabs",
+    summary:
+      "The Map Properties window grew into one very long scroll as HD-2D picked up features. Its settings now live on four tabs — General, Encounters, HD-2D, and Effects — so each screen shows one topic at a time. Same settings, nothing removed.",
+    items: [
+      "General: name, size, tileset, music, ambience layers, minimap, and author notes.",
+      "Encounters: encounter rate, the troop list, region pools, and the night pool together on one page.",
+      "HD-2D: the on/off switch, camera tilt, lights, shadows, water, materials, and cliffs.",
+      "Effects: bloom, depth of field, fog, weather, color grading, and the day/night cycle.",
+      "The window remembers which tab you were on while the editor stays open.",
+      "OK and Cancel still apply or discard everything at once, across all tabs — and one Undo reverts the whole edit, same as before.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Database list toolbar no longer overlaps the form",
+    summary:
+      "On the Database's Quests tab, the list toolbar had one button too many for its column — the Delete button slid under the Title box and the sub-tab strip. The toolbar now wraps neatly instead of overlapping.",
+    items: [
+      "Toolbar buttons that don't fit the list column wrap onto a second row instead of spilling under the form.",
+      "The Quests tab's reorder buttons are now labeled \"↑ Move up\" and \"↓ Move down\" and sit together on their own row.",
+      "Delete moved next to + New and Paste, so the main list actions stay grouped.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Exports start in your Downloads folder",
+    summary:
+      "Exporting a project file now opens the save window in your Downloads folder instead of Documents — the same place your browser puts every other download.",
+    items: [
+      "The browser editor's Export Project save window starts in Downloads (it follows your system's Downloads location, even if you've moved it to another drive).",
+      "The desktop app's Save As / Export dialog starts in Downloads too.",
+      "Standalone game exports (HTML, Windows EXE, web zip) are unchanged — they already go wherever your browser saves downloads.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Twice the icons, twice the starting database",
+    summary:
+      "The icon sheet doubles from 64 to 128 icons, and new projects now start with twice as many classes, skills, items, weapons, and armors — more ready-made pieces to build with before you add your own.",
+    items: [
+      "64 new icons (numbers 64–127): class emblems, elemental sigils, enchanted and tiered weapons, more armor, elemental scrolls, tomes, consumables, status marks, and treasure — derived from the original art so everything stays in one style.",
+      "Four new starting classes: Paladin (stalwart defender), Ranger (swift archer), Dark Knight (all-out attacker), and Sage (magic and healing hybrid), each with their own stat curves, traits, and learned skills.",
+      "Twelve new starting skills, including Blizzard, Inferno, Chain Lightning, Meteor, Holy Smite, Sanctuary, Regrowth (applies Regen), and Venom Volley.",
+      "Four new starting items (Herbal Tonic, Golden Apple, Mega Ether, Life Elixir), weapons (Hunting Bow, Battle Axe, Flame Sword, Gale Bow), and armors (Iron Shield, Steel Helm, Golden Mail, Swift Boots).",
+      "Reskinning note: img/system/icon_set.png is now 256×512 (8×16 grid of 32×32 cells). Existing projects keep their icon numbers — the original 64 icons are unchanged.",
+      "Existing projects aren't touched: the new database entries only appear in newly created projects.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Database sub-tabs — big tabs, digestible pages",
+    summary:
+      "The Database's busiest tabs now split their settings across sub-tabs inside the main panel, so each screen shows one topic at a time. Nothing moved out of its tab and nothing was removed — same settings, better organized.",
+    items: [
+      "System is now five pages: General (title, start position, party, battle system), Map systems (followers, minimap, vehicles), Screen, Windows & fonts, and Audio (system sounds & music).",
+      "Classes: Stats & curve, Traits, and Skills learned each get their own page; the name and icon stay on top.",
+      "Skills: General on one page; the optional state effect and the live damage preview on Effects & preview.",
+      "Enemies: Stats & rewards and Actions (AI) split, with the sprite preview always visible.",
+      "Troops: Members and Battle events are now separate pages.",
+      "Quests: General, Objectives, Requirements, Failure, and Rewards & next — with the live warnings list always visible above the sub-tabs.",
+      "The editor remembers which sub-tab you were on: switching entries, hopping to another tab, or undoing an edit won't bounce you back to the first page.",
+      "Compact tabs (Items, Weapons, Armors, Actors, States, and friends) stay exactly as they were — they already fit at a glance.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Seven new interface languages",
+    summary:
+      "The editor now speaks Japanese, Traditional Chinese, Simplified Chinese, Portuguese, Korean, Italian, and Russian — eleven languages in total. Pick yours in Help ▸ Interface Language.",
+    items: [
+      "New in the language selector: 日本語 (Japanese), 繁體中文 (Traditional Chinese), 简体中文 (Simplified Chinese), Português (Portuguese), 한국어 (Korean), Italiano (Italian), and Русский (Russian), joining English, Español, Français, and Deutsch.",
+      "First launch now auto-detects these languages from your browser or system locale too — including picking the right Chinese script for zh-TW, zh-HK, and zh-Hant tags.",
+      "Same scope as always: menus, panels, buttons, and status lines are translated; your project's content never is.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "The Console — a command line for power users",
+    summary:
+      "A new Console tab sits beside the Map view: type commands to inspect, search, build, and steer playtests. Completely optional — everything it does also lives in the menus — but much faster once you know it.",
+    items: [
+      "New Console tab, first in the map area's tab strip (close it freely; View ▸ Console Panel brings it back). Type help to see everything; Tab completes command names and ↑ recalls history.",
+      "validate checks the whole project for broken references (transfers to deleted maps, missing common events, troops, items, and assets) — problem lines are clickable and jump straight to the map.",
+      "find searches maps, events, dialogue text, and every database table at once, with clickable results; stats sizes up the project at a glance.",
+      "build web / build html / build exe export the game without touching a dialog.",
+      "Playtest superpowers: playtest 2 5 7 starts the game directly on map 2 at (5,7) — no title screen; while a playtest runs, give potion 3, switch 5 on, var 2 100, and goto 3 10 8 act on the live game.",
+      "data export/import moves database tables as JSON, assets import batch-loads images or audio into the library, i18n check audits the editor translations.",
+      "For toolmakers: window.AtlasConsole.run(\"stats --json\") drives every command programmatically with structured results — the groundwork for future AI assistance.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Sample maps — a dozen ready-made maps, one click away",
+    summary:
+      "The Maps panel gains a 🗺 button that opens a library of twelve hand-crafted starter maps — villages, caves, castles, beaches, and more — each added to your project with a single click.",
+    items: [
+      "New 🗺 button in the Maps panel (next to ＋, −, and 🎲) opens the Sample Maps browser.",
+      "Twelve themed layouts: Cozy Cottage, Village Square, Sunny Cove, Deep Forest Clearing, Desert Oasis, Snowy Outpost, Crystal Cavern, Lava Depths, Murky Swamp, Castle Great Hall, General Store, and Mountain Pass.",
+      "Every card shows a live tile-rendered preview; Add to project drops a fresh copy into your map list (add the same one as often as you like) and selects it for editing.",
+      "Sample maps arrive event-free on purpose — they're clean scenery, ready for your own stories.",
+      "Under the hood: layouts are stored as readable ASCII art, and an automated test keeps every layout rectangular, every tile reference real, and every map shaped exactly like a hand-made one.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "RPGAtlas 1.0 — the Atlas HD overhaul is complete",
+    summary:
+      "Eight phases, one goal: a modern HD-2D RPG maker that stays true to what made RPGAtlas special. Version 1.0 caps it with a documentation site, an API reference, a migration guide, and a full release QA pass.",
+    items: [
+      "New docs site: the whole manual rendered as a fast static site (docs-site/, GitHub Pages-ready), generated straight from the project wiki — including two new reference pages: the frozen Plugin & Script API and the Migration Guide.",
+      "The 1.0 promise: every project ever saved by RPGAtlas (Driftwood included) opens and auto-migrates; the plugin/script API is frozen for 1.x; exported games are forever self-contained.",
+      "The overhaul in one breath — modern toolchain and test safety net; the engine split into typed modules; a three.js HD-2D renderer with shadows, water, materials, day/night, weather, and a full post stack; a dockable editor with live viewport, autotiles, world view, and command palette; Atlas Graph node scripting; animation, ATB/CTB battles, pathfinding, followers, vehicles, minimap; a real asset pipeline with importers, streamed audio, and starter packs; and this release's performance, accessibility, translation, showcase, and export work.",
+      "Thank you for making games with RPGAtlas. Chart your world. Tell your story.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Export upgrades — itch.io-ready zip, installable offline PWA & native EXE packaging",
+    summary:
+      "Publishing gets three big upgrades: a one-click web zip shaped for itch.io that doubles as an installable offline app, and a repo script that packages any game as a real native desktop executable.",
+    items: [
+      "File ▸ Export Standalone Game… ▸ Web / itch.io (.zip): your game as index.html at the zip root (exactly what itch.io's HTML5 uploader wants) plus a web-app manifest, generated icons, and a service worker — players on any static host can install the game like an app and replay it fully offline.",
+      "The offline promise is machine-checked: an automated test exports the zip through the real menu, installs the service worker, cuts the network, and replays the game.",
+      "node scripts/package-game-exe.mjs <project.json> builds a true native desktop EXE (own window, no browser) from any exported project, reusing the same desktop shell as RPGAtlas itself. Needs the Rust toolchain; the classic no-toolchain launcher EXE remains.",
+      "Under the hood the standalone HTML template moved to a module shared by the editor export and the native packager, so the formats can never drift apart.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Atlas Quest HD — the sample game becomes the showcase",
+    summary:
+      "The bundled sample game now shows off the whole HD-2D toolbox, capped by a brand-new dusk map: Driftwood Shore.",
+    items: [
+      "New map — Driftwood Shore: a golden-hour beach with a day/night dusk sun and long soft shadows, animated water with a lantern-lit wooden dock, auto-textured cliffs, bloom, ACES + warm color grade, vignette, SSAO, and FXAA all on at once. Find the back passage on the Whispering Cave's east wall.",
+      "The Cottage interior gets the HD-2D treatment: firelight and window light, auto materials, and a cozy vignette.",
+      "The Whispering Cave gains two more crystal glows plus SSAO and ACES tone mapping.",
+      "Rebuildable by design: scripts/build-atlas-quest-hd.mjs regenerates the showcase deterministically (Meridian Village is intentionally untouched — it anchors the renderer's golden-image tests).",
+      "A new automated check keeps the showcase loading with its full feature set.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Editor translations catch up — Spanish, French & German cover everything",
+    summary:
+      "The editor's Spanish, French, and German translations now cover every menu, panel, and tool added since the overhaul began — and an automated check keeps them complete from here on.",
+    items: [
+      "Newly translated chrome: the View menu, World View, HD-2D Viewport, Region Mode, Command Palette, Asset Browser, autotile import, keyboard-shortcut dialog, dock panel tabs and layout commands, the autotile palette section, and the updated status-bar hints.",
+      "Dock tabs (Maps / Tiles / Map / HD-2D / World) now localize like the rest of the interface.",
+      "Help ▸ Interface Language… gained the UI Font Size row in all languages.",
+      "Under the hood: a locale-parity test extracts the chrome key set from the editor source and fails the build if any language is missing a translation (or carries a stale one).",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Accessibility — reduced motion, colorblind assist & text scaling",
+    summary:
+      "Every RPGAtlas game now ships with player-side accessibility options, and the editor gains an adjustable UI font size.",
+    items: [
+      "Options ▸ Reduced Motion (Auto/On/Off): stills screen shake, battle sprite bobbing and lunges, and HUD flashes, halves full-screen flash intensity, and thins weather particles. Auto follows the player's system-wide reduce-motion setting live.",
+      "Options ▸ Text Size (Small/Normal/Large/Huge): scales dialogue and menu text over the game's authored base size.",
+      "Options ▸ Colorblind Assist: HP/MP gauges switch to a colorblind-safe orange/sky-blue palette; damage and heal popups already carry explicit −/+ signs so color is never the only signal.",
+      "Editor: Help ▸ Interface Language… now also sets a UI Font Size (90–125%) for the editor on this device.",
+      "All three options persist per player, per game, like the volume sliders.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Performance pass — perf overlay, load budgets & a leak-free bill of health",
+    summary:
+      "The engine gets an in-game performance overlay and the project gains automated load-time, big-map stress, and memory-stability gates, keeping RPGAtlas fast as 1.0 approaches.",
+    items: [
+      "Press F3 during play (or add ?perf=1 to the player URL) to toggle the new performance overlay: fps, frame time (average and p95), per-frame work time, HD-2D draw calls/triangles, live GPU resource counts, and JS heap use where the browser reports it.",
+      "New automated budgets: editor and player boot-to-interactive times, a 160×160-map / 200-event / 16-light stress scene, and a map-transfer memory canary that fails if the renderer ever starts leaking GPU resources.",
+      "Audit result: repeated map transfers hold GPU geometry/texture counts exactly at their baseline — no disposal leaks.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Starter packs — one-click asset bundles in the Asset Browser",
+    summary:
+      "The Asset Browser gains a Packs tab: install curated asset bundles into your library with one click, starting with the bundled CC0 “Driftwood Starter” pack (terrain recolors, villagers, battlers, and a small chiptune soundtrack).",
+    items: [
+      "Asset Browser ▸ Packs: browse packs with license and size info, Install/Reinstall (downloads are content-deduped, so retrying or reinstalling is always safe), and Uninstall (with in-use warnings).",
+      "Driftwood Starter (bundled, CC0): 12 recolored terrain tiles, 4 generated villagers, 3 battlers, 2 music loops, rain ambience, a victory fanfare, and a chime — generated from RPGAtlas's own procedural art, no attribution needed.",
+      "Add your own registries: point the Packs tab at any hosted index.json to install third-party packs; the registry list is a device setting.",
+      "Pack assets are tagged pack:<id> in the library, so they're easy to filter, audit, and remove as a set.",
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    title: "Audio v2 — streamed music, ambience layers, jingles & positional sound",
+    summary:
+      "Imported OGG/MP3/WAV files now play everywhere the procedural chiptunes do: maps can stream real music with crossfades, layer looping ambience, duck for victory jingles, and pan sound effects by distance.",
+    items: [
+      "Imported music appears in every music picker (Map Properties, System themes, the Change Music command) and crossfades between tracks — set the fade length on the Change Music command.",
+      "Ambience layers: Map Properties gains looping background-sound layers (rain, crowds, surf…) with per-layer volume, crossfaded seamlessly across map transfers.",
+      "Jingles: audio imported as ME (victory fanfares etc.) automatically ducks the music while it plays and restores it after.",
+      "Positional sound: the Play Sound command's new Positional toggle pans and fades an imported sound by the event's distance from the player.",
+      "Options ▸ Ambience Volume: a new mixer slider for the ambience bus, saved per player like the rest.",
+      "The Audio Manager previews your imported audio next to the procedural sets; system sounds and animation Sound items can use imported effects too.",
+      "Game exports embed the imported audio your game actually uses — procedural audio remains zero-file, zero-copyright.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Importers — tileset slicer, sprite sheets with frame tags, Aseprite",
+    summary:
+      "The Asset Browser learned to slice: any-grid tilesets become 48px tiles, odd-shaped sprite images become tagged flipbook sheets for battle animations, and Aseprite JSON exports import with their animation tags intact.",
+    items: [
+      "Tileset slicer: drop a tileset image on the Asset Browser's Tiles tab and pick the source grid (16/24/32/48px + offset/gap) — click cells to choose which become 48px tiles, with passable/terrain naming applied per batch.",
+      "Sprite-sheet importer: images that aren't 3×4 walking charsets can import as flipbook sheets with named frame ranges (walk 0–3, cast 4–7…).",
+      "Aseprite support: import a .json + .png export pair and its frame tags arrive as ready-to-use animation ranges (frame rate derived from your frame durations); non-uniform (trimmed) exports are repacked automatically.",
+      "Animations tab: the Flipbook item's Sheet field is now a picker — built-in icons, your imported sheets (with a Frame tag dropdown that fills From/To/FPS), or a custom URL.",
+      "Game exports now embed animation flipbook sheets, plus faces shown by common events and troop battle events.",
+      "RPG-Maker A2 autotile blocks keep their dedicated importer under Tools ▸ Import Autotile Sheet…",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Asset library & Asset Browser — import your own art and audio",
+    summary:
+      "RPGAtlas gains a real asset pipeline: drop PNG and OGG/MP3/WAV files into the new Asset Browser and they join the same pickers as the built-in procedural sets, stored in a per-device library that escapes the browser storage ceiling.",
+    items: [
+      "Tools ▸ Asset Browser: drag-drop or pick files to import; browse by type with search, tags, and thumbnails; rename (project references update automatically), retag, export, and delete with in-use warnings.",
+      "Used/unused audit: every asset shows whether the current project references it, with an “Unused only” filter and a size summary.",
+      "Per-device asset library: imports persist in IndexedDB in the browser and in the app-data folder on the desktop app — no more project-size ceiling for art.",
+      "Project files carry their assets: saving/exporting a .json embeds the imported assets it uses, and opening it on another machine imports them into that machine's library automatically.",
+      "Imported character sheets, facesets, battlers, and tiles appear everywhere the img/ folder assets do; audio imports land in the library ready for the upcoming audio update.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Player HUD & day/night — minimap, quest tracker, fullscreen, time gates",
+    summary:
+      "Games get a player-facing polish pass: a corner minimap with a live quest tracker, a fullscreen toggle in Options, and day/night gameplay — event pages and encounter pools that change with the in-game clock.",
+    items: [
+      "Minimap (Database ▸ System ▸ Map systems): a corner map rendered from the real map art with live dots for the player, NPCs, and parked vehicles. Maps can opt out individually in Map Properties.",
+      "Quest tracker: the HUD lists up to three active quests with live objective progress, flashing when anything advances. The new Minimap/HUD action (default M, gamepad Select — rebindable like everything else) toggles the whole HUD.",
+      "Options ▸ Fullscreen: players can toggle fullscreen from the pause menu.",
+      "Day/night gameplay: event pages gain a Time of day condition (morning/day/evening/night) — a shop that closes at night is just a night page; the Conditional Branch command and graphs gain a Time of Day clock-window condition; Map Properties gains a night encounter pool (21:00–5:00).",
+      "The in-game clock still only moves when you move it (scripts, the HD-2D day/night pin) — these are the gameplay hooks for it.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Movement & world — click-to-move, followers, vehicles, jumps & regions",
+    summary:
+      "The map got a movement overhaul: click/tap anywhere to pathfind there, party members can follow the leader, boats/ships/airships sail and fly, characters jump ledges, and paintable region tags drive zoned encounters and event conditions.",
+    items: [
+      "Click or tap the map to walk there — A* pathfinding routes around obstacles (and walks up to blocked targets); clicking an NPC walks over and talks to it. Any arrow press cancels the route.",
+      "Party followers (Database ▸ System ▸ Map systems): the rest of the party trails the leader across the map and through transfers.",
+      "Vehicles: configure a boat (shallow water), ship (all water), and airship (flies anywhere) with sprites and starting docks in Database ▸ System. Face one and press the action key to board; press it again to land. Three new built-in object sprites: Boat, Ship, Airship.",
+      "Jumping: the new “jump” move-route step hops 2 tiles with an arc, and ledge tiles (the new ⌒ value in Passability mode's click cycle) auto-jump the player across cliff edges.",
+      "Regions: a new Region paint mode tags tiles with numbered zones (0–63). Zones drive per-region encounter pools (Map Properties) and the new “Player Region” event condition — zone your world map without invisible event walls.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Battle systems — ATB, CTB, battle events, smarter enemies & rows",
+    summary:
+      "Choose your battle flow: beside the classic turn-based rounds, battles can now run as ATB (active-time gauges) or CTB (a turn-order timeline). Troops gain mid-battle event pages, enemies gain conditional AI, and the party gains front/back rows.",
+    items: [
+      "Database ▸ System ▸ Battle system: Turn-based (unchanged default), ATB — agility fills each battler's gauge and they act when it's full (gauges shown on party rows and under enemies), or CTB — one battler acts at a time in an agility-driven order previewed in a strip at the top of the battle.",
+      "Troop battle events (Database ▸ Troops): pages of ordinary event commands that run mid-battle when their condition hits — on a turn (a + b·x), when an enemy's or actor's HP drops below a threshold, or while a switch is ON; spans control refiring (once per battle / per turn / each time it becomes true). Perfect for boss dialogue and phase changes.",
+      "Smarter enemy AI: each action row can carry a condition (turn pattern, own HP above/below %, random chance, has-state) — invalid rows drop out of the weighted pick that turn.",
+      "Formation: a new pause-menu entry toggles each member between front and back row. Back row deals and takes 25% less physical damage and is targeted less often (▽ marks back-row members in battle).",
+      "Skills can now run a common event after resolving in battle (Database ▸ Skills ▸ After-use common event) — the action-sequence hook, graph-authorable.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Battle animations — keyframed skill FX with a timeline editor",
+    summary:
+      "A new animation engine: author keyframed particle/flash/shake/projectile/flipbook animations on a timeline in Database ▸ Animations, assign them to skills and weapons, and play them on the map with the new Play Animation event command.",
+    items: [
+      "Database ▸ Animations: build animations from timed items — particle bursts (plus ring/rain/spiral emitters), target or screen flashes, screen shake, sounds, source→target projectiles, and icon/sheet flipbooks — with a draggable timeline strip and a live preview arena that runs the real player.",
+      "Skills and weapons gain a Battle animation picker; a skill with an animation plays it in battle instead of the default effects (skills without one look exactly as before). Skills can also strike multiple times via the new Hits field.",
+      "New event command: Play Animation — show any battle animation over the player, this event, or the screen center on the map (works in graphs too).",
+      "Sample project: Fireball, Heal, and Power Strike now ship with showcase animations (Fire Burst, Healing Light, Slash).",
+      "Multi-target skills fan the animation out over every target; enemy skills with animations use them as well.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Atlas Graph — node-based visual scripting",
+    summary:
+      "Event pages can now be authored as node graphs: a full visual-scripting canvas that compiles into the exact same event commands your game already runs, so graphs work everywhere — playtest, saves, plugins, and exported games — with zero runtime cost.",
+    items: [
+      "Open any event and press the new Graph toggle above the command list to convert the page to a graph (lossless, and reversible with Convert to list…). Wire nodes by dragging from output ports; drop a wire on empty canvas to add-and-connect a new node in one motion.",
+      "Every event command is a node — the same Add Command picker, edit dialogs, and inline inspector work on nodes, including your saved Script command buttons (which is also how plugin commands become nodes).",
+      "Branching flows visually: Conditional Branch and Show Choices nodes expose one output per branch plus an After port for what runs once the branch completes.",
+      "New Loop and Break Loop commands (usable in classic lists too): Loop repeats its body until Break Loop fires — the graph's cycle answer, and a long-requested command in its own right.",
+      "Comments, resizable frames, and reroute dots keep big graphs tidy; a minimap in the corner jumps around large canvases; pan with drag, zoom with the mouse wheel.",
+      "Live validation flags cycles, unreachable nodes, and disconnected Starts as you edit — errors keep the last good compile, so your page never breaks mid-edit.",
+      "Ctrl+Z / Ctrl+Y inside the event editor undo graph edits and their compiled commands together.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Unified undo & UI polish",
+    summary:
+      "Undo now spans everything: map painting, event edits, Map Properties, and every Database change share one Ctrl+Z history, and the editor got a consistency pass — labeled undo steps, keyboard list navigation, visible focus rings, and a unified dark palette.",
+    items: [
+      "Database edits are undoable: typing, New/Delete/Duplicate, bulk edits, and pastes commit to the same history as map painting. Ctrl+Z / Ctrl+Y work inside the Database and Map Properties dialogs too (text boxes keep the browser's native text undo while you type).",
+      "Map Properties changes (name, size, HD-2D settings, notes) undo as a single step, including resizes.",
+      "The Edit menu, command palette, and toolbar tooltips now name the next step — e.g. \"Undo — Paint\", \"Redo — Database edit\".",
+      "Database lists: press ↑/↓ in the search box to walk the (filtered) list without touching the mouse.",
+      "UI polish: one shared dark-theme palette and type scale across every panel and dialog, visible gold focus rings when tabbing through controls, and thin themed scrollbars everywhere.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "World View & database upgrades",
+    summary:
+      "A new bird's-eye World View draws your whole game as a map-connection graph parsed live from Transfer commands, and every Database list gains search, multi-select bulk editing, and cross-project copy/paste.",
+    items: [
+      "View ▸ World View (F3) opens a dockable map graph: each map is a node, each Transfer-Player command an arrow. Drag maps to arrange them (positions are saved per map), click to select, double-click to open, and add per-map notes in the inspector. Drag the ↻ handle on an arrow onto another map to re-link every transfer behind that connection. Broken links to deleted maps are flagged.",
+      "Every Database list (Actors, Items, Skills, Enemies, …) now has a search box, per-row checkboxes for multi-select, and a bulk bar: Bulk Edit a shared numeric field (set / add / multiply), Duplicate, and Delete across the whole selection.",
+      "Copy and Paste move entries between projects through a shared clipboard — copy your enemies in one project, open another, and paste them in.",
+      "The Classes tab shows a live stat-curve preview (levels 1/25/50/99) and the Skills tab an interactive damage preview, both using the exact engine formulas — purely editor-side, no change to how the game runs.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Cliff auto-texturing — sculpted rock faces in HD-2D",
+    summary:
+      "Raised terrain blocks can now render as proper cliffs in the HD-2D scene: their exposed walls get a top-down light gradient, a sunlit crest, and shaded vertical corners instead of a single flat tint. Off by default, per map.",
+    items: [
+      "Map Properties ▸ HD-2D ▸ Cliff auto-texturing turns it on for a map. Any tile you raise in Height mode now reads as a carved cliff — darker toward the base, brighter along the top edge, with chiselled corners where the wall turns.",
+      "The look is derived from the same neighbour connectivity as the floor autotiles, and updates live in the HD-2D Viewport as you paint heights.",
+      "Purely a rendering option: it changes no map data, and leaving it off keeps the exact previous flat-shaded walls.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Autotiles — paint connected terrain with RPG-Maker sheets",
+    summary:
+      "Terrain now autotiles: import an RPG-Maker A2 autotile sheet and paint whole regions of grass, water, or path that automatically pick the right edges and corners as you draw. Comes with resizable terrain brushes.",
+    items: [
+      "Tiles panel ▸ Autotiles ▸ Import… (or Tools ▸ Import Autotile Sheet…) brings in a standard RPG-Maker A2 sheet — each 2×3 block becomes a terrain brush swatch. Click a swatch, then paint like any tile; the 47-blob engine resolves borders and inner corners from the neighbours automatically.",
+      "Brush sizes: pick 1×1, 3×3, or 5×5 in the Tiles panel (or press [ and ] ) to paint broad strokes of terrain at once.",
+      "Autotiles resolve live everywhere — the 2D map, the HD-2D viewport, and playtest — and right-clicking a swatch deletes the group. Maps stay plain tile data, so existing projects and saves are unchanged.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Live HD-2D viewport — edit your map inside the 3D scene",
+    summary:
+      "The HD-2D preview is now a full dockable viewport panel: the game's three.js renderer runs live inside the editor, with its own camera you can fly around and drag-to-place point lights right in the 3D scene.",
+    items: [
+      "Press F2 (or use View ▸ HD-2D Viewport) to dock the live renderer as a panel — split it beside the map, tab it, or float it like any other panel; it updates instantly as you paint tiles, edit heights, or change Map Properties.",
+      "A viewport camera decoupled from the game: drag to pan across the map, scroll the wheel to zoom toward the cursor, and Shift-drag (or right-drag) to change the camera tilt — none of it touches the map's own HD-2D settings.",
+      "Point lights are now editable with drag gizmos: double-click empty space to drop a light, drag its handle to reposition it in the scene, and tweak its colour and radius live — the first way to place per-map lights without light-named events.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Dockable workspace — arrange the editor your way",
+    summary:
+      "The editor's panels (Maps, Tiles, Map) are now a fully dockable workspace: drag panels by their tabs to re-dock, split, tab, or float them, resize with draggable dividers, and save named layouts.",
+    items: [
+      "Drag any panel's tab to rearrange it: drop on the center of a region to add it as a tab, drop near an edge to split, or drag it out to float it in its own window (floating windows move and resize).",
+      "Drag the dividers between panels to resize; your arrangement is remembered automatically between sessions.",
+      "New View menu: show/hide the Maps and Tiles panels, Focus Map, Focus Next Panel (F6), Reset Panel Layout, and Save/Load named layouts — every one also reachable from the Command Palette.",
+      "The map and tile-palette views now live inside dockable panels while keeping all their existing behavior.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Command Palette — press Ctrl+P and type what you want",
+    summary:
+      "Phase 3 of the Atlas overhaul (the editor platform) begins: a fuzzy-searching Command Palette puts every editor action one keystroke away, backed by a new command registry and a declarative keyboard map.",
+    items: [
+      "New Command Palette — open with Ctrl+P, Ctrl+Shift+P, or Tools ▸ Command Palette…, type a few letters of any command (save, playtest, database, height mode, zoom…), and press Enter to run it.",
+      "Every palette entry shows where the command lives in the menus and its keyboard shortcut; commands that can't run right now (like Undo with nothing to undo) are hidden.",
+      "All existing shortcuts behave exactly as before; under the hood they now run through one declarative key map that upcoming editor features (dockable panels, live HD-2D viewport) will extend.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Weather, stairs, drop shadows — and the HD-2D overhaul is complete",
+    summary:
+      "Phase 2 of the Atlas HD overhaul wraps up: GPU weather particles fall inside the 3D scene, stairs tiles become real ramps, characters get soft drop shadows, and the renderer is tuned to hold 60 fps at 1080p with every effect enabled.",
+    items: [
+      "New 'Weather particles' setting in Map Properties: Rain, Snow, or floating Ambient motes, rendered inside the HD-2D scene (they fall behind buildings and in front of the ground, not as a flat overlay).",
+      "New 'Soft character drop shadows' toggle: a gentle blob grounds every character even without sun shadows.",
+      "Stairs tiles now render as real sloped ramps between terrain heights in HD-2D.",
+      "Performance: chunk-level view culling plus a CI-enforced frame budget — the sample map with every feature on (shadows, water, materials, rain, day/night, full post stack) holds 60 fps at 1080p on ordinary hardware.",
+      "The Whispering Cave in the sample project is now an HD-2D showcase: point-light shadows off the rock formations, glowing lava and crystal, dust motes, night color grade.",
+      "The old pre-three.js renderer has been retired (?renderer=classic no longer switches); two driver-strict shader bugs found on real GPUs (water at dusk, weather particles) were fixed on the way out.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Cinematic post stack and a day/night cycle",
+    summary:
+      "HD-2D maps gain a film-grade finishing stack — ACES tone mapping, color grades, vignette, ambient occlusion, FXAA — plus a real day/night cycle where the sun arcs across the sky, shadows stretch and fade, and windows light up after dark.",
+    items: [
+      "New Map Properties toggles: ACES filmic tone mapping, FXAA anti-aliasing, SSAO ambient occlusion, vignette, and a color-grade preset (Warm, Cool, Night, Sepia, Noir) — all per map, combinable with bloom/depth-of-field/fog.",
+      "New 'Day/night cycle' toggle: the map's lighting follows an in-game clock — golden dawns and dusks, blue moonlit nights, the sun (and its shadows) sweeping east to west, and emissive windows/torches igniting at night with Auto materials.",
+      "Set each map's 'Time of day on entry', and drive the clock from scripts/plugins with game.setTimeOfDay(hours) / game.getTimeOfDay(); the clock is saved with the game.",
+      "All effects render in the editor's HD-2D preview and in exported games.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Living water and auto materials for HD-2D maps",
+    summary:
+      "Ponds, rivers, and swamps come alive with animated waves, real reflections, and shore foam — and a new auto-material system gives tiles light-reactive relief, specular sparkle, and windows that glow at night.",
+    items: [
+      "New 'Water surface' toggle in Map Properties: water/deep-water/swamp tiles get an animated surface with planar reflections (characters and terrain mirror in the water), refraction ripples, sun glints, and foam along shores.",
+      "New 'Auto materials' toggle: normal maps are auto-generated from every tile's artwork so point lights reveal relief; wet/icy/crystal tiles get specular highlights; windows, torches, lava, and crystals glow as ambient light drops (they ignite automatically with the upcoming day/night cycle).",
+      "Both effects are per-map, off by default, and cost nothing when disabled.",
+      "Works in the editor's live HD-2D preview and in exported games.",
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    title: "Point lights now cast shadows on HD-2D maps",
+    summary:
+      "Torches, lamps, and any other point light can now cast real-time shadows: walls block lamplight and characters throw flickering shadows away from nearby flames.",
+    items: [
+      "New 'Point-light shadows' toggle in Map Properties (HD-2D section); off by default, existing maps are unchanged.",
+      "The 4 lights nearest the camera cast omnidirectional soft shadows (raised terrain, overhead tiles, and characters all occlude).",
+      "Advanced: map.hd2d.pointShadows accepts a 0–1 strength for partially-soft occlusion instead of full darkness.",
+      "Works in the editor's live HD-2D preview and in exported games.",
+    ],
+  },
+  {
+    date: "July 1, 2026",
+    title: "Real-time sun shadows for HD-2D maps",
+    summary:
+      "HD-2D maps can now cast real-time shadows: terrain blocks, overhead tiles, and characters all cast and receive soft sun shadows — the first new rendering capability unlocked by the three.js port.",
+    items: [
+      "New 'Sun shadows' toggle in Map Properties (HD-2D section); off by default, so existing maps look exactly as before.",
+      "Characters cast soft moving drop shadows; buildings, cliffs, and trees shade the ground realistically (3×3 PCF soft edges).",
+      "Advanced: map.hd2d.shadows accepts a 0–1 strength, and map.hd2d.sun { azimuth, elevation } aims the sun (defaults: NE sky, 55° up) — groundwork for the upcoming day/night cycle.",
+      "Shadows render in the editor's live HD-2D preview too.",
+    ],
+  },
+  {
+    date: "July 1, 2026",
+    title: "Atlas HD Phase 2 begins — HD-2D renderer now runs on three.js",
+    summary:
+      "The HD-2D renderer has been ported to the three.js engine with strict visual parity — games look identical (golden-image tests prove it), and the new scene graph is the foundation for upcoming real-time shadows, water, weather, and richer lighting.",
+    items: [
+      "HD-2D maps and the editor's live HD-2D preview now render through three.js by default; visuals, per-map settings (tilt, bloom, depth of field, fog, lights, ambient), and performance are unchanged.",
+      "Temporary escape hatch: add ?renderer=classic to the player URL to run the previous raw-WebGL2 renderer until the parity sign-off retires it.",
+      "New golden-image tests pin the bloom / depth-of-field / fog post-processing stack so both renderers provably match.",
+    ],
+  },
+  {
+    date: "July 1, 2026",
+    title: "Standalone Export Fix",
+    summary:
+      "Exported games (Standalone HTML and Windows EXE) work again — a long-standing packaging gap made every exported game crash on startup before showing the title screen.",
+    items: [
+      "Exports now include the quest runtime, quest journal view, and input system the engine requires at startup; exported games boot to the title screen and play normally.",
+      "An automated export smoke test now boots a freshly exported game on every change, so exports can't silently break again.",
+    ],
+  },
+  {
+    date: "July 1, 2026",
+    title: "Atlas HD Phase 0 — Stability & Foundations",
+    summary:
+      "First phase of the Atlas HD overhaul: several crash fixes players could hit in normal use, versioned project files, and a modern engine-development toolchain (using and playing RPGAtlas still needs no install).",
+    items: [
+      "Fixed a battle crash when a troop contained a deleted enemy before a surviving one — attacks and enemy AI now target correctly.",
+      "Deleting a map now reassigns the game's starting map if needed and lists any events whose Transfer Player commands still point at the deleted map.",
+      "Continue and Load no longer crash on saves that reference a deleted map — the game falls back to an existing map and keeps the player inside its bounds.",
+      "In-game saving now shows 'Could not save — storage is full or unavailable.' instead of freezing the event that opened the save menu.",
+      "HD-2D now survives a lost graphics context: the game falls back to classic 2D rendering and automatically rebuilds and resumes HD-2D when the browser restores the GPU.",
+      "Alt-tabbing or losing window focus while holding a key no longer leaves the player walking on their own.",
+      "Project files now carry a formatVersion with a proper migration registry, protecting projects opened across engine versions (newer projects are left untouched by older engines).",
+      "New contributor toolchain: Vite dev server, TypeScript, ESLint, Vitest, Playwright smoke and golden-image render tests, and CI — see the README's 'Developing the engine' section. Exports and the zero-install workflow are unchanged.",
+    ],
+  },
+  {
+    date: "June 29, 2026",
+    title: "Plugin Metadata Foundation",
+    summary: "Plugins now have formal metadata fields, clearer validation, and a more flexible Plugin Manager layout.",
+    items: [
+      "Plugin Manager now exposes plugin ID, version, author, description, and dependency fields above the code editor.",
+      "The Plugin Manager window and plugin list divider can now be resized.",
+      "Bundled plugins now carry metadata, and older projects are migrated with safe defaults for custom plugins.",
+      "Playtests now record plugin load status in window.AtlasPluginStatus and skip duplicate or missing-dependency plugins with console warnings.",
+    ],
+  },
+  {
+    date: "June 28, 2026",
+    title: "Project Export Save As",
+    summary: "Export Project As File now opens a Save As destination picker when the editor is running in a capable desktop browser or desktop app.",
+    items: [
+      "File -> Export Project As File opens a native Save As picker so the project file can be named and saved to a chosen folder.",
+      "Browsers without the save-picker API still fall back to the standard .json download.",
+    ],
+  },
+  {
+    date: "June 28, 2026",
+    title: "Action Combat Chase Spacing",
+    summary: "Chasing action-combat enemies now avoid stacking on each other unless their event page has Through enabled.",
+    items: [
+      "Enemy chase AI now treats another same-priority event's current tile or reserved movement destination as blocked.",
+      "Turning on Through for an event still allows that chaser to overlap other events when the project needs pass-through behavior.",
+    ],
+  },
+  {
+    date: "June 28, 2026",
+    title: "Playtest and Event Marker Sync",
+    summary: "Editor event markers now stay visible while painting, and browser playtests launch from a fresh player URL.",
+    items: [
+      "Events remain visible as faint map pins outside Event mode, so they no longer look deleted when switching back to tile painting.",
+      "The Playtest command now opens browser playtests with a cache-busting play.html URL while still saving the current project first.",
+    ],
+  },
+  {
+    date: "June 28, 2026",
+    title: "Action Combat AI Picker",
+    summary: "Action Combat events now expose enemy AI directly and the default Attack binding includes F again.",
+    items: [
+      "The Action Combat section now has an Enemy AI picker with None and Chase player options.",
+      "Existing random touch-damage enemies keep their chase behavior through migration, but new enemies choose it explicitly.",
+      "The default Attack action now responds to F as well as J unless the project has a custom attack binding.",
+    ],
+  },
+  {
+    date: "June 28, 2026",
+    title: "HD-2D Toggle Respects Map Properties",
+    summary: "Maps now return to the flat 2D renderer when HD-2D is switched off in Map Properties.",
+    items: [
+      "The Map Properties Enabled checkbox now controls the runtime renderer even when camera tilt, ambient light, fog, bloom, point lights, or saved map lights remain configured.",
+      "Older projects that had HD-2D settings before the explicit toggle still opt into HD-2D until the map is saved with the checkbox off.",
+    ],
+  },
+  {
+    date: "June 28, 2026",
+    title: "Action Combat Follow-Up",
+    summary: "Map action combat now reliably hits the adjacent tile and gives touch-damage enemies a simple way to pressure the player.",
+    items: [
+      "Sword swings now check the tile in front of the player as well as the visual slash collider, so adjacent enemies are hit and knocked back reliably.",
+      "Touch damage now works as an adjacent melee strike for action-combat enemies instead of requiring an impossible same-tile overlap.",
+      "Random-moving action-combat enemies with Touch damage now chase nearby players before resuming random wandering.",
+    ],
+  },
+  {
+    date: "June 28, 2026",
+    title: "True 3D HD-2D Rendering",
+    summary: "HD-2D now renders through a real perspective camera again, so the Camera tilt control actually tilts the view. The PIXI dependency was removed in favor of a dependency-free WebGL renderer.",
+    items: [
+      "Camera tilt (25–89 degrees) leans the camera back through a genuine 3D perspective: raised blocks reveal their walls and the world foreshortens, instead of the slider doing nothing.",
+      "Restored the full HD-2D feature set on the 3D path — height-extruded blocks with shaded cliff faces, billboard characters that stand at their elevation, 3D point lights with ambient, plus bloom, depth of field, and distance fog.",
+      "Removed the bundled PIXI library; the renderer is now raw WebGL2 with no third-party dependency and a smaller download.",
+      "The in-editor HD-2D Preview and exported games use the same renderer, so what you see while editing matches the game.",
+    ],
+  },
+  {
+    date: "June 22, 2026",
+    title: "Live HD-2D Editor Preview",
+    summary: "The HD-2D Preview now uses the current PIXI renderer directly and stays synchronized with map edits.",
+    items: [
+      "Game -> HD-2D Preview opens a working draggable preview panel again, including elevation, map characters, ambient lighting, event lights, and map lights.",
+      "Blocked and elevated tiles cast bounded point-light shadows in both the preview and game runtime.",
+      "The Map Properties Point lights toggle now consistently controls event and map lights during playtests and previews.",
+      "Closing and reopening the preview reuses its renderer safely without accumulating per-frame lighting graphics.",
+    ],
+  },
+  {
+    date: "June 19, 2026",
+    title: "HD-2D Height Extrusion",
+    summary: "Elevation painted with the map editor's Height tool now renders as raised blocks with shaded cliff faces in the HD-2D view, instead of being ignored.",
+    items: [
+      "Tiles with a non-zero height paint as raised platforms — the tile's own art lifts into a top, with a shaded south-facing wall showing the exposed step over lower terrain.",
+      "Taller terrain correctly hides what stands behind it, and characters pass in front of or behind elevation based on where their feet are.",
+      "Block height scales with the painted 0–9 value (about a third of a tile per step), so stepped ridges, plateaus, and pillars read as real depth.",
+      "Replaces the previous placeholder that simply nudged the overhead layer up by a few pixels and otherwise discarded the height layer at render time.",
+    ],
+  },
+  {
+    date: "June 19, 2026",
+    title: "Fixed Message Windows in Exported Games",
+    summary: "Standalone HTML/EXE exports now load the message system correctly, so Show Text boxes and other dialog work in exported games.",
+    items: [
+      "The standalone export now ships runtime/messages.js as a regular script (matching the editor and playtest), instead of an unused import map that left createMessageSystem undefined.",
+      "Added a continuous-integration test workflow and an npm test script so the full test suite runs automatically on every change.",
+    ],
+  },
+  {
+    date: "June 18, 2026",
+    title: "Reusable Common Events",
+    summary: "The Database now includes Common Events for reusable command sequences, explicit calls, and switch-controlled automatic processing.",
+    items: [
+      "Added Database -> Common Events with Name, Trigger, Activation switch, and the full event-command list editor.",
+      "Added the Call Common Event command to event content lists and game.callCommonEvent(id) to the Script API.",
+      "Common Events support None, Autorun, and Parallel triggers, with optional switch gating for automatic execution.",
+      "Recursive common-event calls are safely skipped to prevent an immediate infinite call loop.",
+    ],
+  },
+  {
+    date: "June 18, 2026",
+    title: "Custom Window Colors",
+    summary: "Projects can now set a shared window color for Show Text boxes, menus, and battle information panels from the System tab.",
+    items: [
+      "Added a Window color picker beside the existing font size and opacity settings in Database -> System.",
+      "The selected color is applied to message boxes, speaker-name labels, standard menus, and battle log and party panels.",
+      "Existing projects receive the original dark-blue window color automatically, while custom colors persist through saves and exports.",
+    ],
+  },
+  {
+    date: "June 18, 2026",
+    title: "Remappable Map Attack Prompts",
+    summary: "Map action combat and its guidance now consistently use the remappable Attack action instead of assuming the default J key.",
+    items: [
+      "Map sword attacks are covered by a regression test that verifies a replacement Attack binding works and the old key no longer triggers it.",
+      "The Action Combat editor hint now points authors to the remappable Attack action and the \\input[attack] message prompt.",
+      "Action Combat and message text-code documentation now show input-aware attack instructions for keyboard and gamepad players.",
+    ],
+  },
+  {
+    date: "June 17, 2026",
+    title: "Options: Audio Mixer & Game Settings",
+    summary: "The in-game Options menu is now a full settings screen with separate volume sliders and gameplay/accessibility toggles.",
+    items: [
+      "Independent Master, Music, and Sound Effects volume sliders replace the old single Music on/off toggle.",
+      "New Text Speed setting (Slow / Normal / Fast / Instant) controls how quickly message text reveals.",
+      "New Dash setting: Hold to run, Toggle to latch running on/off, or Always On.",
+      "New Screen Shake setting (Off / Reduced / Full) scales combat and event camera shake.",
+      "Adjust any option with the mouse (click the arrows, or click along a volume bar), keyboard, or gamepad; settings persist per game.",
+    ],
+  },
+  {
+    date: "June 16, 2026",
+    title: "Quest Editor Validation Warnings",
+    summary: "The Quests database tab now warns authors about broken quest references and other common setup mistakes while editing.",
+    items: [
+      "Quest warnings now flag missing next quests, duplicate follow-up links, and self-referencing quest chains.",
+      "Objective warnings catch missing enemies, missing fetch items, and invalid turn-in map or event targets.",
+      "Requirement and failure warnings catch missing referenced quests, troops, enemies, and quest lock/unlock targets.",
+    ],
+  },
+   {
+     date: "June 17, 2026",
+     title: "Gamepad Support & Remappable Controls",
+     summary: "Full gamepad support with a unified keyboard/gamepad input layer, in-game and in-editor rebinding, and input-prompt glyphs you can drop into messages.",
+     items: [
+       "Play with a gamepad: movement, Confirm/Cancel, dash, and attack map to the W3C Standard Gamepad, including left-stick movement with a configurable stick deadzone.",
+       "In-game Options -> Controls lets players rebind keyboard and gamepad inputs, with conflict detection and a guard that stops Confirm/Cancel from being left unbound.",
+       "The in-game Controls menu now shows the same procedural glyphs as the editor, auto-skinned to the controller in your hands, instead of plain text labels.",
+       "New dedicated \"Controls\" tab in the editor sets the default key/gamepad bindings a new player starts with, shown as button/key glyphs (no more console snippet).",
+       "Gamepad glyphs auto-detect the player's controller and relabel for Xbox (A/B/X/Y), PlayStation (Cross/Circle/Square/Triangle), and Nintendo Switch (B/A/Y/X); the editor Controls tab has a per-brand preview.",
+       "Distinct procedural icons for the D-Pad, analog stick, and stick-clicks (L3/R3), so on-screen directions no longer all look the same.",
+       "New \\input[action] message code shows the glyph for a bound control (e.g. \"Press \\input[ok] to continue\"), matching keyboard or gamepad to the device in use when the message opens.",
+       "Show Text and Show Choices now include a built-in \"Text codes\" reference, so you can recall every code (including \\input[...]) without leaving the message editor.",
+       "Input-prompt glyphs are generated procedurally, so they need no extra art and carry into standalone exports automatically.",
+     ],
+   },
+   {
+     date: "June 16, 2026",
+     title: "Map Action Combat",
+     summary: "Events can now become Zelda-style map enemies that take sword damage, flash, knock back, and update kill quests on defeat.",
+     items: [
+       "Added an Action Combat section to event pages for enabling map enemies, choosing an enemy, and tuning HP, touch damage, knockback, invulnerability frames, and defeat self-switches.",
+       "Press J during map play to swing the player's sword with a directional hit collider.",
+       "Sword hits damage each enemy once per swing, show slash and damage feedback, and apply tile knockback when space is available.",
+       "Defeated action-combat enemies erase or flip their configured self-switch and count toward matching Kill quest objectives.",
+     ],
+   },
+   {
+     date: "June 15, 2026",
+     title: "Abandoned Quest Tracking",
+     summary: "The Journal now separates abandoned quests from failed ones so players can review dropped quests independently.",
+     items: [
+       "Added an Abandoned Quests tab to the Journal.",
+       "Player-abandoned quests now use their own abandoned state instead of being mixed into Failed Quests.",
+       "Quest status pickers now include abandoned for page conditions and quest prerequisites.",
+     ],
+   },
+   {
+     date: "June 15, 2026",
+     title: "Split-Panel Quest Journal",
+     summary: "The in-game Journal now opens as a full-size split panel with quest browsing on the left and live details on the right.",
+     items: [
+       "Replaced the old Journal popup flow with a dedicated full-screen-style panel.",
+       "Browse Active, Completed, and Failed quests from tabs across the top of the Journal.",
+       "See the selected quest's title, description, objectives, and failure outcome in a persistent detail pane.",
+       "Opening the Journal now hides the party panel so the quest screen has room to breathe.",
+     ],
+   },
+   {
+     date: "June 15, 2026",
+     title: "Built-In Quest System",
+     summary: "Added a built-in quest framework with editor tools, runtime tracking, objective progress, branching outcomes, and an in-game Journal.",
+     items: [
+       "New Database -> Quests tab for creating and editing quests, objectives, rewards, prerequisites, failure rules, and follow-up quest chains.",
+       "Added Event, Kill, and Fetch objectives with progress tracking, optional fetch item turn-in consumption, and objective-aware event page conditions.",
+       "New event commands: Start Quest, Complete Quest, Fail Quest, Advance Quest Objective, and Set Quest Objective Progress.",
+       "Added an in-game Journal with Active, Completed, and Failed quest lists, objective progress display, outcome text, and optional quest abandonment.",
+       "Quest rewards now support XP, gold, and items, with save/load support, restart/abandon policies, branching failures, and automatic follow-up quest unlocking.",
+     ],
+   },
+  {
+    date: "June 14, 2026",
+    title: "Event editor: 3-pane layout + live command inspector",
+    summary:
+      "Reorganized the event editor into a three-pane workspace and added an inline inspector that edits the selected command without opening a dialog.",
+    items: [
+      "Event editor now uses a 3-pane layout: Conditions, Appearance, and Behaviour on the left; the command list in the center; and a command inspector on the right.",
+      "The Conditions section shows an \"N active\" badge when page conditions are set.",
+      "Single-click a Show Text command to edit its speaker, face, and message live in the right-hand inspector; double-click any command to open the full editor dialog as before.",
+      "Command list is easier to scan with alternating row shading and a running command count next to the \"Commands\" heading.",
+      "Event name and page tabs moved into a single header bar; the map position now sits in the footer beside OK / Cancel.",
+    ],
+  },
+  {
+    date: "June 14, 2026",
+    title: "Lighting polish: smoother lights, shadows disabled",
+    summary:
+      "Improve radial light visuals and temporarily disable shadow generation while debugging.",
+    items: [
+      "Smoothed radial gradient for more natural light falloff (less burnt centers).",
+      "Removed the ambient overlay sprite in favor of a single ambient background color.",
+      "Temporarily disabled per-tile shadow generation to prevent visual artifacts.",
+      "Fixed PIXI v8 compatibility: string blend modes and linear scaleMode usage.",
+      "Credits: Kiro (Dirgefall Studio) — PIXI integration and lighting polish",
+    ],
+  },
+  {
+    date: "June 14, 2026",
+    title: "PIXI v8 HD-2D Lighting System",
+    summary:
+      "Replaced basic circle-based light rendering with a GPU-efficient radial gradient light map for PIXI v8.",
+    items: [
+      "Lights now use radial gradient sprites with smooth falloff instead of hard-edged circles.",
+      "Ambient darkness overlay darkens unlit areas; lights pierce through via ADD blend mode.",
+      "Fixed TILE size mismatch (32 to 48) for correct sprite and light positioning.",
+      "Camera zoom is now applied to the PIXI scene container.",
+      "Light sprites are pooled and reused each frame (zero GC pressure).",
+      "Editor GLRender alias added for HD-2D preview compatibility.",
+      "Credits: Kiro (Dirgefall Studio) — PIXI integration and lighting polish",
+    ],
+  },
+  {
+    date: "June 14, 2026",
+    title: "Desktop App (Tauri)",
+    summary: "RPGAtlas can now be packaged as a lightweight cross-platform desktop application using the system WebView, alongside the existing local-server build.",
+    items: [
+      "Added a Tauri wrapper (src-tauri/) that runs the editor in a native window on Windows, macOS, and Linux.",
+      "RPGAtlas-Desktop.exe opens the editor directly in the desktop app; the original RPGAtlas.exe still opens it in your browser.",
+      "Playtest opens in its own dedicated desktop window instead of a browser tab.",
+      "Project export uses a native Save dialog when running as a desktop app.",
+      "Build with: npm install, then npm run dev (live) or npm run build (installer). Requires the Rust toolchain.",
+    ],
+  },
+  {
+    date: "June 14, 2026",
+    title: "Name & Manage Event Pages",
+    summary: "Name an event's pages and reorder, duplicate, or jump between them by drag, right-click menu, or number keys.",
+    items: [
+      "Name a page: double-click its tab (or right-click → Rename) to label it, e.g. “Greeting” instead of “Page 3”. Clear the name to return to the default.",
+      "Drag a page tab left or right to reorder it.",
+      "Right-click a page tab for Add page, Rename, Move, Copy, Paste, and Delete.",
+      "Copy a page and paste it — within an event or into another event — as a full duplicate.",
+      "Press 1–9 to jump straight to that page.",
+    ],
+  },
+  {
+    date: "June 14, 2026",
+    title: "Undo, Redo & Delete-Key for Event Commands",
+    summary: "The event editor gains its own undo/redo and Delete-key shortcuts — conveniences RPG Maker never offered inside event editing.",
+    items: [
+      "Undo and redo adding, editing, deleting, moving, copy/cut/paste, and drag-reordering of commands, including multi-selected blocks and commands nested inside If/Choices branches.",
+      "Ctrl+Z undoes; Ctrl+Y or Ctrl+Shift+Z redoes — anywhere in the event editor, not only when the list is focused.",
+      "Each event page keeps its own command history, so undo never disturbs another page or your page condition/appearance settings.",
+      "Press Delete to remove the selected command(s) from the Commands list — and Ctrl+Z brings them back.",
+      "Press Delete to remove the highlighted page, or use the − button; pages that still hold commands ask to confirm first.",
+      "Command history lasts while the event editor is open; clicking OK still commits the whole event as a single undo step on the map.",
+    ],
+  },
+  {
+    date: "June 14, 2026",
+    title: "Multilingual Editor Interface",
+    summary: "Added a persistent interface-language module so creators can use the editor chrome in English, Spanish, French, or German.",
+    items: [
+      "Added Help → Interface Language for switching languages without reloading the editor.",
+      "Translated the main menus, toolbar labels, map sidebar, status text, and common dialog controls.",
+      "Language selection follows the browser by default, is saved locally, and never changes project-authored names or content.",
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    title: "Smoother Movement",
+    summary: "Reworked the play-test movement loop so walking is fluid and runs at a consistent speed on every display.",
+    items: [
+      "Removed the brief pause that occurred at each tile during grid movement, for both the player and NPCs.",
+      "Game logic now runs on a fixed timestep, so movement speed is identical on 60 Hz, 120 Hz, and high-refresh screens (no more fast-forward on fast monitors).",
+      "Added frame interpolation so motion stays smooth on high-refresh displays.",
+      "Event 'Wait' and camera-zoom timing is now frame-rate independent, matching real time even when the frame rate dips.",
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    title: "Select Multiple Event Commands",
+    summary: "Shift+click a range of commands in the event editor and copy, cut, paste, delete, move, or drag them as one block.",
+    items: [
+      "Click a command, then Shift+click another to select the whole run between them.",
+      "Copy/Cut/Paste/Delete and the ↑/↓ buttons act on the entire selection at once.",
+      "Drag a selected block to a new spot, including into another branch.",
+      "Selection stays within one branch level; selecting across an If/Choices carries the whole block along.",
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    title: "Copy & Paste Event Commands",
+    summary: "Copy, cut, and paste commands in the event editor — within an event or from one event to another.",
+    items: [
+      "Select a command and use Ctrl+C / Ctrl+X / Ctrl+V (or the Copy/Cut/Paste buttons) in the Commands list.",
+      "Paste works across events, so you can copy a command in one event and paste it into another.",
+      "Container commands (If / Choices) copy with everything nested inside them.",
+      "Right-click a command for a menu with all the list actions (add, edit, cut, copy, paste, move, delete).",
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    title: "Drag-to-Reorder Event Commands",
+    summary: "Reorder commands in the event editor by dragging them, not just the ↑/↓ buttons.",
+    items: [
+      "Click and drag a command in the Commands list to move it anywhere in the event.",
+      "Drag commands into or out of If/Choices branches, not just within a single list.",
+      "A drop line shows where the command will land; the ↑/↓ buttons still work too, and now keep the command selected so you can tap them repeatedly.",
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    title: "Cinematic and Control Event Command Expansion",
+    summary: "Added new visual effects commands and advanced branching controls to map events.",
+    items: [
+      "Shake Screen - shakes the game viewport horizontally and vertically in both 2D and HD-2D modes.",
+      "Flash Screen - overlays a fading color overlay for thunder strikes, hit impacts, or magical bursts.",
+      "Change Weather - triggers map weather changes visually without requiring JavaScript Script blocks.",
+      "Actor Conditional Branch - checks party membership and specific weapon/armor equipment in event branches.",
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    title: "Faster Event Command Navigation",
+    summary: "Increased the Add Command menu from 12 to 24 buttons per page and added direct numbered page tabs.",
+    items: [
+      "Each Event Command page now displays up to 24 buttons.",
+      "Page tabs appear above the command grid for one-click access without cycling through pages.",
+      "Saved custom command buttons and +Add New remain at the end of the picker.",
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    title: "Patch Notes",
+    summary: "Added an easily digestible Patch Notes menu under Help so players and creators can review feature updates.",
+    items: [
+      "Patch notes are shown newest-first and older entries remain available by scrolling.",
+      "Added a project instruction requiring future AI-assisted features and major changes to include a short patch note.",
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    title: "Event Command Expansion",
+    summary: "Expanded Event Commands into multiple pages with 12 buttons per page and the ability to add reusable event buttons on demand.",
+    items: [
+      "Camera Zoom - zoom the player camera in or out immediately or over time.",
+      "+Add New - create project-saved JavaScript command buttons for reusable event flow and scene-management tasks.",
+      "Saved command buttons can be inserted with one click, or edited and deleted with right-click.",
+    ],
+  },
+];

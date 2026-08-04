@@ -1,0 +1,13 @@
+# Prettier is scoped to new code + config only. Never reformat legacy frontend
+# source, build output, deps, the desktop crate, or the node:test suites.
+dist/
+node_modules/
+src-tauri/
+js/
+tests/
+tools/
+wiki/
+*.json
+*.html
+*.css
+*.md

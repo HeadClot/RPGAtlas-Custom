@@ -1,0 +1,1907 @@
+/* RPGAtlas — src/editor/event-editor/command-defs.ts
+   Event-command metadata (CMD_DEFS), the shared summary/help builders, and the
+   command edit/pick dialogs (mountForm, editCommand, pickCommand).
+   Verbatim move from the editor monolith (Phase 1 Stage C, Package 2):
+   logic unchanged, closure vars routed through editor-state.ts.
+   Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { Assets, RA, Sfx, curMap, editorState as S } from "../editor-state";
+import { describeStep } from "../../shared/move-route";
+import {
+  h, tIn, nIn, sel, chk, field, row,
+  dbOpts, switchOpts, varOpts, cmpOpts, charsetOpts,
+  DIR_OPTS, SE_OPTS, MUSIC_OPTS, BGS_OPTS, ME_OPTS, stringSelOpts,
+} from "../dom";
+import { modal, confirmBox } from "../modals";
+import { touch } from "../persistence";
+import { openLocationPicker } from "./location-picker";
+
+  // Speech-balloon glyph names (Project Compass M2·A), RM balloon ids 1–15;
+  // 11–15 are custom slots in RM, kept as generic "Balloon N".
+  const BALLOON_NAMES: Record<number, string> = {
+    1: "Exclamation", 2: "Question", 3: "Music Note", 4: "Heart", 5: "Anger",
+    6: "Sweat", 7: "Frustration", 8: "Silence", 9: "Light Bulb", 10: "Zzz",
+  };
+  const BALLOON_OPTS = Array.from({ length: 15 }, (_, i) => ({ v: i + 1, l: (i + 1) + ": " + (BALLOON_NAMES[i + 1] || "Balloon " + (i + 1)) }));
+  const BLEND_OPTS = [{ v: 0, l: "Normal" }, { v: 1, l: "Add" }, { v: 2, l: "Multiply" }, { v: 3, l: "Screen" }];
+  const VEHICLE_OPTS = [{ v: "boat", l: "Boat" }, { v: "ship", l: "Ship" }, { v: "airship", l: "Airship" }]; // M4·A
+  const ORIGIN_OPTS = [{ v: 0, l: "Upper-left" }, { v: 1, l: "Center" }];
+  // Change-actor-data family (Project Compass M2·C): the base parameters Atlas
+  // models (all eight since post-1.1 — Luck included), and the actor
+  // dropdowns. The exp/level/param/skill/state commands offer "Entire Party".
+  const PARAM_OPTS = [
+    { v: "mhp", l: "Max HP" }, { v: "mmp", l: "Max MP" }, { v: "atk", l: "Attack" },
+    { v: "def", l: "Defense" }, { v: "mat", l: "M.Attack" }, { v: "mdf", l: "M.Defense" }, { v: "agi", l: "Agility" },
+    { v: "luk", l: "Luck" },
+  ];
+  const PARAM_LABEL: Record<string, string> = { mhp: "Max HP", mmp: "Max MP", atk: "Attack", def: "Defense", mat: "M.Attack", mdf: "M.Defense", agi: "Agility", luk: "Luck" };
+  const actorOnlyOpts = () => S.proj.actors.map((a: any) => ({ v: a.id, l: a.name }));
+  const actorPartyOpts = () => [{ v: 0, l: "Entire Party" }, ...actorOnlyOpts()];
+  const actorLabel = (id: any) => (Number(id) === 0 ? "Entire Party" : (RA.byId(S.proj.actors, id) || { name: "#" + id }).name);
+  // Multi-currency wallet (Currency Types list). Id 1 — the list's first
+  // entry — is the classic gold purse; ids ≥ 2 are wallet balances. Commands
+  // store currencyId only when ≥ 2 so untouched projects stay byte-identical.
+  const currencyOpts = () => RA.typeList(S.proj, "currencyTypes").map((t: any) => ({ v: t.id, l: t.name }));
+  const currencyLabel = (id: any) => {
+    const t = RA.typeList(S.proj, "currencyTypes").find((x: any) => x.id === Number(id));
+    return t ? t.name : "?";
+  };
+  /** Commit helper: keep `currencyId` on the command only for wallet ids. */
+  const setCurrency = (c: any, id: any) => {
+    if (Number(id) > 1) c.currencyId = Number(id);
+    else delete c.currencyId;
+  };
+  // In-battle enemy commands (M3·C): troop slot pickers. `only` drops the
+  // "Entire Troop" entry for commands that need one specific slot.
+  const TROOP_SLOT_OPTS = (only?: boolean) =>
+    (only ? [] : [{ v: -1, l: "Entire Troop" }]).concat(
+      [0, 1, 2, 3].map((i) => ({ v: i, l: "Slot " + (i + 1) })));
+  const troopSlotLabel = (i: any) => (Number(i) < 0 ? "Entire Troop" : "Slot " + ((Number(i) || 0) + 1));
+  // Screen/picture colour tone presets ([r,g,b,gray]) offered in the tint forms.
+  const TONE_PRESETS: { l: string; tone: [number, number, number, number] }[] = [
+    { l: "Normal", tone: [0, 0, 0, 0] },
+    { l: "Dark", tone: [-68, -68, -68, 0] },
+    { l: "Night", tone: [-68, -68, 0, 68] },
+    { l: "Sepia", tone: [34, -34, -68, 170] },
+    { l: "Sunset", tone: [68, -34, -34, 0] },
+  ];
+  /** A [r,g,b,gray] tone editor: four numeric fields + a preset dropdown. */
+  function toneEditor(w: any, key: string) {
+    if (!Array.isArray(w[key])) w[key] = [0, 0, 0, 0];
+    const t = w[key];
+    const model = { r: t[0], g: t[1], b: t[2], gray: t[3], preset: "" };
+    const sync = () => { w[key] = [Number(model.r) || 0, Number(model.g) || 0, Number(model.b) || 0, Number(model.gray) || 0]; };
+    const rIn = nIn(model, "r", -255, 255); const gIn = nIn(model, "g", -255, 255);
+    const bIn = nIn(model, "b", -255, 255); const grIn = nIn(model, "gray", 0, 255);
+    [rIn, gIn, bIn, grIn].forEach((i: any) => i.addEventListener("input", sync));
+    const presetSel = sel(model, "preset", [{ v: "", l: "Preset…" }, ...TONE_PRESETS.map((p, i) => ({ v: String(i), l: p.l }))], () => {
+      if (model.preset === "") return;
+      const p = TONE_PRESETS[Number(model.preset)];
+      model.r = p.tone[0]; model.g = p.tone[1]; model.b = p.tone[2]; model.gray = p.tone[3];
+      rIn.value = String(model.r); gIn.value = String(model.g); bIn.value = String(model.b); grIn.value = String(model.gray);
+      sync();
+    });
+    sync();
+    return row(field("Red (−255…255)", rIn), field("Green", gIn), field("Blue", bIn), field("Gray (0…255)", grIn), field("", presetSel));
+  }
+
+  /** How a Set Move Route target reads in the command list. */
+  const moveTargetName = (id: any) => {
+    const map: any = curMap();
+    const ev = ((map && map.events) || []).find((e: any) => e.id === (Number(id) || 0));
+    return ev ? (ev.name || "Event " + ev.id) : "Event #" + (Number(id) || 0);
+  };
+
+  /** The events on the map being edited, for Set Move Route's "Another
+   *  Event…" target. Named events read by name; the rest by id and position,
+   *  which is how the map editor labels them too. */
+  const eventOpts = () => {
+    const map: any = curMap();
+    const events = (map && map.events) || [];
+    return [{ v: 0, l: "(pick an event)" }].concat(
+      events.map((ev: any) => ({
+        v: ev.id,
+        l: (ev.name ? ev.name : "Event " + ev.id) + " (" + ev.x + "," + ev.y + ")",
+      })),
+    );
+  };
+
+  /** One-line human description of a Condition — extracted verbatim from the
+   *  Conditional Branch summary so Show Choices per-option rows and the
+   *  command list's branch labels can share it. Output is unchanged for
+   *  pre-upgrade shapes; only the new operands (variable-vs-variable, item
+   *  count) add text. */
+  export function condSummary(cond: any): string {
+    if (!cond) return "always";
+    // Condition groups read as their members joined by AND/OR. A nested group
+    // is parenthesized so "A and (B or C)" stays unambiguous at a glance.
+    if (cond.kind === "all" || cond.kind === "any") {
+      const parts = (cond.conds || []).map((sub: any) =>
+        (sub && (sub.kind === "all" || sub.kind === "any")) ? "(" + condSummary(sub) + ")" : condSummary(sub));
+      if (!parts.length) return "always";
+      return parts.join(cond.kind === "all" ? " AND " : " OR ");
+    }
+    const swName = (id: any) => id + (S.proj.system.switches[id - 1] ? " (" + S.proj.system.switches[id - 1] + ")" : "");
+    const varName = (id: any) => id + (S.proj.system.variables[id - 1] ? " (" + S.proj.system.variables[id - 1] + ")" : "");
+    const dbName = (arr: any, id: any) => { const e = RA.byId(arr, id); return e ? e.name : "#" + id; };
+    // An empty project has no quests to point at, so say so rather than "#0".
+    const questName = (id: any) => (Number(id) ? dbName(S.proj.quests || [], id) : "(no quest chosen)");
+    const k = cond.kind;
+    return k === "switch" ? "Switch " + swName(cond.id) + (cond.val === false ? " is OFF" : " is ON")
+      : k === "var" ? "Var " + varName(cond.id) + " " + (cond.cmp || ">=") + " " + (Number(cond.valVarId) >= 1 ? "Var " + varName(cond.valVarId) : cond.val)
+      : k === "selfsw" ? "Self-Switch " + cond.key + " is ON"
+      : k === "quest" ? "Quest " + questName(cond.questId) + " is " + (cond.status || "active")
+      : k === "item" ? "Has " + dbName(cond.itemKind === "weapon" ? S.proj.weapons : cond.itemKind === "armor" ? S.proj.armors : S.proj.items, cond.id) + (cond.count != null ? " " + (cond.cmp || ">=") + " " + cond.count : "")
+      : k === "region" ? "Player in region " + (cond.id || 0)
+      : k === "time" ? "Clock is " + (cond.from || 0) + ":00–" + (cond.to || 0) + ":00"
+      : k === "online" ? "Playing online is " + (cond.val === false ? "OFF" : "ON")
+      : k === "playerCount" ? "Player count " + (cond.cmp || ">=") + " " + (cond.val || 0)
+      : k === "mzScript" ? "Script: " + (cond.code || "").split("\n")[0].slice(0, 38)
+      // Actor had no arm here, so every Actor condition fell through to the
+      // Gold template and read "Gold >= true" in the command list, the branch
+      // labels, the choice rows and the whole Dialogue workspace.
+      : k === "actor" ? dbName(S.proj.actors, cond.actorId) + (
+        cond.check === "weapon"
+          ? " has " + (cond.itemId ? dbName(S.proj.weapons, cond.itemId) : "nothing") + " equipped"
+          : cond.check === "armor"
+            ? " wears " + (cond.itemId ? dbName(S.proj.armors, cond.itemId) : "nothing")
+            : " is in the party")
+      // The tail names any kind it doesn't know rather than mislabelling it as
+      // Gold — which is how the Actor case stayed invisible for so long.
+      : (k === "gold" || !k)
+        ? (cond.currencyId > 1 ? currencyLabel(cond.currencyId) : "Gold") + " " + (cond.cmp || ">=") + " " + cond.val
+        : String(k);
+  }
+
+  // ============================ command definitions ============================
+  export function cmdSummary(c: any) {
+    const swName = (id: any) => id + (S.proj.system.switches[id - 1] ? " (" + S.proj.system.switches[id - 1] + ")" : "");
+    const varName = (id: any) => id + (S.proj.system.variables[id - 1] ? " (" + S.proj.system.variables[id - 1] + ")" : "");
+    const dbName = (arr: any, id: any) => { const e = RA.byId(arr, id); return e ? e.name : "#" + id; };
+    // An empty project has no quests to point at, so say so rather than "#0".
+    const questName = (id: any) => (Number(id) ? dbName(S.proj.quests || [], id) : "(no quest chosen)");
+    const commonEventName = (id: any) => dbName(S.proj.commonEvents || [], id);
+    const dialogueName = (id: any) => dbName(S.proj.dialogues || [], id);
+    const questObjName = (questId: any, objIndex: any) => {
+      const q = RA.byId(S.proj.quests || [], questId);
+      const obj = q && Array.isArray(q.objectives) ? q.objectives[objIndex] : null;
+      return obj ? (obj.label || obj.kind || ("Objective " + (objIndex + 1))) : ("Objective " + (objIndex + 1));
+    };
+    switch (c.t) {
+      case "text": return "Text" + (c.name ? " [" + c.name + "]" : "") + (c.face ? " (face)" : "") + (c.to === "all" ? " → everyone" : "") + ": " + c.text.split("\n")[0].slice(0, 42);
+      case "choices": return "Show Choices: " + c.options.map((o: any, i: any) => o + (c.conditions && c.conditions[i] ? " (if…)" : "")).join(" / ") + (c.cancelable ? " — can cancel" : "");
+      case "switch": return "Switch " + swName(c.id) + " = " + (c.val ? "ON" : "OFF") + (c.scope === "player" ? " (per-player)" : "");
+      case "selfsw": return "Self-Switch " + c.key + " = " + (c.val ? "ON" : "OFF");
+      case "var": {
+        const op = c.op === "set" ? "=" : c.op === "add" ? "+=" : c.op === "sub" ? "−=" : "= rnd";
+        if (c.op !== "rnd") return "Variable " + varName(c.id) + " " + op + " " + c.val;
+        // 0 is a real bound (see the `var` handler) and the range reads
+        // low..high whichever way round the author typed it.
+        const other = c.val2 == null ? c.val : c.val2;
+        return "Variable " + varName(c.id) + " " + op + " " +
+          Math.min(c.val, other) + ".." + Math.max(c.val, other);
+      }
+      case "if": return "If " + condSummary(c.cond);
+      case "loop": return "Loop";
+      case "breakLoop": return "Break Loop";
+      case "questStart": return "Start Quest: " + questName(c.questId);
+      case "questAdvanceObj": return "Advance Objective: " + questName(c.questId) + " — " + questObjName(c.questId, c.objIndex) + " +" + (c.amount || 1);
+      case "questSetObj": return "Set Objective: " + questName(c.questId) + " — " + questObjName(c.questId, c.objIndex) + " = " + (c.value || 0);
+      case "questComplete": return "Complete Quest: " + questName(c.questId);
+      case "questFail": return "Fail Quest: " + questName(c.questId);
+      case "commonEvent": return "Call Common Event: " + commonEventName(c.commonEventId);
+      case "dialogue": return "Play Dialogue: " + dialogueName(c.dialogueId);
+      case "transfer": { const m = RA.byId(S.proj.maps, c.mapId); return "Transfer → " + (m ? m.name : "?") + " (" + c.x + "," + c.y + ")"; }
+      case "gold": return (c.op === "sub" ? "Lose" : "Gain") + " " + (c.valVarId ? "Var " + varName(c.valVarId) : c.val) + " " + (c.currencyId > 1 ? currencyLabel(c.currencyId) : S.proj.system.currency);
+      case "item": return (c.op === "sub" ? "Lose" : "Gain") + " " + dbName(c.kind === "weapon" ? S.proj.weapons : c.kind === "armor" ? S.proj.armors : S.proj.items, c.id) + " ×" + (c.valVarId ? "Var " + varName(c.valVarId) : c.val);
+      case "party": return (c.op === "add" ? "Add" : "Remove") + " party member: " + dbName(S.proj.actors, c.actorId);
+      case "heal": return c.full ? "Recover All" : "Heal " + (c.hp || 0) + " HP / " + (c.mp || 0) + " MP";
+      case "battle": return "Battle: " + dbName(S.proj.troops, c.troopId) + (c.escape === false ? " (no escape)" : "") + (c.lose ? " (lose allowed)" : "");
+      case "shop": return "Open Shop (" + (c.goods || []).length + " goods" + (c.currencyId > 1 ? ", " + currencyLabel(c.currencyId) : "") + ")";
+      case "wait": return "Wait " + c.frames + " frames";
+      case "waitPlayers": return "Wait for All Players (" + (c.timeout == null ? 10 : c.timeout) + "s)";
+      case "se": return "Sound: " + c.name + (c.pitch && c.pitch !== 1 ? " (pitch " + Math.round(c.pitch * 100) + "%)" : "");
+      case "music": return "Music: " + c.theme;
+      // --- Streamed-audio channels (Project Compass M4·B) ---
+      case "bgs": return c.key ? "Background Sound: " + String(c.key).replace(/^asset:[^/]*\//, "") : "Stop Background Sound";
+      case "me": return "Play Jingle: " + String(c.key || "").replace(/^asset:[^/]*\//, "");
+      case "saveBgm": return "Remember Music";
+      case "resumeBgm": return "Replay Remembered Music";
+      case "stopSe": return "Stop All Sounds";
+      case "jingle": return "Change " + (c.channel === "defeat" ? "Defeat" : "Victory") + " Jingle" + (c.key ? ": " + String(c.key).replace(/^asset:[^/]*\//, "") : " (silent)");
+      case "move": {
+        const who = c.target === "player" ? "Player"
+          : c.target === "other" ? moveTargetName(c.eventId)
+            : "This Event";
+        const steps = Array.isArray(c.steps) ? c.steps : [];
+        const shown = steps.slice(0, 4).map(describeStep).join(", ");
+        const more = steps.length > 4 ? " +" + (steps.length - 4) + " more" : "";
+        const tags = (c.wait && !c.repeat ? " (wait)" : "") + (c.repeat ? " (repeat)" : "");
+        return "Move " + who + ": " + (steps.length ? shown + more : "nothing yet") + tags;
+      }
+      case "cameraZoom": return "Camera Zoom: " + Math.round((c.zoom || 1) * 100) + "% over " + (c.frames || 0) + " frames";
+      case "transparency": return "Player Transparency: " + (c.val ? "hidden" : "visible");
+      case "playAnim": return "Play Animation: " + dbName(S.proj.animations || [], c.animationId) + (c.target === "this" ? " (this event)" : c.target === "screen" ? " (screen)" : " (player)");
+      case "showPic": return "Show Picture #" + c.id + (c.name ? ": " + String(c.name).replace(/^asset:[^/]*\//, "") : "");
+      case "movePic": return "Move Picture #" + c.id + " over " + (c.frames || 0) + " frames";
+      case "rotatePic": return "Rotate Picture #" + c.id + " (speed " + (c.speed || 0) + ")";
+      case "tintPic": return "Tint Picture #" + c.id + " [" + (c.tone || []).join(", ") + "]";
+      case "erasePic": return "Erase Picture #" + c.id;
+      case "tint": return "Tint Screen [" + (c.tone || []).join(", ") + "] over " + (c.frames || 0) + "f";
+      case "timer": return c.op === "stop" ? "Stop Timer" : "Start Timer: " + (c.seconds || 0) + "s" + (c.common ? " → " + commonEventName(c.common) : "");
+      case "scrollMap": return "Scroll Map " + (c.dir || "?") + " " + (c.distance || 0) + " tiles (speed " + (c.speed || 0) + ")";
+      // --- Map features (Project Compass M4·A) ---
+      case "setVehiclePos": return "Set Vehicle Location: " + (c.vehicle || "boat") + (c.byVar ? " (from variables)" : " → map " + (c.mapId || 0) + " @ " + (c.x || 0) + "," + (c.y || 0));
+      case "vehicle": return "Get on/off Vehicle";
+      case "vehicleImage": return "Change Vehicle Image: " + (c.vehicle || "boat") + (c.charset ? " → " + String(c.charset).replace(/^asset:[^/]*\//, "") : "");
+      case "battleback": return (c.back1 || c.back2) ? "Change Battle Back: " + [c.back1, c.back2].filter(Boolean).map((k: any) => String(k).replace(/^asset:[^/]*\//, "")).join(" + ") : "Change Battle Back (clear)";
+      case "parallax": return c.key ? "Change Parallax: " + String(c.key).replace(/^asset:[^/]*\//, "") : "Remove Parallax";
+      case "balloon": return "Balloon " + (BALLOON_NAMES[c.balloonId] || c.balloonId) + " over " + (c.target === "player" ? "Player" : c.target === "this" ? "This Event" : "Event #" + c.target);
+      case "scrollText": return "Scrolling Text: " + String(c.text || "").split("\n")[0].slice(0, 40);
+      case "inputNumber": return "Input Number → Variable " + varName(c.varId) + " (" + (c.digits || 1) + " digit" + ((c.digits || 1) === 1 ? "" : "s") + ")";
+      case "selectItem": return "Select Item → Variable " + varName(c.varId);
+      case "nameInput": return "Name Input: " + dbName(S.proj.actors, c.actorId) + " (max " + (c.maxChars || 8) + ")";
+      // --- Actor-data family + flow labels + system toggles (M2·C) ---
+      case "label": return "◆ Label: " + (c.name || "");
+      case "jump": return "→ Jump to Label: " + (c.name || "");
+      case "changeExp": return "Change EXP: " + actorLabel(c.actorId) + " " + (c.op === "sub" ? "−" : "+") + (c.value || 0);
+      case "changeLevel": return "Change Level: " + actorLabel(c.actorId) + " " + (c.op === "sub" ? "−" : "+") + (c.value || 0);
+      case "changeParam": return "Change " + (PARAM_LABEL[c.param] || c.param) + ": " + actorLabel(c.actorId) + " " + (c.op === "sub" ? "−" : "+") + (c.value || 0);
+      case "changeSkill": return (c.op === "forget" ? "Forget" : "Learn") + " Skill: " + actorLabel(c.actorId) + " — " + dbName(S.proj.skills, c.skillId);
+      case "changeEquip": return "Change Equipment: " + actorLabel(c.actorId) + " " + (c.slot === "armor" ? "armor" : "weapon") + " = " + (c.itemId ? dbName(c.slot === "armor" ? S.proj.armors : S.proj.weapons, c.itemId) : "(none)");
+      case "changeName": return "Change Name: " + actorLabel(c.actorId) + " → " + (c.name || "");
+      case "changeClass": return "Change Class: " + actorLabel(c.actorId) + " → " + dbName(S.proj.classes, c.classId);
+      case "changeActorImage": return "Change Actor Image: " + actorLabel(c.actorId) + " → " + (c.charset || "(none)");
+      case "changeNickname": return "Change Nickname: " + actorLabel(c.actorId) + " → " + (c.nickname || "");
+      case "changeProfile": return "Change Profile: " + actorLabel(c.actorId);
+      case "changeState": return (c.op === "remove" ? "Remove" : "Add") + " State: " + actorLabel(c.actorId) + " — " + dbName(S.proj.states, c.stateId);
+      case "changeTp": return "Change TP: " + actorLabel(c.actorId) + " " + (c.op === "sub" ? "−" : "+") + (c.value || 0);
+      case "changeEnemyTp": return "Change Enemy TP: " + (c.enemyIndex < 0 ? "Entire Troop" : "Enemy #" + ((c.enemyIndex || 0) + 1)) + " " + (c.op === "sub" ? "−" : "+") + (c.value || 0);
+      // --- In-battle enemy commands (M3·C) ---
+      case "changeEnemyHp": return "Change Enemy HP: " + troopSlotLabel(c.enemyIndex) + " " + (c.op === "sub" ? "−" : "+") + (c.value || 0) + (c.allowKo ? " (can KO)" : "");
+      case "changeEnemyMp": return "Change Enemy MP: " + troopSlotLabel(c.enemyIndex) + " " + (c.op === "sub" ? "−" : "+") + (c.value || 0);
+      case "changeEnemyState": return (c.op === "remove" ? "Remove" : "Add") + " Enemy State: " + troopSlotLabel(c.enemyIndex) + " — " + dbName(S.proj.states, c.stateId);
+      case "enemyRecoverAll": return "Enemy Recover All: " + troopSlotLabel(c.enemyIndex);
+      case "enemyAppear": return "Enemy Appear: " + troopSlotLabel(c.enemyIndex);
+      case "enemyTransform": return "Enemy Transform: " + troopSlotLabel(c.enemyIndex) + " → " + dbName(S.proj.enemies, c.enemyId);
+      case "forceAction": return "Force Action: " + (c.side === "actor" ? actorLabel(c.index) : troopSlotLabel(c.index)) + " — " + (c.skillId ? dbName(S.proj.skills, c.skillId) : "Attack");
+      case "abortBattle": return "Abort Battle";
+      case "access": {
+        const label = c.kind === "save" ? "Save" : c.kind === "encounter" ? "Encounters" : c.kind === "formation" ? "Formation" : "Menu";
+        return "Change " + label + " Access: " + (c.enabled === false ? "Disable" : "Enable");
+      }
+      case "followers": return "Change Followers: " + (c.show === false ? "Hide" : "Show");
+      case "windowTone": return "Change Window Color [" + (c.tone || []).join(", ") + "]";
+      case "getLocationInfo": return "Get Location Info → Variable " + varName(c.varId) + " (" + (c.infoType || "region") + " @ " + (c.x || 0) + "," + (c.y || 0) + ")";
+      case "erase": return "Erase This Event";
+      case "save": return "Open Save Screen";
+      case "gameover": return "Game Over";
+      case "totitle": return "Return to Title";
+      case "script": return "Script: " + (c.code || "").split("\n")[0].slice(0, 42);
+      case "mzScript": return "Script (from RPG Maker): " + (c.code || "").split("\n")[0].slice(0, 30);
+      case "mzTodo": return "📌 " + (c.label || "Imported command (coming in a later update)");
+      default: return c.t;
+    }
+  }
+
+  // Collapsible reminder of the message control codes, shown under Show Text / Show Choices so
+  // authors can recall what to type. The \input[...] action list is read from RA.INPUT_ACTIONS,
+  // so it stays in sync (and will auto-include any future custom actions).
+  export function textCodesHelp() {
+    const acts = (RA.INPUT_ACTIONS || []).map((a: any) => a.key).join(", ");
+    const rows = [
+      ["\\v[n]", "variable value"],
+      ["\\n[n]", "actor name"],
+      ["\\p[n]", "party member's name (nth in party)"],
+      ["\\g", "gold amount"],
+      ["\\$", "show the current gold inline"],
+      ["\\input[action]", "button glyph for a control (action: " + acts + ")"],
+      ["\\i[n]", "inline icon"],
+      ["\\c[n] · \\c[#hex]", "text color"],
+      ["\\{ … \\}", "bigger / smaller text"],
+      ["\\. · \\|", "pause ¼ sec / 1 sec while typing"],
+      ["\\!", "wait for a button press"],
+      ["\\> … \\<", "type the rest instantly / back to normal"],
+      ["\\^", "close without waiting for input"],
+      ["[b]…[/b] · [i]…[/i]", "bold / italic"],
+      ["[color=#hex]…[/color] · [size=n]…[/size]", "color / size"],
+    ];
+    return h("details", { class: "code-legend" },
+      h("summary", null, "Text codes"),
+      h("ul", { class: "code-legend-list" },
+        ...rows.map(([code, desc]) =>
+          h("li", null, h("code", null, code), h("span", { class: "cl-desc" }, " — " + desc)))),
+      h("div", { class: "cl-note" },
+        "\\i, \\c and the [b]/[i]/[color]/[size] tags need the Atlas_TextCodes plugin (on by default)."));
+  }
+
+  /** The Condition editor fields — extracted from the Conditional Branch form
+   *  so Show Choices can reuse them for per-option show conditions. Renders
+   *  into `el`; `commit()` applies the same normalization the Conditional
+   *  Branch form always did (plus cleanup of the two UI-only scratch fields
+   *  the new operands use), mutating `w` in place. */
+  export function conditionFields(w: any) {
+    // `condfields` lays the type picker and the kind's own fields out as ONE
+    // line (the sub wrapper is display:contents, so its rows join the same
+    // flex flow); see css/editor.css.
+    const root = h("div", { class: "condfields" });
+    const sub = h("div", { class: "condfields-sub" });
+    /** Fill in whatever the CURRENT kind needs. This used to run once, on the
+     *  kind the condition arrived with, so picking a different type from the
+     *  dropdown left its own fields undefined — a Self-Switch condition
+     *  authored that way silently never matched (its key was the string
+     *  "undefined"), and a Quest one read "#undefined" in every summary.
+     *  Now it runs on every redraw, i.e. every time the type changes. */
+    function fillDefaults() {
+      if (w.kind === "switch" || w.kind === "var") {
+        if (!Number(w.id)) w.id = 1;
+      } else if (w.kind === "selfsw") {
+        if (!w.key) w.key = "A";
+      } else if (w.kind === "quest") {
+        if (w.questId == null) w.questId = S.proj.quests[0] ? S.proj.quests[0].id : 0;
+        if (!w.status) w.status = "active";
+      } else if (w.kind === "item") {
+        if (!w.itemKind) w.itemKind = "item";
+        const arr = w.itemKind === "weapon" ? S.proj.weapons : w.itemKind === "armor" ? S.proj.armors : S.proj.items;
+        if (!RA.byId(arr, w.id)) w.id = arr[0] ? arr[0].id : 0;
+      }
+    }
+    function redraw() {
+      fillDefaults();
+      sub.innerHTML = "";
+      if (w.kind === "switch") {
+        // MP7·B: a switch condition can read the shared switch (World) or the
+        // triggering player's own copy (This player).
+        if (w.scope !== "player") w.scope = "world";
+        const csOpts: any = [{ v: "world", l: "World (shared)" }, { v: "player", l: "This player" }];
+        csOpts.stringValues = true;
+        sub.appendChild(row(field("Switch", sel(w, "id", switchOpts())), field("Is", sel(w, "val", [{ v: "true", l: "ON" }, { v: "false", l: "OFF" }])),
+          field("Scope", sel(w, "scope", csOpts))));
+      } else if (w.kind === "var") {
+        // Compare with another variable (valVarId ≥ 1) or a constant — the
+        // same amount-from-variable pattern as Change Gold / Change Items.
+        if (w.src == null) w.src = Number(w.valVarId) >= 1 ? "var" : "const";
+        if (w.valVarId == null) w.valVarId = 0;
+        const valSpan = h("span", { id: "ifvarval" });
+        const redrawVal = () => {
+          valSpan.innerHTML = "";
+          valSpan.appendChild(w.src === "var" ? sel(w, "valVarId", varOpts()) : nIn(w, "val"));
+        };
+        sub.appendChild(row(field("Variable", sel(w, "id", varOpts())),
+          field("Cmp", sel(w, "cmp", cmpOpts())),
+          field("Compare with", sel(w, "src", [{ v: "const", l: "Constant" }, { v: "var", l: "Another variable" }], redrawVal)),
+          field("Value", valSpan)));
+        redrawVal();
+      } else if (w.kind === "selfsw") {
+        sub.appendChild(field("Self-Switch", sel(w, "key", [{ v: "A", l: "A" }, { v: "B", l: "B" }, { v: "C", l: "C" }, { v: "D", l: "D" }])));
+      } else if (w.kind === "quest") {
+        sub.appendChild(row(field("Quest", sel(w, "questId", dbOpts(S.proj.quests, "(none)"))),
+          field("Status", sel(w, "status", stringSelOpts(["inactive", "active", "completed", "failed", "abandoned"])))));
+      } else if (w.kind === "item") {
+        const kindSel = sel(w, "itemKind", [{ v: "item", l: "Item" }, { v: "weapon", l: "Weapon" }, { v: "armor", l: "Armor" }], redrawItem);
+        sub.appendChild(row(field("Kind", kindSel), field("Entry", h("span", { id: "ifitem" }))));
+        redrawItem();
+        function redrawItem() {
+          const arr = w.itemKind === "weapon" ? S.proj.weapons : w.itemKind === "armor" ? S.proj.armors : S.proj.items;
+          const span = sub.querySelector("#ifitem") || sub;
+          span.innerHTML = "";
+          span.appendChild(sel(w, "id", dbOpts(arr)));
+        }
+        // Optional count comparison (kept on the condition as `count` only in
+        // compare mode, so classic "has it" conditions keep their old shape).
+        if (w.countMode == null) w.countMode = w.count != null ? "cmp" : "any";
+        if (w.count == null) w.count = 1;
+        const amtWrap = h("span");
+        const redrawAmt = () => {
+          amtWrap.innerHTML = "";
+          if (w.countMode === "cmp") {
+            amtWrap.appendChild(sel(w, "cmp", cmpOpts()));
+            amtWrap.appendChild(nIn(w, "count", 0, 9999));
+          } else {
+            amtWrap.appendChild(h("span", { class: "dim" }, "(1 or more)"));
+          }
+        };
+        sub.appendChild(row(field("How many", sel(w, "countMode", [{ v: "any", l: "Has at least 1" }, { v: "cmp", l: "Compare count…" }], redrawAmt)),
+          field("Count", amtWrap)));
+        redrawAmt();
+      } else if (w.kind === "actor") {
+        if (!w.actorId) w.actorId = S.proj.actors[0] ? S.proj.actors[0].id : 1;
+        if (!w.check) w.check = "inParty";
+        if (w.itemId == null) w.itemId = 0;
+        const checkSel = sel(w, "check", [
+          { v: "inParty", l: "Is in Party" },
+          { v: "weapon", l: "Has Weapon Equipped" },
+          { v: "armor", l: "Has Armor Equipped" }
+        ], redrawActorCheck);
+        const itemSpan = h("span", { id: "actoritem" });
+        sub.appendChild(row(
+          field("Actor", sel(w, "actorId", dbOpts(S.proj.actors))),
+          field("Check", checkSel),
+          field("Equipment", itemSpan)
+        ));
+        redrawActorCheck();
+        function redrawActorCheck() {
+          const span = sub.querySelector("#actoritem") || itemSpan;
+          span.innerHTML = "";
+          if (w.check === "weapon") {
+            span.appendChild(sel(w, "itemId", dbOpts(S.proj.weapons, "(none)")));
+          } else if (w.check === "armor") {
+            span.appendChild(sel(w, "itemId", dbOpts(S.proj.armors, "(none)")));
+          } else {
+            span.appendChild(h("span", { class: "dim" }, "N/A"));
+          }
+        }
+      } else if (w.kind === "region") {
+        sub.appendChild(row(field("Region id (0–63; player's tile)", nIn(w, "id", 0, 63))));
+      } else if (w.kind === "time") {
+        sub.appendChild(row(field("From hour (0–24)", nIn(w, "from", 0, 24)),
+          field("Until hour (wraps past midnight)", nIn(w, "to", 0, 24))));
+      } else if (w.kind === "online") {
+        // MP7·B: is this game currently playing online (in a room)?
+        sub.appendChild(row(field("Playing online is", sel(w, "val", [{ v: "true", l: "ON (in a room)" }, { v: "false", l: "OFF (single-player)" }]))));
+        sub.appendChild(h("div", { class: "dim" }, "True while friends are playing together in a room; false in a normal single-player game."));
+      } else if (w.kind === "playerCount") {
+        // MP7·B: how many players share the room (yourself included; 1 in solo).
+        // Coerce the cloned value to a number (the shared `val` may arrive as
+        // a switch's boolean when the author flips kinds without editing it).
+        if (typeof w.val !== "number") w.val = 2;
+        sub.appendChild(row(field("Players in room", nIn(w, "val", 1, 16)),
+          field("Compare", sel(w, "cmp", cmpOpts()))));
+        sub.appendChild(h("div", { class: "dim" }, "Counts everyone in the room including this player. A single-player game always has 1."));
+      } else {
+        if (w.currencyId == null) w.currencyId = 1;
+        sub.appendChild(row(field("Currency", sel(w, "currencyId", currencyOpts())),
+          field("Is", sel(w, "cmp", [{ v: ">=", l: "≥" }, { v: "<=", l: "≤" }])), field("Value", nIn(w, "val"))));
+      }
+    }
+    root.appendChild(field("Condition type", sel(w, "kind", [
+      { v: "switch", l: "Switch" }, { v: "var", l: "Variable" }, { v: "selfsw", l: "Self-Switch" },
+      { v: "quest", l: "Quest Status" }, { v: "item", l: "Has item" }, { v: "gold", l: "Gold" }, { v: "actor", l: "Actor" },
+      { v: "region", l: "Player Region" }, { v: "time", l: "Time of Day" },
+      { v: "online", l: "Playing Online" }, { v: "playerCount", l: "Player Count" }
+    ], redraw)));
+    root.appendChild(sub); // fillDefaults() runs inside redraw(), for every kind
+    redraw();
+    return {
+      el: root,
+      /** Fold the form's scratch fields into the stored shape. Safe to call
+       *  REPEATEDLY on the same object — the inline builder commits on every
+       *  keystroke to keep its plain-language preview live. The two mode
+       *  pickers are re-derived from the stored shape first, because a
+       *  previous commit deleted them; reading `w.src` directly here used to
+       *  drop the variable-vs-variable operand on the second call. */
+      commit() {
+        const src = w.src != null ? w.src : (Number(w.valVarId) >= 1 ? "var" : "const");
+        const countMode = w.countMode != null ? w.countMode : (w.count != null ? "cmp" : "any");
+        if (w.val === "true") w.val = true;
+        if (w.val === "false") w.val = false;
+        // Only gold conditions keep a currencyId, and only for wallet ids —
+        // classic-gold conditions stay in their pre-wallet shape.
+        if (w.kind !== "gold" || Number(w.currencyId) <= 1) delete w.currencyId;
+        // MP7·B: a switch condition keeps `scope` only when per-player, so
+        // world-scope switch conditions stay byte-identical to pre-MP7.
+        if (w.kind !== "switch" || w.scope !== "player") delete w.scope;
+        // Variable-vs-variable: keep valVarId only when a real variable is
+        // picked; item count-compare: keep `count` only in compare mode. The
+        // two mode pickers are UI-only scratch and never saved.
+        if (w.kind !== "var" || src !== "var" || Number(w.valVarId) < 1) delete w.valVarId;
+        if (w.kind !== "item" || countMode !== "cmp") delete w.count;
+        delete w.src;
+        delete w.countMode;
+      },
+    };
+  }
+
+  /** A LIST of conditions on one gate, with an ALL (AND) / ANY (OR) match
+   *  mode — "only if you're in the guild AND have met Ravel". Shared by
+   *  Conditional Branch, Show Choices' per-option guards, and every condition
+   *  in the Dialogue workspace (nodes, choice options, topics).
+   *
+   *  Everything is edited INLINE. Each condition is ONE row of live controls
+   *  ("Switch · Crystal Found · is ON"), and a group is an indented card with
+   *  its own AND/OR picker sitting right there. The old builder showed
+   *  read-only summary text with an "Edit…" button that opened a second
+   *  dialog, and "+ Add group" opened a THIRD, empty one that never explained
+   *  what a group was for — three windows deep to say "A and B", which is
+   *  where authors got lost.
+   *
+   *  Storage is unchanged and stays minimal on purpose: no conditions saves
+   *  nothing, ONE condition saves the bare pre-upgrade shape (so projects that
+   *  never touch a second condition are byte-identical), and only two or more
+   *  produce an {kind:"all"|"any", conds:[…]} group. A member may itself be a
+   *  group, so "A AND (B OR C)" is authorable by nesting. */
+  export function conditionGroupWidget(initial: any, opts?: any) {
+    const options = opts || {};
+    /** How deep this card is nested. 0 = the outermost list. */
+    const depth = Number(options.depth) || 0;
+    /** Nesting cap for the UI. The engine tolerates 16; three brackets is
+     *  already past what anyone can read at a glance. */
+    const MAX_DEPTH = 2;
+    const isGroup = (c: any) => !!c && (c.kind === "all" || c.kind === "any");
+    let mode: string = isGroup(initial) ? initial.kind : "all";
+
+    const el = h("div", { class: "condgroup" + (depth ? " condgroup-nested" : "") });
+    const modeWrap = h("div", { class: "condgroup-mode" });
+    const list = h("div", { class: "condgroup-list" });
+    const preview = h("div", { class: "condgroup-preview" });
+
+    function onChange() {
+      refreshPreview();
+      if (options.onChange) options.onChange();
+    }
+
+    /** One member of this list: either a live single-condition form (`cf`) or
+     *  a nested group (`group`). The condition object itself is the storage. */
+    function makeRow(cond: any): any {
+      if (isGroup(cond)) {
+        return {
+          group: conditionGroupWidget(cond, {
+            depth: depth + 1,
+            onChange,
+            emptyLabel: "This group is empty — it will be dropped when you press OK.",
+          }),
+        };
+      }
+      return { cond, cf: conditionFields(cond) };
+    }
+
+    const rows: any[] = (!initial ? []
+      : isGroup(initial) ? (initial.conds || []).filter(Boolean)
+        : [initial]).map((c: any) => makeRow(RA.clone(c)));
+
+    /** The word in front of a row: the first is "if", the rest carry the match
+     *  mode, so the list literally reads "if A / and B / and C". */
+    const joinWord = (i: number) => (i === 0 ? "if" : mode === "all" ? "and" : "or");
+
+    function redraw() {
+      // ---- the AND/OR picker, always visible ----------------------------
+      // It used to appear only once a second condition existed, so an author
+      // looking at their first condition had no idea the choice was there.
+      modeWrap.innerHTML = "";
+      const modeOpts: any = [
+        { v: "all", l: "ALL of these are true   (AND)" },
+        { v: "any", l: "ANY one of these is true   (OR)" },
+      ];
+      modeOpts.stringValues = true;
+      const holder = { mode };
+      modeWrap.append(
+        h("span", { class: "condgroup-mode-label" },
+          depth ? "Inside these brackets, match" : (options.matchLabel || "Run this when")),
+        sel(holder, "mode", modeOpts, (v: any) => { mode = String(v); redraw(); onChange(); }),
+      );
+      if (rows.length < 2)
+        modeWrap.appendChild(h("span", { class: "dim" }, "— starts to matter with two or more"));
+
+      // ---- the rows ------------------------------------------------------
+      list.innerHTML = "";
+      rows.forEach((r: any, i: number) => {
+        const joinCls = i === 0 ? "" : mode === "all" ? " join-and" : " join-or";
+        list.appendChild(h("div", { class: "condrow" + (r.group ? " condrow-group" : "") },
+          h("span", { class: "condgroup-join" + joinCls }, joinWord(i)),
+          h("div", { class: "condrow-body" }, r.group ? r.group.el : r.cf.el),
+          h("button", {
+            class: "mini danger",
+            title: r.group ? "Remove this whole group" : "Remove this condition",
+            onclick() { rows.splice(i, 1); redraw(); onChange(); },
+          }, "✕")));
+      });
+      if (!rows.length)
+        list.appendChild(h("div", { class: "dim condgroup-empty" },
+          options.emptyLabel || "No conditions yet — this always runs. Add one below to control it."));
+      refreshPreview();
+    }
+
+    /** Commit every live row and fold the list into the stored shape. */
+    function collect(): any {
+      const kept: any[] = [];
+      for (const r of rows) {
+        if (r.group) {
+          const nested = r.group.value();
+          if (nested) kept.push(nested); // an emptied group drops out
+        } else {
+          r.cf.commit();
+          kept.push(r.cond);
+        }
+      }
+      if (!kept.length) return null;
+      if (kept.length === 1) return kept[0];
+      return { kind: mode === "any" ? "any" : "all", conds: kept };
+    }
+
+    /** The whole gate in one plain-language sentence, live as you edit. */
+    function refreshPreview() {
+      if (depth) return; // only the outermost card narrates
+      const value = collect();
+      preview.textContent = value ? "Reads as:   " + condSummary(value) : "";
+      preview.style.display = value ? "" : "none";
+    }
+
+    const actions = h("div", { class: "condgroup-actions" },
+      h("button", {
+        class: "mini",
+        onclick() {
+          rows.push(makeRow({ kind: "switch", id: 1, val: true }));
+          redraw();
+          onChange();
+        },
+      }, "+ Add condition"),
+      depth < MAX_DEPTH
+        ? h("button", {
+          class: "mini",
+          title: "Brackets. “A and (B or C)” — the group gets its own ALL/ANY choice, so you can mix AND and OR in one gate.",
+          onclick() {
+            // A new group starts with ONE condition in it (an empty box tells
+            // the author nothing) and defaults to the OPPOSITE match of its
+            // parent — mixing the two is the only thing a bracket can express
+            // that a flat list cannot.
+            rows.push(makeRow({
+              kind: mode === "all" ? "any" : "all",
+              conds: [{ kind: "switch", id: 1, val: true }],
+            }));
+            redraw();
+            onChange();
+          },
+        }, "+ Add group  ( … or … )")
+        : null,
+    );
+
+    el.append(modeWrap, list, actions);
+    if (!depth) {
+      el.appendChild(preview);
+      // Edits INSIDE a row don't route through onChange (they're the shared
+      // single-condition form's own controls), so the outermost card listens
+      // for their bubbled events to keep the sentence below in step. Nested
+      // cards are descendants, so one listener covers the whole tree.
+      el.addEventListener("change", refreshPreview);
+      el.addEventListener("input", refreshPreview);
+    }
+    redraw();
+
+    return {
+      el,
+      /** The condition to store: null when empty, the bare condition when
+       *  there is exactly one, a group only when there are several. */
+      value: collect,
+    };
+  }
+
+  // each entry: label, make(), form(c, box) -> apply()
+  export const CMD_DEFS: any[] = [
+    { t: "text", label: "Show Text", make: () => ({ t: "text", name: "", face: "", text: "" }),
+      form(c: any, box: any) {
+        const w = { name: c.name, face: c.face || "", text: c.text, background: c.background || 0, position: c.position == null ? 2 : c.position, to: c.to === "all" ? "all" : "trigger" };
+        const preview = h("span", { class: "char-preview" });
+        function redrawFace() {
+          preview.innerHTML = "";
+          const ci = Assets.charsetIndex(w.face);
+          if (ci >= 0) preview.appendChild(Assets.faceCanvas(ci));
+        }
+        const ta = h("textarea", { rows: 4, oninput(e: any) { w.text = e.target.value; } }, c.text);
+        box.appendChild(row(field("Speaker name (optional)", tIn(w, "name")),
+          field("Face (optional)", sel(w, "face", charsetOpts(true), redrawFace)), preview));
+        box.appendChild(field("Text", ta));
+        box.appendChild(row(
+          field("Window", sel(w, "background", [{ v: 0, l: "Window" }, { v: 1, l: "Dim" }, { v: 2, l: "Transparent" }])),
+          field("Position", sel(w, "position", [{ v: 0, l: "Top" }, { v: 1, l: "Middle" }, { v: 2, l: "Bottom" }]))));
+        // MP7·B "Show to": which players see this message (online games only).
+        const toOpts: any = [{ v: "trigger", l: "This player (whoever triggered it)" }, { v: "all", l: "Everyone in the room" }];
+        toOpts.stringValues = true;
+        box.appendChild(row(field("Show to", sel(w, "to", toOpts))));
+        box.appendChild(textCodesHelp());
+        redrawFace();
+        return () => {
+          c.name = w.name; c.face = w.face; c.text = w.text;
+          const bg = Number(w.background) || 0;
+          if (bg) c.background = bg; else delete c.background;
+          const pos = Number(w.position);
+          if (pos !== 2) c.position = pos; else delete c.position;
+          if (w.to === "all") c.to = "all"; else delete c.to;
+        };
+      } },
+    { t: "choices", label: "Show Choices", wide: true, make: () => ({ t: "choices", options: ["Yes", "No"], branches: [[], []] }),
+      form(c: any, box: any) {
+        const ta = h("textarea", { rows: 4 }, c.options.join("\n"));
+        box.appendChild(field("Choices (one per line)", ta));
+        // Per-option show conditions: one row per line, kept in step with the
+        // textarea as the author types. Conditions (like branches) belong to
+        // their line NUMBER, and each is edited with the same fields as
+        // Conditional Branch in a small nested dialog.
+        const conds: any[] = (c.conditions || []).map((k: any) => (k ? RA.clone(k) : null));
+        const w = { cancelable: !!c.cancelable };
+        const lines = () => ta.value.split("\n").map((s: any) => s.trim()).filter(Boolean);
+        const condList = h("div", { class: "minilist" });
+        function redrawConds() {
+          condList.innerHTML = "";
+          lines().forEach((opt: any, i: any) => {
+            condList.appendChild(h("div", { class: "minirow" },
+              h("span", null, opt + " — "),
+              h("span", { class: conds[i] ? "" : "dim" }, conds[i] ? "if " + condSummary(conds[i]) : "always shown"),
+              h("button", { class: "mini", onclick() { editOptionCond(i); } }, conds[i] ? "Edit…" : "Only if…"),
+              conds[i] ? h("button", { class: "mini", onclick() { conds[i] = null; redrawConds(); } }, "✕") : null));
+          });
+        }
+        function editOptionCond(i: number) {
+          // A LIST of conditions per option (All/Any) — one condition still
+          // stores the bare shape it always did.
+          const group = conditionGroupWidget(conds[i], {
+            matchLabel: "Show this choice when",
+            emptyLabel: "No conditions yet — this choice is always shown. Add one below to hide it sometimes.",
+          });
+          modal({
+            title: "Show this choice only if…",
+            content: group.el,
+            wide: true, // the inline condition builder needs the room
+            buttons: [
+              { label: "OK", primary: true, onClick(close: any) { conds[i] = group.value(); close(); redrawConds(); } },
+              { label: "Cancel" },
+            ],
+            dialogKeys: true,
+          });
+        }
+        ta.addEventListener("input", redrawConds);
+        redrawConds();
+        box.appendChild(h("div", { class: "fld" }, h("span", null, "Show each choice… (optional)"), condList));
+        box.appendChild(row(field("Player can cancel (Esc closes, nothing runs)", chk(w, "cancelable"))));
+        box.appendChild(h("div", { class: "dim" },
+          "A choice whose condition isn't met is hidden when the event runs — its branch and the others keep their places. If every choice is hidden, the command is skipped."));
+        box.appendChild(textCodesHelp());
+        return () => {
+          const opts = ta.value.split("\n").map((s: any) => s.trim()).filter(Boolean);
+          if (!opts.length) opts.push("OK");
+          const br = opts.map((_: any, i: any) => c.branches[i] || []);
+          c.options = opts; c.branches = br;
+          // Keep the fields only when actually used, so untouched commands
+          // stay in their pre-upgrade shape (same policy as valVarId/scope).
+          const trimmed = opts.map((_: any, i: any) => conds[i] || null);
+          if (trimmed.some(Boolean)) c.conditions = trimmed; else delete c.conditions;
+          if (w.cancelable) c.cancelable = true; else delete c.cancelable;
+        };
+      } },
+    { t: "if", label: "Conditional Branch", wide: true, make: () => ({ t: "if", cond: { kind: "switch", id: 1, val: true }, then: [], else: [] }),
+      form(c: any, box: any) {
+        // A list of conditions with an All/Any match mode (shared with Show
+        // Choices' per-option guards and the Dialogue workspace). A branch
+        // that only ever had one condition still stores exactly that.
+        const group = conditionGroupWidget(c.cond, {
+          matchLabel: "Run the Then branch when",
+          emptyLabel: "No conditions yet — the Then branch always runs. Add one below to control it.",
+        });
+        box.appendChild(group.el);
+        box.appendChild(h("div", { class: "dim" },
+          "Each condition is edited right here. With two or more, the picker above chooses whether they ALL have to be true (AND) or just ANY one (OR). " +
+          "“+ Add group” adds brackets — “A and (B or C)” — with their own ALL/ANY choice, which is how you mix the two in one gate."));
+        return () => {
+          const value = group.value();
+          if (value) c.cond = value; else delete c.cond;
+          if (!c.then) c.then = [];
+          if (!c.else) c.else = [];
+        };
+      } },
+    { t: "loop", label: "Loop", make: () => ({ t: "loop", body: [] }),
+      form(c: any, box: any) {
+        box.appendChild(h("div", { class: "dim" },
+          "Repeats its body until a Break Loop command runs inside it. The body is edited in the command list (or the graph's Body port)."));
+        return () => { if (!c.body) c.body = []; };
+      } },
+    { t: "breakLoop", label: "Break Loop", make: () => ({ t: "breakLoop" }), form: () => () => {} },
+    { t: "questStart", label: "Start Quest", make: () => ({ t: "questStart", questId: S.proj.quests[0] ? S.proj.quests[0].id : 0 }),
+      form(c: any, box: any) {
+        const w = { questId: c.questId || (S.proj.quests[0] ? S.proj.quests[0].id : 0) };
+        box.appendChild(field("Quest", sel(w, "questId", dbOpts(S.proj.quests, "(none)"))));
+        return () => { c.questId = w.questId; };
+      } },
+    { t: "questAdvanceObj", label: "Advance Quest Objective", make: () => ({ t: "questAdvanceObj", questId: S.proj.quests[0] ? S.proj.quests[0].id : 0, objIndex: 0, amount: 1 }),
+      form(c: any, box: any) {
+        const w = { questId: c.questId || (S.proj.quests[0] ? S.proj.quests[0].id : 0), objIndex: c.objIndex || 0, amount: c.amount || 1 };
+        const objWrap = h("span");
+        function redrawObj() {
+          const q = RA.byId(S.proj.quests, w.questId);
+          const opts = (q && q.objectives && q.objectives.length ? q.objectives : [{ label: "(none)" }]).map((obj: any, i: any) => ({ v: i, l: (i + 1) + ": " + (obj.label || obj.kind || "Objective") }));
+          objWrap.innerHTML = "";
+          objWrap.appendChild(sel(w, "objIndex", opts));
+        }
+        redrawObj();
+        box.appendChild(row(field("Quest", sel(w, "questId", dbOpts(S.proj.quests, "(none)"), redrawObj)), field("Objective", objWrap), field("Amount", nIn(w, "amount", 1, 999))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "questSetObj", label: "Set Quest Objective Progress", make: () => ({ t: "questSetObj", questId: S.proj.quests[0] ? S.proj.quests[0].id : 0, objIndex: 0, value: 0 }),
+      form(c: any, box: any) {
+        const w = { questId: c.questId || (S.proj.quests[0] ? S.proj.quests[0].id : 0), objIndex: c.objIndex || 0, value: c.value || 0 };
+        const objWrap = h("span");
+        function redrawObj() {
+          const q = RA.byId(S.proj.quests, w.questId);
+          const opts = (q && q.objectives && q.objectives.length ? q.objectives : [{ label: "(none)" }]).map((obj: any, i: any) => ({ v: i, l: (i + 1) + ": " + (obj.label || obj.kind || "Objective") }));
+          objWrap.innerHTML = "";
+          objWrap.appendChild(sel(w, "objIndex", opts));
+        }
+        redrawObj();
+        box.appendChild(row(field("Quest", sel(w, "questId", dbOpts(S.proj.quests, "(none)"), redrawObj)), field("Objective", objWrap), field("Value", nIn(w, "value", 0, 999))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "questComplete", label: "Complete Quest", make: () => ({ t: "questComplete", questId: S.proj.quests[0] ? S.proj.quests[0].id : 0 }),
+      form(c: any, box: any) {
+        const w = { questId: c.questId || (S.proj.quests[0] ? S.proj.quests[0].id : 0) };
+        box.appendChild(field("Quest", sel(w, "questId", dbOpts(S.proj.quests, "(none)"))));
+        return () => { c.questId = w.questId; };
+      } },
+    { t: "questFail", label: "Fail Quest", make: () => ({ t: "questFail", questId: S.proj.quests[0] ? S.proj.quests[0].id : 0 }),
+      form(c: any, box: any) {
+        const w = { questId: c.questId || (S.proj.quests[0] ? S.proj.quests[0].id : 0) };
+        box.appendChild(field("Quest", sel(w, "questId", dbOpts(S.proj.quests, "(none)"))));
+        return () => { c.questId = w.questId; };
+      } },
+    { t: "commonEvent", label: "Call Common Event", make: () => ({ t: "commonEvent", commonEventId: S.proj.commonEvents[0] ? S.proj.commonEvents[0].id : 0 }),
+      form(c: any, box: any) {
+        const w = { commonEventId: c.commonEventId || (S.proj.commonEvents[0] ? S.proj.commonEvents[0].id : 0) };
+        box.appendChild(field("Common event", sel(w, "commonEventId", dbOpts(S.proj.commonEvents, "(none)"))));
+        return () => { c.commonEventId = w.commonEventId; };
+      } },
+    { t: "dialogue", label: "Play Dialogue", make: () => ({ t: "dialogue", dialogueId: S.proj.dialogues[0] ? S.proj.dialogues[0].id : 0 }),
+      form(c: any, box: any) {
+        const w = { dialogueId: c.dialogueId || (S.proj.dialogues[0] ? S.proj.dialogues[0].id : 0) };
+        box.appendChild(field("Dialogue asset", sel(w, "dialogueId", dbOpts(S.proj.dialogues || [], "(none)"))));
+        box.appendChild(h("div", { class: "dim" }, "Create reusable conversations in Tools ▸ Dialogue & Cutscenes. This command is available in event lists and Atlas Graph."));
+        return () => { c.dialogueId = w.dialogueId; };
+      } },
+    { t: "switch", label: "Control Switch", make: () => ({ t: "switch", id: 1, val: true }),
+      form(c: any, box: any) {
+        // MP7·B scope: "world" (shared, the classic default) vs "player"
+        // (each player carries their own copy). Stored only when "player" so
+        // existing switch commands stay byte-identical.
+        const w = { id: c.id, val: String(c.val), scope: c.scope === "player" ? "player" : "world" };
+        const scopeOpts: any = [{ v: "world", l: "World (shared)" }, { v: "player", l: "This player" }];
+        scopeOpts.stringValues = true;
+        box.appendChild(row(field("Switch", sel(w, "id", switchOpts())), field("Set", sel(w, "val", [{ v: "true", l: "ON" }, { v: "false", l: "OFF" }])),
+          field("Scope", sel(w, "scope", scopeOpts))));
+        box.appendChild(h("div", { class: "dim" }, "World = one switch everyone shares (the normal kind). This player = each player has their own copy (online games only)."));
+        return () => { c.id = w.id; c.val = w.val === "true"; if (w.scope === "player") c.scope = "player"; else delete c.scope; };
+      } },
+    { t: "selfsw", label: "Control Self-Switch", make: () => ({ t: "selfsw", key: "A", val: true }),
+      form(c: any, box: any) {
+        const w = { key: c.key, val: String(c.val) };
+        box.appendChild(row(field("Key", sel(w, "key", [{ v: "A", l: "A" }, { v: "B", l: "B" }, { v: "C", l: "C" }, { v: "D", l: "D" }])),
+          field("Set", sel(w, "val", [{ v: "true", l: "ON" }, { v: "false", l: "OFF" }]))));
+        return () => { c.key = w.key; c.val = w.val === "true"; };
+      } },
+    { t: "var", label: "Control Variable", make: () => ({ t: "var", id: 1, op: "set", val: 0, val2: 0 }),
+      form(c: any, box: any) {
+        const w = { id: c.id, op: c.op, val: c.val, val2: c.val2 || 0 };
+        box.appendChild(row(field("Variable", sel(w, "id", varOpts())),
+          field("Op", sel(w, "op", [{ v: "set", l: "Set =" }, { v: "add", l: "Add +" }, { v: "sub", l: "Sub −" }, { v: "rnd", l: "Random" }])),
+          field("Value", nIn(w, "val")), field("…to (random)", nIn(w, "val2"))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "transfer", label: "Transfer Player", make: () => ({ t: "transfer", mapId: 1, x: 0, y: 0, dir: 0 }),
+      form(c: any, box: any) {
+        const w = { mapId: c.mapId, x: c.x, y: c.y, dir: c.dir == null ? 0 : c.dir };
+        const mapSel = sel(w, "mapId", dbOpts(S.proj.maps));
+        const xIn = nIn(w, "x", 0, 200);
+        const yIn = nIn(w, "y", 0, 200);
+        box.appendChild(row(field("Map", mapSel), field("X", xIn), field("Y", yIn), field("Facing", sel(w, "dir", DIR_OPTS))));
+        box.appendChild(h("button", { class: "mini", onclick() {
+          openLocationPicker(w.mapId, w.x, w.y, (res: any) => {
+            w.mapId = res.mapId; w.x = res.x; w.y = res.y;
+            mapSel.value = String(res.mapId); xIn.value = res.x; yIn.value = res.y;
+          });
+        } }, "📍 Pick destination on map…"));
+        return () => Object.assign(c, w);
+      } },
+    { t: "gold", label: "Change Gold", make: () => ({ t: "gold", op: "add", val: 100 }),
+      form(c: any, box: any) {
+        const w = { op: c.op, val: c.val, valVarId: c.valVarId || 0, src: c.valVarId ? "var" : "const", currencyId: c.currencyId || 1 };
+        const amtSpan = h("span", { id: "goldamt" });
+        const redraw = () => {
+          amtSpan.innerHTML = "";
+          amtSpan.appendChild(w.src === "var" ? sel(w, "valVarId", varOpts()) : nIn(w, "val", 0));
+        };
+        box.appendChild(row(field("Op", sel(w, "op", [{ v: "add", l: "Gain" }, { v: "sub", l: "Lose" }])),
+          field("Amount from", sel(w, "src", [{ v: "const", l: "Constant" }, { v: "var", l: "Variable" }], redraw)),
+          field("Amount", amtSpan),
+          field("Currency", sel(w, "currencyId", currencyOpts()))));
+        redraw();
+        return () => {
+          c.op = w.op; c.val = w.val;
+          // Keep valVarId only when a real variable is picked — constant-amount
+          // commands stay in their pre-upgrade shape.
+          if (w.src === "var" && Number(w.valVarId) >= 1) c.valVarId = Number(w.valVarId);
+          else delete c.valVarId;
+          setCurrency(c, w.currencyId);
+        };
+      } },
+    { t: "item", label: "Change Items", make: () => ({ t: "item", kind: "item", id: 1, op: "add", val: 1 }),
+      form(c: any, box: any) {
+        const w = { kind: c.kind || "item", id: c.id, op: c.op, val: c.val, valVarId: c.valVarId || 0, src: c.valVarId ? "var" : "const" };
+        const entryWrap = h("span");
+        function redraw() {
+          const arr = w.kind === "weapon" ? S.proj.weapons : w.kind === "armor" ? S.proj.armors : S.proj.items;
+          entryWrap.innerHTML = "";
+          entryWrap.appendChild(sel(w, "id", dbOpts(arr)));
+        }
+        const amtSpan = h("span", { id: "itemamt" });
+        const redrawAmt = () => {
+          amtSpan.innerHTML = "";
+          amtSpan.appendChild(w.src === "var" ? sel(w, "valVarId", varOpts()) : nIn(w, "val", 1, 99));
+        };
+        box.appendChild(row(field("Kind", sel(w, "kind", [{ v: "item", l: "Item" }, { v: "weapon", l: "Weapon" }, { v: "armor", l: "Armor" }], redraw)),
+          field("Entry", entryWrap),
+          field("Op", sel(w, "op", [{ v: "add", l: "Gain" }, { v: "sub", l: "Lose" }])),
+          field("Amount from", sel(w, "src", [{ v: "const", l: "Constant" }, { v: "var", l: "Variable" }], redrawAmt)),
+          field("Count", amtSpan)));
+        redraw();
+        redrawAmt();
+        return () => {
+          c.kind = w.kind; c.id = w.id; c.op = w.op; c.val = w.val;
+          // Keep valVarId only when a real variable is picked — constant-amount
+          // commands stay in their pre-upgrade shape.
+          if (w.src === "var" && Number(w.valVarId) >= 1) c.valVarId = Number(w.valVarId);
+          else delete c.valVarId;
+        };
+      } },
+    { t: "party", label: "Change Party", make: () => ({ t: "party", op: "add", actorId: 1 }),
+      form(c: any, box: any) {
+        const w = { op: c.op, actorId: c.actorId };
+        box.appendChild(row(field("Op", sel(w, "op", [{ v: "add", l: "Add" }, { v: "remove", l: "Remove" }])),
+          field("Actor", sel(w, "actorId", dbOpts(S.proj.actors)))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "heal", label: "Heal Party", make: () => ({ t: "heal", full: true, hp: 0, mp: 0 }),
+      form(c: any, box: any) {
+        const w = { full: !!c.full, hp: c.hp || 0, mp: c.mp || 0 };
+        box.appendChild(row(field("Full recovery", chk(w, "full")), field("…or HP", nIn(w, "hp", 0)), field("MP", nIn(w, "mp", 0))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "battle", label: "Start Battle", make: () => ({ t: "battle", troopId: 1, escape: true, lose: false }),
+      form(c: any, box: any) {
+        const w = { troopId: c.troopId, escape: c.escape !== false, lose: !!c.lose,
+          bw: !!c.onWin, be: !!c.onEscape, bl: !!c.onLose };
+        box.appendChild(row(field("Troop", sel(w, "troopId", dbOpts(S.proj.troops))),
+          field("Can escape", chk(w, "escape")), field("Continue on loss", chk(w, "lose"))));
+        // M3·C: optional result branches (RM If Win / If Escape / If Lose).
+        box.appendChild(row(field("If-Win branch", chk(w, "bw")),
+          field("If-Escape branch", chk(w, "be")), field("If-Lose branch", chk(w, "bl"))));
+        box.appendChild(h("div", { class: "dim" },
+          "Checked branches appear under this command — put what happens after each battle result inside. The If-Lose branch only runs with “Continue on loss” on."));
+        return () => {
+          c.troopId = w.troopId; c.escape = w.escape; c.lose = w.lose;
+          if (w.bw) c.onWin = c.onWin || []; else delete c.onWin;
+          if (w.be) c.onEscape = c.onEscape || []; else delete c.onEscape;
+          if (w.bl) c.onLose = c.onLose || []; else delete c.onLose;
+        };
+      } },
+    // ---- In-battle enemy commands (Project Compass M3·C, RM 331–340).
+    // They act on the running battle's troop (from battle-event pages or a
+    // common event called mid-battle); outside battle they do nothing.
+    { t: "changeEnemyHp", label: "Change Enemy HP (battle)", make: () => ({ t: "changeEnemyHp", enemyIndex: -1, op: "sub", value: 10, allowKo: false }),
+      form(c: any, box: any) {
+        const w = { enemyIndex: c.enemyIndex == null ? -1 : c.enemyIndex, op: c.op || "sub", value: c.value || 0, allowKo: !!c.allowKo };
+        box.appendChild(row(field("Enemy", sel(w, "enemyIndex", TROOP_SLOT_OPTS())),
+          field("Op", sel(w, "op", [{ v: "add", l: "Heal" }, { v: "sub", l: "Damage" }])),
+          field("Amount", nIn(w, "value", 0)), field("Can knock out", chk(w, "allowKo"))));
+        box.appendChild(h("div", { class: "dim" }, "Without “Can knock out”, damage stops at 1 HP."));
+        return () => Object.assign(c, w);
+      } },
+    { t: "changeEnemyMp", label: "Change Enemy MP (battle)", make: () => ({ t: "changeEnemyMp", enemyIndex: -1, op: "sub", value: 10 }),
+      form(c: any, box: any) {
+        const w = { enemyIndex: c.enemyIndex == null ? -1 : c.enemyIndex, op: c.op || "sub", value: c.value || 0 };
+        box.appendChild(row(field("Enemy", sel(w, "enemyIndex", TROOP_SLOT_OPTS())),
+          field("Op", sel(w, "op", [{ v: "add", l: "Restore" }, { v: "sub", l: "Drain" }])),
+          field("Amount", nIn(w, "value", 0))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "changeEnemyState", label: "Change Enemy State (battle)", make: () => ({ t: "changeEnemyState", enemyIndex: -1, op: "add", stateId: 1 }),
+      form(c: any, box: any) {
+        const w = { enemyIndex: c.enemyIndex == null ? -1 : c.enemyIndex, op: c.op || "add", stateId: c.stateId || 1 };
+        box.appendChild(row(field("Enemy", sel(w, "enemyIndex", TROOP_SLOT_OPTS())),
+          field("Op", sel(w, "op", [{ v: "add", l: "Add" }, { v: "remove", l: "Remove" }])),
+          field("State", sel(w, "stateId", dbOpts(S.proj.states)))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "enemyRecoverAll", label: "Enemy Recover All (battle)", make: () => ({ t: "enemyRecoverAll", enemyIndex: -1 }),
+      form(c: any, box: any) {
+        const w = { enemyIndex: c.enemyIndex == null ? -1 : c.enemyIndex };
+        box.appendChild(field("Enemy", sel(w, "enemyIndex", TROOP_SLOT_OPTS())));
+        return () => Object.assign(c, w);
+      } },
+    { t: "enemyAppear", label: "Enemy Appear (battle)", make: () => ({ t: "enemyAppear", enemyIndex: 0 }),
+      form(c: any, box: any) {
+        const w = { enemyIndex: c.enemyIndex || 0 };
+        box.appendChild(field("Enemy slot", sel(w, "enemyIndex", TROOP_SLOT_OPTS(true))));
+        box.appendChild(h("div", { class: "dim" }, "Reveals a troop member marked “hidden at start” on the Troops tab."));
+        return () => Object.assign(c, w);
+      } },
+    { t: "enemyTransform", label: "Enemy Transform (battle)", make: () => ({ t: "enemyTransform", enemyIndex: 0, enemyId: 1 }),
+      form(c: any, box: any) {
+        const w = { enemyIndex: c.enemyIndex || 0, enemyId: c.enemyId || 1 };
+        box.appendChild(row(field("Enemy slot", sel(w, "enemyIndex", TROOP_SLOT_OPTS(true))),
+          field("Becomes", sel(w, "enemyId", dbOpts(S.proj.enemies)))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "forceAction", label: "Force Action (battle)", make: () => ({ t: "forceAction", side: "enemy", index: 0, skillId: 0, target: -1 }),
+      form(c: any, box: any) {
+        const w = { side: c.side || "enemy", index: c.index || 0, skillId: c.skillId || 0, target: c.target == null ? -1 : c.target };
+        const who = h("span");
+        function redrawWho() {
+          who.innerHTML = "";
+          who.appendChild(w.side === "actor"
+            ? sel(w, "index", dbOpts(S.proj.actors))
+            : sel(w, "index", TROOP_SLOT_OPTS(true)));
+        }
+        redrawWho();
+        box.appendChild(row(field("Side", sel(w, "side", [{ v: "enemy", l: "Enemy" }, { v: "actor", l: "Hero" }], redrawWho)),
+          field("Who", who),
+          field("Skill", sel(w, "skillId", [{ v: 0, l: "(basic attack)" }].concat(dbOpts(S.proj.skills)))),
+          field("Target", sel(w, "target", [{ v: -1, l: "Random" }, { v: -2, l: "Engine picks" },
+            { v: 0, l: "Slot 1" }, { v: 1, l: "Slot 2" }, { v: 2, l: "Slot 3" }, { v: 3, l: "Slot 4" }]))));
+        box.appendChild(h("div", { class: "dim" }, "The battler acts immediately, paying no MP/TP cost."));
+        return () => Object.assign(c, w);
+      } },
+    { t: "abortBattle", label: "Abort Battle", make: () => ({ t: "abortBattle" }),
+      form(_c: any, box: any) {
+        box.appendChild(h("div", { class: "dim" }, "Ends the battle right away, as if the party escaped."));
+        return () => {};
+      } },
+    { t: "shop", label: "Open Shop", make: () => ({ t: "shop", goods: [] }),
+      form(c: any, box: any) {
+        const goods = RA.clone(c.goods || []);
+        const w = { currencyId: c.currencyId || 1 };
+        box.appendChild(row(field("Currency (prices are paid in this)", sel(w, "currencyId", currencyOpts()))));
+        const list = h("div", { class: "minilist" });
+        function redraw() {
+          list.innerHTML = "";
+          goods.forEach((gd: any, i: any) => {
+            const arr = gd.kind === "weapon" ? S.proj.weapons : gd.kind === "armor" ? S.proj.armors : S.proj.items;
+            const e = RA.byId(arr, gd.id);
+            list.appendChild(h("div", { class: "minirow" },
+              h("span", null, gd.kind + ": " + (e ? e.name : "?")),
+              h("button", { class: "mini", onclick() { goods.splice(i, 1); redraw(); } }, "✕")));
+          });
+          const pick = { kind: "item", id: S.proj.items.length ? S.proj.items[0].id : 0 };
+          const entry = h("span");
+          function redrawEntry() {
+            const arr = pick.kind === "weapon" ? S.proj.weapons : pick.kind === "armor" ? S.proj.armors : S.proj.items;
+            pick.id = arr.length ? arr[0].id : 0;
+            entry.innerHTML = "";
+            entry.appendChild(sel(pick, "id", dbOpts(arr)));
+          }
+          redrawEntry();
+          list.appendChild(h("div", { class: "minirow" },
+            sel(pick, "kind", [{ v: "item", l: "Item" }, { v: "weapon", l: "Weapon" }, { v: "armor", l: "Armor" }], redrawEntry),
+            entry,
+            h("button", { class: "mini", onclick() { if (pick.id) { goods.push({ kind: pick.kind, id: pick.id }); redraw(); } } }, "+ add")));
+        }
+        redraw();
+        box.appendChild(h("div", { class: "fld" }, h("span", null, "Goods"), list));
+        return () => { c.goods = goods; setCurrency(c, w.currencyId); };
+      } },
+    { t: "wait", label: "Wait", make: () => ({ t: "wait", frames: 60 }),
+      form(c: any, box: any) {
+        const w = { frames: c.frames };
+        box.appendChild(field("Frames (60 = 1 second)", nIn(w, "frames", 1, 6000)));
+        return () => Object.assign(c, w);
+      } },
+    // MP7·B: co-op sync barrier. Instant in single-player.
+    { t: "waitPlayers", label: "Wait for All Players", make: () => ({ t: "waitPlayers", timeout: 10 }),
+      form(c: any, box: any) {
+        const w = { timeout: c.timeout == null ? 10 : c.timeout };
+        box.appendChild(field("Give up after (seconds)", nIn(w, "timeout", 1, 60)));
+        box.appendChild(h("div", { class: "dim" }, "Online games: pauses here until every other player has reached this event's map, or the time runs out. In a single-player game this does nothing and the event just keeps going."));
+        return () => { c.timeout = Math.max(1, Math.min(60, Number(w.timeout) || 10)); };
+      } },
+    { t: "se", label: "Play Sound", make: () => ({ t: "se", name: "ok" }),
+      form(c: any, box: any) {
+        const w = {
+          name: c.name, positional: c.at === "event",
+          vol: c.vol == null ? 100 : Math.round(c.vol * 100),
+          pitch: c.pitch == null ? 100 : Math.round(c.pitch * 100),
+          pan: c.pan == null ? 0 : Math.round(c.pan * 100),
+        };
+        const s = sel(w, "name", SE_OPTS());
+        box.appendChild(row(field("Sound", s), h("button", { class: "mini", onclick() { Sfx.play(w.name); } }, "▶ test")));
+        box.appendChild(row(field("Volume %", nIn(w, "vol", 0, 100)),
+          field("Pitch % (imported sounds)", nIn(w, "pitch", 50, 200)),
+          field("Pan −100…100", nIn(w, "pan", -100, 100))));
+        box.appendChild(row(field("Positional (pan/fade by this event's distance — imported sounds)", chk(w, "positional"))));
+        return () => {
+          c.name = w.name;
+          if (w.positional) c.at = "event"; else delete c.at;
+          if (w.vol !== 100) c.vol = w.vol / 100; else delete c.vol;
+          if (w.pitch !== 100) c.pitch = w.pitch / 100; else delete c.pitch;
+          if (w.pan) c.pan = w.pan / 100; else delete c.pan;
+        };
+      } },
+    { t: "music", label: "Change Music", make: () => ({ t: "music", theme: "field" }),
+      form(c: any, box: any) {
+        const w = {
+          theme: c.theme, fadeMs: c.fadeMs == null ? 800 : c.fadeMs,
+          vol: c.vol == null ? 100 : Math.round(c.vol * 100),
+          pitch: c.pitch == null ? 100 : Math.round(c.pitch * 100),
+          pan: c.pan == null ? 0 : Math.round(c.pan * 100),
+        };
+        box.appendChild(row(field("Theme", sel(w, "theme", MUSIC_OPTS())),
+          field("Crossfade ms (imported music)", nIn(w, "fadeMs", 0, 10000))));
+        box.appendChild(row(field("Volume % (imported music)", nIn(w, "vol", 0, 100)),
+          field("Pitch %", nIn(w, "pitch", 50, 200)),
+          field("Pan −100…100", nIn(w, "pan", -100, 100))));
+        return () => {
+          c.theme = w.theme;
+          if (w.fadeMs !== 800) c.fadeMs = w.fadeMs; else delete c.fadeMs;
+          if (w.vol !== 100) c.vol = w.vol / 100; else delete c.vol;
+          if (w.pitch !== 100) c.pitch = w.pitch / 100; else delete c.pitch;
+          if (w.pan) c.pan = w.pan / 100; else delete c.pan;
+        };
+      } },
+    // --- Streamed-audio channels (Project Compass M4·B) ---
+    { t: "bgs", label: "Background Sound", make: () => ({ t: "bgs", key: "" }),
+      form(c: any, box: any) {
+        const opts: any = [{ v: "", l: "(stop)" }].concat(BGS_OPTS());
+        opts.stringValues = true;
+        const w = {
+          key: c.key || "",
+          vol: c.vol == null ? 100 : Math.round(c.vol * 100),
+          fadeMs: c.fadeMs == null ? 500 : c.fadeMs,
+        };
+        box.appendChild(row(field("Sound (imported audio)", sel(w, "key", opts)),
+          field("Volume %", nIn(w, "vol", 0, 100)), field("Fade ms", nIn(w, "fadeMs", 0, 10000))));
+        box.appendChild(h("div", { class: "dim" }, "Loops a background sound (rain, waves…) on top of the music until stopped or a map with its own ambience starts. Saved with the game."));
+        return () => {
+          c.key = w.key;
+          if (w.vol !== 100) c.vol = w.vol / 100; else delete c.vol;
+          if (w.fadeMs !== 500) c.fadeMs = w.fadeMs; else delete c.fadeMs;
+        };
+      } },
+    { t: "me", label: "Play Jingle", make: () => ({ t: "me", key: "" }),
+      form(c: any, box: any) {
+        const w = { key: c.key || "" };
+        box.appendChild(field("Jingle (imported audio)", sel(w, "key", ME_OPTS())));
+        box.appendChild(h("div", { class: "dim" }, "Plays a short one-shot piece — the music pauses and comes back when it ends."));
+        return () => { c.key = w.key; };
+      } },
+    { t: "saveBgm", label: "Remember Music", make: () => ({ t: "saveBgm" }),
+      form(_c: any, box: any) {
+        box.appendChild(h("div", { class: "dim" }, "Remembers the music playing right now (and where it is), so Replay Remembered Music can bring it back."));
+        return () => {};
+      } },
+    { t: "resumeBgm", label: "Replay Remembered Music", make: () => ({ t: "resumeBgm" }),
+      form(_c: any, box: any) {
+        box.appendChild(h("div", { class: "dim" }, "Brings back the music saved by Remember Music, from where it left off."));
+        return () => {};
+      } },
+    { t: "stopSe", label: "Stop All Sounds", make: () => ({ t: "stopSe" }),
+      form(_c: any, box: any) {
+        box.appendChild(h("div", { class: "dim" }, "Silences every imported sound effect that's still playing (long rumbles, loops…)."));
+        return () => {};
+      } },
+    { t: "jingle", label: "Change Victory/Defeat Jingle", make: () => ({ t: "jingle", channel: "victory", key: "" }),
+      form(c: any, box: any) {
+        const opts: any = [{ v: "", l: "(silent)" }].concat(ME_OPTS());
+        opts.stringValues = true;
+        const w = { channel: c.channel || "victory", key: c.key || "" };
+        box.appendChild(row(
+          field("Moment", sel(w, "channel", [{ v: "victory", l: "Victory" }, { v: "defeat", l: "Defeat" }] as any)),
+          field("Jingle", sel(w, "key", opts))));
+        box.appendChild(h("div", { class: "dim" }, "Swaps the battle victory or defeat jingle from here on (saved with the game)."));
+        return () => { c.channel = w.channel; c.key = w.key; };
+      } },
+    // Set Move Route — the cutscene tool. A route is a sequenced pattern any
+    // character on the map can be told to play, so one event can walk the whole
+    // cast: "the guard steps aside, the king turns to face you, the door fades
+    // out". The step palette below is the engine's full one (shared/move-route.ts
+    // runs it); steps that carry a value are `{k, …}` objects, the rest stay the
+    // plain strings every route saved before this used.
+    { t: "move", label: "Set Move Route", make: () => ({ t: "move", target: "this", steps: [], wait: true }),
+      form(c: any, box: any) {
+        const w = {
+          target: c.target || "this",
+          eventId: Number(c.eventId) || 0,
+          wait: !!c.wait,
+          repeat: !!c.repeat,
+          skippable: c.skippable !== false,
+          gap: Number(c.gap) || 0,
+        };
+        const steps = (Array.isArray(c.steps) ? c.steps : []).slice();
+        // Grouped palette: movement first (what most routes are), then turns,
+        // then the timing/appearance steps that make a cutscene.
+        const GROUPS: { label: string; items: { v: string; l: string }[] }[] = [
+          { label: "Move", items: [
+            { v: "up", l: "Step up" }, { v: "down", l: "Step down" },
+            { v: "left", l: "Step left" }, { v: "right", l: "Step right" },
+            { v: "upleft", l: "Step up-left" }, { v: "upright", l: "Step up-right" },
+            { v: "downleft", l: "Step down-left" }, { v: "downright", l: "Step down-right" },
+            { v: "forward", l: "Step forward" }, { v: "back", l: "Step backward" },
+            { v: "random", l: "Step somewhere random" },
+            { v: "toward", l: "Step toward the player" }, { v: "away", l: "Step away from the player" },
+            { v: "jump", l: "Jump forward" }, { v: "*jump", l: "Jump to… (choose how far)" },
+          ] },
+          { label: "Turn", items: [
+            { v: "turn_up", l: "Face up" }, { v: "turn_down", l: "Face down" },
+            { v: "turn_left", l: "Face left" }, { v: "turn_right", l: "Face right" },
+            { v: "turn_r90", l: "Turn 90° right" }, { v: "turn_l90", l: "Turn 90° left" },
+            { v: "turn_180", l: "Turn around" }, { v: "turn_random", l: "Turn a random way" },
+            { v: "turn_toward", l: "Face the player" }, { v: "turn_away", l: "Face away from the player" },
+          ] },
+          { label: "Wait", items: [
+            { v: "wait15", l: "Wait a moment (15 frames)" },
+            { v: "wait60", l: "Wait a second (60 frames)" },
+            { v: "*wait", l: "Wait… (choose how long)" },
+          ] },
+          { label: "Change", items: [
+            { v: "*speed", l: "Change move speed…" },
+            { v: "*opacity", l: "Change how see-through…" },
+            { v: "*graphic", l: "Change graphic…" },
+            { v: "*se", l: "Play a sound…" },
+            { v: "*switch", l: "Turn a switch on/off…" },
+            { v: "transparent_on", l: "Become invisible" }, { v: "transparent_off", l: "Become visible" },
+            { v: "walk_on", l: "Walking animation on" }, { v: "walk_off", l: "Walking animation off" },
+            { v: "step_on", l: "Keep stepping while still" }, { v: "step_off", l: "Stop stepping while still" },
+            { v: "dirfix_on", l: "Keep facing (don't turn)" }, { v: "dirfix_off", l: "Turn normally again" },
+            { v: "through_on", l: "Walk through walls" }, { v: "through_off", l: "Stop walking through walls" },
+          ] },
+        ];
+        const PALETTE: { v: string; l: string }[] = [];
+        for (const g of GROUPS) for (const it of g.items) PALETTE.push({ v: it.v, l: g.label + ": " + it.l });
+        const listBox = h("div", { class: "minilist" });
+        const pick = { s: "right" };
+        /** The steps that need a value ask for it right here (a "*" palette
+         *  entry), so the author never has to know the payload shape. */
+        function makeStep(kind: string): any {
+          if (kind === "*wait") return { k: "wait", frames: 30 };
+          if (kind === "*speed") return { k: "speed", value: 3 };
+          if (kind === "*opacity") return { k: "opacity", value: 128 };
+          if (kind === "*graphic") return { k: "graphic", charset: "" };
+          if (kind === "*se") return { k: "se", name: "" };
+          if (kind === "*switch") return { k: "switch", id: 1, on: true };
+          if (kind === "*jump") return { k: "jump", dx: 0, dy: -2 };
+          return kind;
+        }
+        /** The inline value editor for a step that carries one. */
+        function stepFields(s: any): any[] {
+          if (s.k === "wait") return [field("Frames", nIn(s, "frames", 1, 600))];
+          if (s.k === "speed") return [field("Speed (1 slow … 6 fast)", nIn(s, "value", 1, 6))];
+          if (s.k === "opacity") return [field("Opacity (0 gone … 255 solid)", nIn(s, "value", 0, 255))];
+          if (s.k === "graphic") return [field("Graphic", sel(s, "charset", charsetOpts()))];
+          if (s.k === "se") return [field("Sound", sel(s, "name", stringSelOpts(SE_OPTS())))];
+          if (s.k === "switch") return [field("Switch", sel(s, "id", switchOpts())),
+            field("Turn it", sel(s, "on", [{ v: true, l: "ON" }, { v: false, l: "OFF" }] as any))];
+          if (s.k === "jump") return [field("Tiles across", nIn(s, "dx", -10, 10)),
+            field("Tiles down", nIn(s, "dy", -10, 10))];
+          return [];
+        }
+        function redraw() {
+          listBox.innerHTML = "";
+          steps.forEach((s: any, i: number) => {
+            const norm = typeof s === "object" && s ? s : null;
+            const move = (d: number) => {
+              const j = i + d;
+              if (j < 0 || j >= steps.length) return;
+              const tmp = steps[i]; steps[i] = steps[j]; steps[j] = tmp;
+              redraw();
+            };
+            listBox.appendChild(h("div", { class: "minirow" },
+              h("span", { class: "chip" }, (i + 1) + ". " + describeStep(s)),
+              ...(norm ? stepFields(norm) : []),
+              h("button", { class: "mini", title: "move earlier", onclick: () => move(-1) }, "↑"),
+              h("button", { class: "mini", title: "move later", onclick: () => move(1) }, "↓"),
+              h("button", { class: "mini", title: "remove this step", onclick() { steps.splice(i, 1); redraw(); } }, "✕")));
+          });
+          if (!steps.length)
+            listBox.appendChild(h("div", { class: "dim" }, "No steps yet — pick one below and press “+ add”."));
+          listBox.appendChild(h("div", { class: "minirow" },
+            sel(pick, "s", PALETTE),
+            h("button", { class: "mini", onclick() { steps.push(makeStep(pick.s)); redraw(); } }, "+ add")));
+        }
+        redraw();
+        const idField = field("Which event", sel(w, "eventId", eventOpts()));
+        const syncTarget = () => { idField.style.display = w.target === "other" ? "" : "none"; };
+        box.appendChild(row(
+          field("Move", sel(w, "target", [
+            { v: "this", l: "This Event" },
+            { v: "player", l: "The Player" },
+            { v: "other", l: "Another Event…" },
+          ], syncTarget)),
+          idField,
+          field("Wait for it to finish", chk(w, "wait")),
+          field("Repeat forever", chk(w, "repeat")),
+          field("Skip blocked steps", chk(w, "skippable"))));
+        syncTarget();
+        box.appendChild(h("div", { class: "fld" }, h("span", null, "Steps, in order"), listBox));
+        box.appendChild(h("div", { class: "dim" },
+          "“Wait for it to finish” holds the event until the route is done — that's what makes a cutscene play in order. " +
+          "“Repeat forever” loops the route until something else replaces it (a pacing guard); it can't be waited on, so the two are never both used. " +
+          "With “Skip blocked steps” off, a step that's blocked waits for the way to clear (and gives up after five seconds so nothing can freeze)."));
+        return () => {
+          c.target = w.target;
+          if (w.target === "other") c.eventId = Number(w.eventId) || 0;
+          else delete c.eventId;
+          c.wait = w.wait && !w.repeat;
+          if (w.repeat) c.repeat = true; else delete c.repeat;
+          if (!w.skippable) c.skippable = false; else delete c.skippable;
+          c.steps = steps;
+        };
+      } },
+    { t: "cameraZoom", label: "Camera Zoom", make: () => ({ t: "cameraZoom", zoom: 1, frames: 30 }),
+      form(c: any, box: any) {
+        const w = { zoom: c.zoom == null ? 1 : c.zoom, frames: c.frames || 0 };
+        box.appendChild(row(
+          field("Zoom (0.25 = out, 1 = normal, 4 = in)", nIn(w, "zoom", 0.25, 4, 0.05)),
+          field("Duration (frames)", nIn(w, "frames", 0, 6000)),
+        ));
+        box.appendChild(h("div", { class: "dim" }, "The camera stays centered on the player. Use 1.0 to return to the normal view."));
+        return () => { c.zoom = Math.max(0.25, Math.min(4, w.zoom || 1)); c.frames = Math.max(0, Math.floor(w.frames || 0)); };
+      } },
+    { t: "transparency", label: "Change Transparency", make: () => ({ t: "transparency", val: true }),
+      form(c: any, box: any) {
+        const w = { val: String(c.val !== false) };
+        box.appendChild(field("Player becomes", sel(w, "val", [{ v: "true", l: "Transparent (hidden)" }, { v: "false", l: "Visible" }])));
+        box.appendChild(h("div", { class: "dim" }, "A transparent player still moves and triggers events — only the sprite is hidden. Pair with “Start transparent” in Database ▸ System for cutscene intros."));
+        return () => { c.val = w.val === "true"; };
+      } },
+    { t: "shake", label: "Shake Screen", make: () => ({ t: "shake", power: 5, speed: 5, duration: 30, wait: true }),
+      form(c: any, box: any) {
+        const w = { power: c.power || 5, speed: c.speed || 5, duration: c.duration || 30, wait: c.wait !== false };
+        box.appendChild(row(
+          field("Power (1-9)", nIn(w, "power", 1, 9)),
+          field("Speed (1-9)", nIn(w, "speed", 1, 9)),
+          field("Duration (frames)", nIn(w, "duration", 1, 600)),
+          field("Wait for completion", chk(w, "wait"))
+        ));
+        return () => {
+          c.power = Number(w.power);
+          c.speed = Number(w.speed);
+          c.duration = Number(w.duration);
+          c.wait = w.wait;
+        };
+      } },
+    { t: "weather", label: "Change Weather", make: () => ({ t: "weather", kind: "none", power: 5 }),
+      form(c: any, box: any) {
+        const w = { kind: c.kind || "none", power: c.power || 5 };
+        box.appendChild(row(
+          field("Type", sel(w, "kind", [
+            { v: "none", l: "None (clear)" },
+            { v: "rain", l: "Rain" },
+            { v: "storm", l: "Storm" },
+            { v: "snow", l: "Snow" },
+            { v: "fog", l: "Fog" }
+          ])),
+          field("Power (1-9)", nIn(w, "power", 1, 9))
+        ));
+        return () => {
+          c.kind = w.kind;
+          c.power = Number(w.power);
+        };
+      } },
+    { t: "flash", label: "Flash Screen", make: () => ({ t: "flash", color: "#ffffff", opacity: 0.5, duration: 15, wait: false }),
+      form(c: any, box: any) {
+        const w = { color: c.color || "#ffffff", opacity: c.opacity || 0.5, duration: c.duration || 15, wait: !!c.wait };
+        const colorIn = h("input", { type: "color", value: w.color, oninput(e: any) { w.color = e.target.value; } });
+        box.appendChild(row(
+          field("Color", colorIn),
+          field("Opacity (0.1-1.0)", nIn(w, "opacity", 0.1, 1.0, 0.1)),
+          field("Duration (frames)", nIn(w, "duration", 1, 300)),
+          field("Wait for completion", chk(w, "wait"))
+        ));
+        return () => {
+          c.color = w.color;
+          c.opacity = Number(w.opacity);
+          c.duration = Number(w.duration);
+          c.wait = w.wait;
+        };
+      } },
+    { t: "playAnim", label: "Play Animation", make: () => ({ t: "playAnim", animationId: 1, target: "player", wait: true }),
+      form(c: any, box: any) {
+        const w = { animationId: c.animationId || 1, target: c.target || "player", wait: c.wait !== false };
+        box.appendChild(row(
+          field("Animation", sel(w, "animationId", dbOpts(S.proj.animations || [], "(none)"))),
+          field("Show over", sel(w, "target", [
+            { v: "player", l: "Player" },
+            { v: "this", l: "This Event" },
+            { v: "screen", l: "Screen center" },
+          ])),
+          field("Wait for completion", chk(w, "wait"))
+        ));
+        return () => {
+          c.animationId = Number(w.animationId);
+          c.target = w.target;
+          c.wait = w.wait;
+        };
+      } },
+    // --- Presentation family (Project Compass M2·A) ---
+    { t: "showPic", label: "Show Picture", make: () => ({ t: "showPic", id: 1, name: "", origin: 0, x: 0, y: 0, scaleX: 100, scaleY: 100, opacity: 255, blend: 0 }),
+      form(c: any, box: any) {
+        const w = { id: c.id || 1, name: c.name || "", origin: c.origin || 0, x: c.x || 0, y: c.y || 0, scaleX: c.scaleX == null ? 100 : c.scaleX, scaleY: c.scaleY == null ? 100 : c.scaleY, opacity: c.opacity == null ? 255 : c.opacity, blend: c.blend || 0 };
+        box.appendChild(row(field("Picture # (1–100)", nIn(w, "id", 1, 100)), field("Origin", sel(w, "origin", ORIGIN_OPTS))));
+        box.appendChild(field("Image (asset key or image URL)", tIn(w, "name")));
+        box.appendChild(h("div", { class: "dim" }, "Point this at an image in your Assets library (asset:… key) or a direct image URL. Pictures imported from RPG Maker keep their name; add the matching art to your library and it appears."));
+        box.appendChild(row(field("X (px)", nIn(w, "x")), field("Y (px)", nIn(w, "y"))));
+        box.appendChild(row(field("Scale X %", nIn(w, "scaleX", 0, 2000)), field("Scale Y %", nIn(w, "scaleY", 0, 2000)),
+          field("Opacity (0–255)", nIn(w, "opacity", 0, 255)), field("Blend", sel(w, "blend", BLEND_OPTS))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "movePic", label: "Move Picture", make: () => ({ t: "movePic", id: 1, origin: 0, x: 0, y: 0, scaleX: 100, scaleY: 100, opacity: 255, blend: 0, frames: 60, wait: true }),
+      form(c: any, box: any) {
+        const w = { id: c.id || 1, origin: c.origin || 0, x: c.x || 0, y: c.y || 0, scaleX: c.scaleX == null ? 100 : c.scaleX, scaleY: c.scaleY == null ? 100 : c.scaleY, opacity: c.opacity == null ? 255 : c.opacity, blend: c.blend || 0, frames: c.frames == null ? 60 : c.frames, wait: c.wait !== false };
+        box.appendChild(row(field("Picture #", nIn(w, "id", 1, 100)), field("Origin", sel(w, "origin", ORIGIN_OPTS)), field("Blend", sel(w, "blend", BLEND_OPTS))));
+        box.appendChild(row(field("X (px)", nIn(w, "x")), field("Y (px)", nIn(w, "y"))));
+        box.appendChild(row(field("Scale X %", nIn(w, "scaleX", 0, 2000)), field("Scale Y %", nIn(w, "scaleY", 0, 2000)), field("Opacity", nIn(w, "opacity", 0, 255))));
+        box.appendChild(row(field("Duration (frames)", nIn(w, "frames", 0, 6000)), field("Wait for completion", chk(w, "wait"))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "rotatePic", label: "Rotate Picture", make: () => ({ t: "rotatePic", id: 1, speed: 5 }),
+      form(c: any, box: any) {
+        const w = { id: c.id || 1, speed: c.speed == null ? 5 : c.speed };
+        box.appendChild(row(field("Picture #", nIn(w, "id", 1, 100)), field("Speed (° per frame; 0 stops)", nIn(w, "speed", -90, 90))));
+        return () => Object.assign(c, w);
+      } },
+    { t: "tintPic", label: "Tint Picture", make: () => ({ t: "tintPic", id: 1, tone: [0, 0, 0, 0], frames: 60, wait: true }),
+      form(c: any, box: any) {
+        const w: any = { id: c.id || 1, tone: Array.isArray(c.tone) ? c.tone.slice() : [0, 0, 0, 0], frames: c.frames == null ? 60 : c.frames, wait: c.wait !== false };
+        box.appendChild(row(field("Picture #", nIn(w, "id", 1, 100)), field("Duration (frames)", nIn(w, "frames", 0, 6000)), field("Wait", chk(w, "wait"))));
+        box.appendChild(toneEditor(w, "tone"));
+        return () => { c.id = w.id; c.tone = w.tone; c.frames = w.frames; c.wait = w.wait; };
+      } },
+    { t: "erasePic", label: "Erase Picture", make: () => ({ t: "erasePic", id: 1 }),
+      form(c: any, box: any) {
+        const w = { id: c.id || 1 };
+        box.appendChild(field("Picture #", nIn(w, "id", 1, 100)));
+        return () => Object.assign(c, w);
+      } },
+    { t: "tint", label: "Tint Screen", make: () => ({ t: "tint", tone: [0, 0, 0, 0], frames: 60, wait: false }),
+      form(c: any, box: any) {
+        const w: any = { tone: Array.isArray(c.tone) ? c.tone.slice() : [0, 0, 0, 0], frames: c.frames == null ? 60 : c.frames, wait: !!c.wait };
+        box.appendChild(toneEditor(w, "tone"));
+        box.appendChild(row(field("Duration (frames)", nIn(w, "frames", 0, 6000)), field("Wait for completion", chk(w, "wait"))));
+        box.appendChild(h("div", { class: "dim" }, "Colour-tints the whole screen. Use “Dark” for a fade to dusk, or drag all channels to −255 for a fade to black. Set “Normal” to clear it."));
+        return () => { c.tone = w.tone; c.frames = w.frames; c.wait = w.wait; };
+      } },
+    { t: "timer", label: "Control Timer", make: () => ({ t: "timer", op: "start", seconds: 60, common: 0 }),
+      form(c: any, box: any) {
+        const w = { op: c.op || "start", seconds: c.seconds == null ? 60 : c.seconds, common: c.common || 0 };
+        box.appendChild(field("Operation", sel(w, "op", [{ v: "start", l: "Start" }, { v: "stop", l: "Stop" }])));
+        box.appendChild(row(field("Seconds", nIn(w, "seconds", 0, 5999)),
+          field("On expire, call Common Event (optional)", sel(w, "common", dbOpts(S.proj.commonEvents, "(none)")))));
+        box.appendChild(h("div", { class: "dim" }, "A count-down clock shows at the top of the screen. When it reaches 0 it stops; optionally it can fire a common event (a nice touch for time-limit puzzles)."));
+        return () => { c.op = w.op; c.seconds = Number(w.seconds); c.common = Number(w.common) || 0; };
+      } },
+    { t: "scrollMap", label: "Scroll Map", make: () => ({ t: "scrollMap", dir: "right", distance: 4, speed: 4, wait: true }),
+      form(c: any, box: any) {
+        const w = { dir: c.dir || "right", distance: c.distance == null ? 4 : c.distance, speed: c.speed || 4, wait: c.wait !== false };
+        box.appendChild(row(
+          field("Direction", sel(w, "dir", [{ v: "up", l: "Up" }, { v: "down", l: "Down" }, { v: "left", l: "Left" }, { v: "right", l: "Right" }])),
+          field("Distance (tiles)", nIn(w, "distance", 0, 200)),
+          field("Speed (1–6)", nIn(w, "speed", 1, 6)),
+          field("Wait for completion", chk(w, "wait"))));
+        box.appendChild(h("div", { class: "dim" }, "Pans the camera away from the player. The view returns to the player when they move. Can't scroll past the edge of the map."));
+        return () => Object.assign(c, w);
+      } },
+    // --- Map features (Project Compass M4·A) ---
+    { t: "setVehiclePos", label: "Set Vehicle Location", make: () => ({ t: "setVehiclePos", vehicle: "boat", mapId: 1, x: 0, y: 0 }),
+      form(c: any, box: any) {
+        const w = { vehicle: c.vehicle || "boat", byVar: !!c.byVar, mapId: c.mapId || 1, x: c.x || 0, y: c.y || 0 };
+        box.appendChild(row(
+          field("Vehicle", sel(w, "vehicle", VEHICLE_OPTS)),
+          field("Read map/x/y from variables", chk(w, "byVar")),
+          field("Map id (or variable)", nIn(w, "mapId", 0, 9999)),
+          field("X (or variable)", nIn(w, "x", 0, 9999)),
+          field("Y (or variable)", nIn(w, "y", 0, 9999))));
+        box.appendChild(h("div", { class: "dim" }, "Parks the vehicle at a spot. With the variables box checked, the three numbers are variable ids read when the event runs."));
+        return () => { c.vehicle = w.vehicle; c.byVar = w.byVar || undefined; c.mapId = Number(w.mapId); c.x = Number(w.x); c.y = Number(w.y); };
+      } },
+    { t: "vehicle", label: "Get on/off Vehicle", make: () => ({ t: "vehicle" }),
+      form(_c: any, box: any) {
+        box.appendChild(h("div", { class: "dim" }, "Boards the vehicle the player faces or stands on — or steps off the one being ridden. Same as pressing the action key next to it."));
+        return () => {};
+      } },
+    { t: "vehicleImage", label: "Change Vehicle Image", make: () => ({ t: "vehicleImage", vehicle: "boat", charset: "" }),
+      form(c: any, box: any) {
+        const w = { vehicle: c.vehicle || "boat", charset: c.charset || "" };
+        box.appendChild(row(
+          field("Vehicle", sel(w, "vehicle", VEHICLE_OPTS)),
+          field("New sprite", sel(w, "charset", charsetOpts()))));
+        box.appendChild(h("div", { class: "dim" }, "Swaps the vehicle's sprite for the rest of the game (saved with your game)."));
+        return () => { c.vehicle = w.vehicle; c.charset = w.charset; };
+      } },
+    { t: "battleback", label: "Change Battle Back", make: () => ({ t: "battleback", back1: "", back2: "" }),
+      form(c: any, box: any) {
+        const w = { back1: c.back1 || "", back2: c.back2 || "" };
+        box.appendChild(row(
+          field("Floor image (asset key or URL)", tIn(w, "back1")),
+          field("Walls image (optional)", tIn(w, "back2"))));
+        box.appendChild(h("div", { class: "dim" }, "Sets the battle background until the player changes maps. Leave both empty to go back to the map's own (or the classic backdrop)."));
+        return () => { c.back1 = w.back1; c.back2 = w.back2; };
+      } },
+    { t: "parallax", label: "Change Parallax", make: () => ({ t: "parallax", key: "" }),
+      form(c: any, box: any) {
+        const w = { key: c.key || "", loopX: !!c.loopX, loopY: !!c.loopY, sx: c.sx || 0, sy: c.sy || 0, lock: !!c.lock };
+        box.appendChild(row(field("Image (asset key or URL)", tIn(w, "key"))));
+        box.appendChild(row(
+          field("Loop ↔", chk(w, "loopX")), field("Loop ↕", chk(w, "loopY")),
+          field("Drift X", nIn(w, "sx", -32, 32)), field("Drift Y", nIn(w, "sy", -32, 32)),
+          field("Locked to map", chk(w, "lock"))));
+        box.appendChild(h("div", { class: "dim" }, "Swaps the map's scrolling background picture until the player changes maps. An empty image removes it."));
+        return () => {
+          c.key = w.key; c.loopX = w.loopX || undefined; c.loopY = w.loopY || undefined;
+          c.sx = Number(w.sx) || undefined; c.sy = Number(w.sy) || undefined; c.lock = w.lock || undefined;
+        };
+      } },
+    { t: "balloon", label: "Show Balloon Icon", make: () => ({ t: "balloon", target: "this", balloonId: 1, wait: false }),
+      form(c: any, box: any) {
+        const w = { target: typeof c.target === "number" ? "event" : (c.target || "this"), eventId: typeof c.target === "number" ? c.target : 1, balloonId: c.balloonId || 1, wait: !!c.wait };
+        const evWrap = h("span");
+        function redraw() {
+          evWrap.innerHTML = "";
+          if (w.target === "event") evWrap.appendChild(nIn(w, "eventId", 1, 999));
+          else evWrap.appendChild(h("span", { class: "dim" }, "—"));
+        }
+        box.appendChild(row(
+          field("Over", sel(w, "target", [{ v: "player", l: "Player" }, { v: "this", l: "This Event" }, { v: "event", l: "Event # …" }], redraw)),
+          field("Event #", evWrap),
+          field("Balloon", sel(w, "balloonId", BALLOON_OPTS)),
+          field("Wait", chk(w, "wait"))));
+        redraw();
+        return () => { c.target = w.target === "event" ? Number(w.eventId) : w.target; c.balloonId = Number(w.balloonId); c.wait = w.wait; };
+      } },
+    { t: "scrollText", label: "Show Scrolling Text", make: () => ({ t: "scrollText", text: "", speed: 2, noFast: false }),
+      form(c: any, box: any) {
+        const w = { speed: c.speed == null ? 2 : c.speed, noFast: !!c.noFast };
+        const ta = h("textarea", { rows: 5 }, c.text || "");
+        box.appendChild(field("Text (one line per line)", ta));
+        box.appendChild(row(field("Speed (1 slow – 8 fast)", nIn(w, "speed", 1, 8)), field("Can't speed up (hold OK)", chk(w, "noFast"))));
+        box.appendChild(h("div", { class: "dim" }, "Full-screen credits-style crawl. Players can hold OK to speed it up (unless disabled) or press Cancel to skip."));
+        return () => { c.text = ta.value; c.speed = Number(w.speed); c.noFast = w.noFast; };
+      } },
+    // --- Message-system input scenes (Project Compass M2·B) ---
+    { t: "inputNumber", label: "Input Number", make: () => ({ t: "inputNumber", varId: 1, digits: 2 }),
+      form(c: any, box: any) {
+        const w = { varId: c.varId || 1, digits: c.digits == null ? 2 : c.digits };
+        box.appendChild(row(field("Store in Variable", sel(w, "varId", varOpts())), field("Digits (1–8)", nIn(w, "digits", 1, 8))));
+        box.appendChild(h("div", { class: "dim" }, "The player dials in a number on screen; it's saved to the chosen variable."));
+        return () => { c.varId = Number(w.varId); c.digits = Number(w.digits); };
+      } },
+    { t: "selectItem", label: "Select Item", make: () => ({ t: "selectItem", varId: 1 }),
+      form(c: any, box: any) {
+        const w = { varId: c.varId || 1 };
+        box.appendChild(field("Store chosen item's id in Variable", sel(w, "varId", varOpts())));
+        box.appendChild(h("div", { class: "dim" }, "The player picks one of the items they're carrying; the item's id is saved to the variable (0 if they cancel)."));
+        return () => { c.varId = Number(w.varId); };
+      } },
+    { t: "nameInput", label: "Name Input", make: () => ({ t: "nameInput", actorId: S.proj.actors[0] ? S.proj.actors[0].id : 1, maxChars: 8 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId || (S.proj.actors[0] ? S.proj.actors[0].id : 1), maxChars: c.maxChars || 8 };
+        box.appendChild(row(field("Hero", sel(w, "actorId", dbOpts(S.proj.actors))), field("Max letters (1–16)", nIn(w, "maxChars", 1, 16))));
+        box.appendChild(h("div", { class: "dim" }, "Opens an on-screen keyboard so the player can rename this hero."));
+        return () => { c.actorId = Number(w.actorId); c.maxChars = Number(w.maxChars); };
+      } },
+    // --- Flow labels (Project Compass M2·C) ---
+    { t: "label", label: "Label", make: () => ({ t: "label", name: "Start" }),
+      form(c: any, box: any) {
+        const w = { name: c.name || "" };
+        box.appendChild(field("Label name", tIn(w, "name")));
+        box.appendChild(h("div", { class: "dim" }, "A named spot in this command list that a Jump to Label can leap to."));
+        return () => { c.name = w.name; };
+      } },
+    { t: "jump", label: "Jump to Label", make: () => ({ t: "jump", name: "Start" }),
+      form(c: any, box: any) {
+        const w = { name: c.name || "" };
+        box.appendChild(field("Label name", tIn(w, "name")));
+        box.appendChild(h("div", { class: "dim" }, "Jumps to the matching Label in this same command list (looks in enclosing lists if it isn't here). Handy for making your own loops."));
+        return () => { c.name = w.name; };
+      } },
+    // --- Change-actor-data family (Project Compass M2·C) ---
+    { t: "changeExp", label: "Change EXP", make: () => ({ t: "changeExp", actorId: 0, op: "add", value: 100 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId == null ? 0 : c.actorId, op: c.op || "add", value: c.value == null ? 100 : c.value };
+        box.appendChild(row(field("Hero", sel(w, "actorId", actorPartyOpts())),
+          field("Op", sel(w, "op", [{ v: "add", l: "Increase" }, { v: "sub", l: "Decrease" }])),
+          field("Amount", nIn(w, "value", 0))));
+        box.appendChild(h("div", { class: "dim" }, "Levels rise as EXP crosses each threshold (and class skills are learned along the way)."));
+        return () => { c.actorId = Number(w.actorId); c.op = w.op; c.value = Number(w.value); };
+      } },
+    { t: "changeLevel", label: "Change Level", make: () => ({ t: "changeLevel", actorId: 0, op: "add", value: 1 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId == null ? 0 : c.actorId, op: c.op || "add", value: c.value == null ? 1 : c.value };
+        box.appendChild(row(field("Hero", sel(w, "actorId", actorPartyOpts())),
+          field("Op", sel(w, "op", [{ v: "add", l: "Increase" }, { v: "sub", l: "Decrease" }])),
+          field("Levels", nIn(w, "value", 0, 99))));
+        return () => { c.actorId = Number(w.actorId); c.op = w.op; c.value = Number(w.value); };
+      } },
+    { t: "changeParam", label: "Change Parameters", make: () => ({ t: "changeParam", actorId: 0, param: "atk", op: "add", value: 1 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId == null ? 0 : c.actorId, param: c.param || "atk", op: c.op || "add", value: c.value == null ? 1 : c.value };
+        box.appendChild(row(field("Hero", sel(w, "actorId", actorPartyOpts())),
+          field("Parameter", sel(w, "param", PARAM_OPTS))));
+        box.appendChild(row(field("Op", sel(w, "op", [{ v: "add", l: "Increase" }, { v: "sub", l: "Decrease" }])),
+          field("Amount", nIn(w, "value", 0))));
+        box.appendChild(h("div", { class: "dim" }, "Adds a permanent bonus to a base stat (on top of class growth and equipment)."));
+        return () => { c.actorId = Number(w.actorId); c.param = w.param; c.op = w.op; c.value = Number(w.value); };
+      } },
+    { t: "changeSkill", label: "Change Skills", make: () => ({ t: "changeSkill", actorId: 0, op: "learn", skillId: S.proj.skills[0] ? S.proj.skills[0].id : 1 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId == null ? 0 : c.actorId, op: c.op || "learn", skillId: c.skillId || (S.proj.skills[0] ? S.proj.skills[0].id : 1) };
+        box.appendChild(row(field("Hero", sel(w, "actorId", actorPartyOpts())),
+          field("Op", sel(w, "op", [{ v: "learn", l: "Learn" }, { v: "forget", l: "Forget" }])),
+          field("Skill", sel(w, "skillId", dbOpts(S.proj.skills)))));
+        return () => { c.actorId = Number(w.actorId); c.op = w.op; c.skillId = Number(w.skillId); };
+      } },
+    { t: "changeEquip", label: "Change Equipment", make: () => ({ t: "changeEquip", actorId: S.proj.actors[0] ? S.proj.actors[0].id : 1, slot: "weapon", itemId: 0 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId || (S.proj.actors[0] ? S.proj.actors[0].id : 1), slot: c.slot || "weapon", itemId: c.itemId || 0 };
+        const entry = h("span");
+        function redraw() {
+          const arr = w.slot === "armor" ? S.proj.armors : S.proj.weapons;
+          entry.innerHTML = "";
+          entry.appendChild(sel(w, "itemId", dbOpts(arr, "(none / unequip)")));
+        }
+        box.appendChild(row(field("Hero", sel(w, "actorId", dbOpts(S.proj.actors))),
+          field("Slot", sel(w, "slot", [{ v: "weapon", l: "Weapon" }, { v: "armor", l: "Armor" }], redraw)),
+          field("Equip", entry)));
+        redraw();
+        return () => { c.actorId = Number(w.actorId); c.slot = w.slot; c.itemId = Number(w.itemId) || 0; };
+      } },
+    { t: "changeName", label: "Change Name", make: () => ({ t: "changeName", actorId: S.proj.actors[0] ? S.proj.actors[0].id : 1, name: "" }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId || (S.proj.actors[0] ? S.proj.actors[0].id : 1), name: c.name || "" };
+        box.appendChild(row(field("Hero", sel(w, "actorId", dbOpts(S.proj.actors))), field("New name", tIn(w, "name"))));
+        return () => { c.actorId = Number(w.actorId); c.name = w.name; };
+      } },
+    { t: "changeClass", label: "Change Class", make: () => ({ t: "changeClass", actorId: S.proj.actors[0] ? S.proj.actors[0].id : 1, classId: S.proj.classes[0] ? S.proj.classes[0].id : 1 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId || (S.proj.actors[0] ? S.proj.actors[0].id : 1), classId: c.classId || (S.proj.classes[0] ? S.proj.classes[0].id : 1) };
+        box.appendChild(row(field("Hero", sel(w, "actorId", dbOpts(S.proj.actors))), field("New class", sel(w, "classId", dbOpts(S.proj.classes)))));
+        box.appendChild(h("div", { class: "dim" }, "The hero keeps their level; their stats and learnable skills follow the new class."));
+        return () => { c.actorId = Number(w.actorId); c.classId = Number(w.classId); };
+      } },
+    { t: "changeActorImage", label: "Change Actor Image", make: () => ({ t: "changeActorImage", actorId: S.proj.actors[0] ? S.proj.actors[0].id : 1, charset: "" }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId || (S.proj.actors[0] ? S.proj.actors[0].id : 1), charset: c.charset || "" };
+        box.appendChild(row(field("Hero", sel(w, "actorId", dbOpts(S.proj.actors))), field("Charset (map sprite + face)", sel(w, "charset", charsetOpts(true)))));
+        box.appendChild(h("div", { class: "dim" }, "Atlas uses one image for a hero's map sprite and menu face."));
+        return () => { c.actorId = Number(w.actorId); c.charset = w.charset; };
+      } },
+    { t: "changeNickname", label: "Change Nickname", make: () => ({ t: "changeNickname", actorId: S.proj.actors[0] ? S.proj.actors[0].id : 1, nickname: "" }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId || (S.proj.actors[0] ? S.proj.actors[0].id : 1), nickname: c.nickname || "" };
+        box.appendChild(row(field("Hero", sel(w, "actorId", dbOpts(S.proj.actors))), field("Nickname", tIn(w, "nickname"))));
+        return () => { c.actorId = Number(w.actorId); c.nickname = w.nickname; };
+      } },
+    { t: "changeProfile", label: "Change Profile", make: () => ({ t: "changeProfile", actorId: S.proj.actors[0] ? S.proj.actors[0].id : 1, profile: "" }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId || (S.proj.actors[0] ? S.proj.actors[0].id : 1) };
+        const ta = h("textarea", { rows: 3 }, c.profile || "");
+        box.appendChild(field("Hero", sel(w, "actorId", dbOpts(S.proj.actors))));
+        box.appendChild(field("Profile", ta));
+        return () => { c.actorId = Number(w.actorId); c.profile = ta.value; };
+      } },
+    { t: "changeState", label: "Change State", make: () => ({ t: "changeState", actorId: 0, op: "add", stateId: S.proj.states[0] ? S.proj.states[0].id : 1 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId == null ? 0 : c.actorId, op: c.op || "add", stateId: c.stateId || (S.proj.states[0] ? S.proj.states[0].id : 1) };
+        box.appendChild(row(field("Hero", sel(w, "actorId", actorPartyOpts())),
+          field("Op", sel(w, "op", [{ v: "add", l: "Add" }, { v: "remove", l: "Remove" }])),
+          field("State", sel(w, "stateId", dbOpts(S.proj.states)))));
+        return () => { c.actorId = Number(w.actorId); c.op = w.op; c.stateId = Number(w.stateId); };
+      } },
+    // --- TP (Project Compass M3·B) ---
+    { t: "changeTp", label: "Change TP", make: () => ({ t: "changeTp", actorId: 0, op: "add", value: 25 }),
+      form(c: any, box: any) {
+        const w = { actorId: c.actorId == null ? 0 : c.actorId, op: c.op || "add", value: c.value == null ? 25 : c.value };
+        box.appendChild(row(field("Hero", sel(w, "actorId", actorPartyOpts())),
+          field("Op", sel(w, "op", [{ v: "add", l: "Increase" }, { v: "sub", l: "Decrease" }])),
+          field("Amount", nIn(w, "value", 0, 100))));
+        box.appendChild(h("div", { class: "dim" }, "TP only matters when the TP system is on (System ▸ “Show TP in battle”, or any skill with a TP cost)."));
+        return () => { c.actorId = Number(w.actorId); c.op = w.op; c.value = Number(w.value); };
+      } },
+    { t: "changeEnemyTp", label: "Change Enemy TP", make: () => ({ t: "changeEnemyTp", enemyIndex: -1, op: "add", value: 25 }),
+      form(c: any, box: any) {
+        const w = { enemyIndex: c.enemyIndex == null ? -1 : c.enemyIndex, op: c.op || "add", value: c.value == null ? 25 : c.value };
+        const slots: any = [{ v: -1, l: "Entire Troop" }];
+        for (let i = 0; i < 8; i++) slots.push({ v: i, l: "Enemy #" + (i + 1) });
+        box.appendChild(row(field("Enemy", sel(w, "enemyIndex", slots)),
+          field("Op", sel(w, "op", [{ v: "add", l: "Increase" }, { v: "sub", l: "Decrease" }])),
+          field("Amount", nIn(w, "value", 0, 100))));
+        box.appendChild(h("div", { class: "dim" }, "Runs during battle (troop event pages). Outside battle it does nothing."));
+        return () => { c.enemyIndex = Number(w.enemyIndex); c.op = w.op; c.value = Number(w.value); };
+      } },
+    // --- System toggles (Project Compass M2·C) ---
+    { t: "access", label: "Change Access (Menu/Save/…)", make: () => ({ t: "access", kind: "menu", enabled: true }),
+      form(c: any, box: any) {
+        const w = { kind: c.kind || "menu", enabled: String(c.enabled !== false) };
+        box.appendChild(row(field("Access", sel(w, "kind", [
+          { v: "menu", l: "Menu" }, { v: "save", l: "Save" }, { v: "encounter", l: "Encounters" }, { v: "formation", l: "Formation" },
+        ])), field("Set", sel(w, "enabled", [{ v: "true", l: "Enable" }, { v: "false", l: "Disable" }]))));
+        box.appendChild(h("div", { class: "dim" }, "Locks part of the game: the pause menu, its Save or Formation option, or random encounters. Remembered in the save file."));
+        return () => { c.kind = w.kind; c.enabled = w.enabled === "true"; };
+      } },
+    { t: "followers", label: "Change Followers", make: () => ({ t: "followers", show: true }),
+      form(c: any, box: any) {
+        const w = { show: String(c.show !== false) };
+        box.appendChild(field("Follower trail", sel(w, "show", [{ v: "true", l: "Show" }, { v: "false", l: "Hide" }])));
+        box.appendChild(h("div", { class: "dim" }, "Hides or shows the party members that trail behind the leader (needs Followers turned on in Database ▸ System)."));
+        return () => { c.show = w.show === "true"; };
+      } },
+    { t: "windowTone", label: "Change Window Color", make: () => ({ t: "windowTone", tone: [18, 24, 46] }),
+      form(c: any, box: any) {
+        const tone = Array.isArray(c.tone) ? c.tone.slice() : [18, 24, 46];
+        const toHex = (n: number) => ("0" + Math.max(0, Math.min(255, Math.round(n || 0))).toString(16)).slice(-2);
+        const w = { hex: "#" + toHex(tone[0]) + toHex(tone[1]) + toHex(tone[2]) };
+        const colorIn = h("input", { type: "color", value: w.hex, oninput(e: any) { w.hex = e.target.value; } });
+        box.appendChild(row(field("Window color", colorIn)));
+        box.appendChild(h("div", { class: "dim" }, "Recolors the message and menu windows for the rest of the game (saved with your game)."));
+        return () => {
+          const m = /^#?([0-9a-f]{6})$/i.exec(w.hex || "");
+          const hx = m ? m[1] : "12182e";
+          c.tone = [parseInt(hx.slice(0, 2), 16), parseInt(hx.slice(2, 4), 16), parseInt(hx.slice(4, 6), 16)];
+        };
+      } },
+    { t: "getLocationInfo", label: "Get Location Info", make: () => ({ t: "getLocationInfo", varId: 1, infoType: "region", x: 0, y: 0 }),
+      form(c: any, box: any) {
+        const w = { varId: c.varId || 1, infoType: c.infoType || "region", x: c.x || 0, y: c.y || 0 };
+        box.appendChild(row(field("Store in Variable", sel(w, "varId", varOpts())),
+          field("Read", sel(w, "infoType", [{ v: "region", l: "Region id" }, { v: "eventId", l: "Event id" }, { v: "tileId", l: "Tile id" }, { v: "terrain", l: "Terrain tag" }]))));
+        box.appendChild(row(field("Tile X", nIn(w, "x", 0, 500)), field("Tile Y", nIn(w, "y", 0, 500))));
+        box.appendChild(h("div", { class: "dim" }, "Reads info about a map tile into a variable. (Atlas has no terrain tags, so Terrain tag reads 0.)"));
+        return () => { c.varId = Number(w.varId); c.infoType = w.infoType; c.x = Number(w.x); c.y = Number(w.y); };
+      } },
+    { t: "erase", label: "Erase This Event", make: () => ({ t: "erase" }), form: () => () => {} },
+    { t: "save", label: "Open Save Screen", make: () => ({ t: "save" }), form: () => () => {} },
+    { t: "gameover", label: "Game Over", make: () => ({ t: "gameover" }), form: () => () => {} },
+    { t: "totitle", label: "Return to Title", make: () => ({ t: "totitle" }), form: () => () => {} },
+    { t: "script", label: "Script (JavaScript)", make: () => ({ t: "script", code: "" }),
+      form(c: any, box: any) {
+        const ta = h("textarea", { rows: 6, spellcheck: "false" }, c.code || "");
+        box.appendChild(field("JS — api: game.setSwitch(id,v) getSwitch setVar getVar addGold(n) callCommonEvent(id) party() quest(id) questStatus startQuest advanceQuestObjective setQuestObjective completeQuest failQuest abandonQuest state()", ta));
+        return () => { c.code = ta.value; };
+      } },
+    // Read-only MZ/MV Script command (Project Compass M5·B). Not offered in the
+    // Add Command picker (`hidden`) — Atlas authors use the regular Script
+    // command — but selectable-without-crashing when an imported event contains
+    // one. The code stays read-only: the import gate vouched for exactly this
+    // snippet, and an edited one would run unchecked.
+    { t: "mzScript", label: "Script (from RPG Maker)", hidden: true,
+      make: () => ({ t: "mzScript", code: "" }),
+      form(c: any, box: any) {
+        box.appendChild(h("div", { class: "dim" },
+          "A little piece of RPG Maker script that Atlas checked and runs read-only — it can look at " +
+          "switches, variables, and the party, but it can't change anything."));
+        box.appendChild(field("Script (read-only)",
+          h("textarea", { rows: 4, spellcheck: "false", readonly: "" }, c.code || "")));
+        box.appendChild(h("div", { class: "dim" },
+          "Want it to do something different? Replace it with regular Atlas commands (or a Script command)."));
+        return () => {};
+      } },
+    // MZ/MV import placeholder (Project Compass M1·C). Not offered in the Add
+    // Command picker (`hidden`), but editable-without-crashing when an imported
+    // event contains one; a no-op in the engine. See docs/mig-1-spec.md.
+    { t: "mzTodo", label: "Imported (coming in a later update)", hidden: true,
+      make: () => ({ t: "mzTodo", code: 0, params: [], label: "" }),
+      form(c: any, box: any) {
+        box.appendChild(h("div", { class: "dim" },
+          "📌 " + (c.label || "An imported RPG Maker command.")));
+        box.appendChild(h("div", { class: "dim" },
+          "This came from an RPG Maker import and isn't available in Atlas yet. It's kept safe here and will start working after a future update — you don't need to do anything. Re-importing the project once that update ships turns it on automatically."));
+        return () => {};
+      } },
+  ];
+  export const cmdDef = (t: any) => CMD_DEFS.find((d) => d.t === t);
+
+  // Build a command's parameter form into any container and return its apply() commit
+  // closure. Shared by the modal editor (editCommand) and the inline inspector, so each
+  // per-type form builder is reused verbatim regardless of where it's hosted.
+  /** A command type with no CMD_DEFS entry (a plugin-registered command, or a
+   *  project from a newer Atlas) must never crash the inspector or the edit
+   *  dialog — show what we know and apply nothing. */
+  const UNKNOWN_DEF = {
+    label: "Unknown command",
+    form(c: any, box: any) {
+      box.appendChild(h("div", { class: "dim" },
+        'Atlas doesn\'t know how to edit a "' + (c && c.t) + '" command — it was kept as-is.'));
+      return () => {};
+    },
+  };
+  export function mountForm(c: any, container: any) {
+    const def = cmdDef(c.t) || UNKNOWN_DEF;
+    return def.form(c, container) || (() => {});
+  }
+  export function editCommand(c: any, onDone: any, skipSnapshot?: any, snapFn?: any, onCancel?: any) {
+    const def = cmdDef(c.t) || UNKNOWN_DEF;
+    const box = h("div");
+    const apply = mountForm(c, box);
+    modal({
+      title: def.label,
+      content: box,
+      // A form carrying the inline condition builder needs room: a condition
+      // is one line of four or five controls, and the default 480-ish column
+      // wrapped it onto three.
+      wide: !!def.wide,
+      buttons: [
+        { label: "OK", primary: true, onClick(close: any) { if (!skipSnapshot && snapFn) snapFn(); apply(); close(); touch(); onDone(); } },
+        { label: "Cancel", onClick(close: any) { close(); (onCancel || onDone)(); } },
+      ],
+      dismissable: false,
+      dialogKeys: true,
+    });
+  }
+  export function pickCommand(onPicked: any) {
+    const PAGE_SIZE = 24;
+    const tabs = h("div", { class: "cmdtabs" });
+    const grid = h("div", { class: "cmdgrid" });
+    const m = modal({ title: "Add Command", content: h("div", null, tabs, grid), buttons: [{ label: "Cancel" }], dialogKeys: true });
+    let page = 0;
+
+    function editPreset(preset: any) {
+      const draft = { name: preset ? preset.name : "", code: preset ? preset.code : "" };
+      const nameInput = tIn(draft, "name");
+      const codeInput = h("textarea", { rows: 8, spellcheck: "false" }, draft.code);
+      const buttons: any[] = [
+        { label: "Save", primary: true, onClick(close: any) {
+          const name = nameInput.value.trim();
+          if (!name) { nameInput.focus(); return; }
+          draft.name = name;
+          draft.code = codeInput.value;
+          if (preset) Object.assign(preset, draft);
+          else {
+            S.proj.commandPresets.push({
+              id: RA.nextId(S.proj.commandPresets),
+              name: draft.name,
+              code: draft.code,
+            });
+          }
+          touch();
+          close();
+          page = Math.max(0, Math.ceil((CMD_DEFS.length + S.proj.commandPresets.length + 1) / PAGE_SIZE) - 1);
+          redraw();
+        } },
+        { label: "Cancel" },
+      ];
+      if (preset) buttons.unshift({ label: "Delete", onClick(close: any) {
+        confirmBox("Delete the saved command button \"" + preset.name + "\"?", () => {
+          S.proj.commandPresets = S.proj.commandPresets.filter((p: any) => p.id !== preset.id);
+          touch();
+          close();
+          redraw();
+        });
+      } });
+      modal({
+        title: preset ? "Edit Command Button" : "Add Command Button",
+        content: h("div", null,
+          field("Button name", nameInput),
+          field("JavaScript (runs as an event Script command; API is available as game)", codeInput),
+          preset ? h("div", { class: "dim" }, "Saved command buttons are stored with this project.") : null),
+        buttons,
+        dismissable: false,
+        dialogKeys: true,
+      });
+    }
+
+    function items() {
+      return (CMD_DEFS.filter((def) => !def.hidden).map((def) => ({ kind: "builtin", def })) as any[])
+        .concat(S.proj.commandPresets.map((preset: any) => ({ kind: "preset", preset })))
+        .concat({ kind: "add" });
+    }
+    function redraw() {
+      const all = items();
+      const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+      page = Math.max(0, Math.min(page, pages - 1));
+      tabs.innerHTML = "";
+      for (let i = 0; i < pages; i++) {
+        tabs.appendChild(h("button", {
+          class: "mini" + (i === page ? " sel" : ""),
+          onclick() { page = i; redraw(); },
+        }, "Page " + (i + 1)));
+      }
+      grid.innerHTML = "";
+      all.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).forEach((item: any) => {
+        if (item.kind === "builtin") {
+          grid.appendChild(h("button", { onclick() { m.close(); onPicked(item.def.make()); } }, item.def.label));
+        } else if (item.kind === "preset") {
+          grid.appendChild(h("button", {
+            class: "cmdpreset",
+            title: "Insert saved script. Right-click to edit or delete.",
+            onclick() { m.close(); onPicked({ t: "script", code: item.preset.code || "" }); },
+            oncontextmenu(e: any) { e.preventDefault(); editPreset(item.preset); },
+          }, item.preset.name));
+        } else {
+          grid.appendChild(h("button", { class: "cmdaddnew", onclick() { editPreset(null); } }, "+Add New"));
+        }
+      });
+    }
+    redraw();
+  }

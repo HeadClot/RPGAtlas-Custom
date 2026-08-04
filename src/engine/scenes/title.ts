@@ -1,0 +1,213 @@
+/* RPGAtlas — src/engine/scenes/title.ts
+   The title scene, extracted verbatim from the js/engine.js monolith
+   (Phase 1 Stage B): new-game state reset, the return-to-title flow (fade,
+   UI teardown), the title screen (name, "made with RPGAtlas" sub, New Game /
+   Continue / Options menu), and the procedural canvas backdrop (hills,
+   pines, stars, compass-rose watermark). Logic unchanged; mutable engine
+   state goes through the shared context. Self-installs fns.toTitle for the
+   pause menu's return-to-title item. GPL-3.0-or-later (see LICENSE). */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { Assets, Music } from "../../shared/deps.js";
+import { el, esc, sysBgm } from "../util.js";
+import { UIStack, removeUI, showList } from "../ui-stack.js";
+import { ctx, fns } from "../state/engine-context.js";
+import { G, makeActor } from "../state/game-state.js";
+import { slotInfo, saveLoadMenu, loadSlots } from "../state/save.js";
+import { defaultWorld } from "../state/default-world.js";
+import { clearTickTimers } from "../../shared/sim/timers.js";
+import { applyWindowTone } from "../state/window-tone.js";
+import { loadMap, initPlayer, syncFollowers } from "./map-runtime.js";
+import { resetPresentation } from "./presentation-runtime.js";
+import { optionsMenu } from "./menus.js";
+import { fadeTo } from "../message.js";
+import { render } from "../render-glue.js";
+import { multiplayerEnabled, playTogether } from "../co-op.js";
+
+/** `start` overrides the System start position — the editor Console's
+ *  "playtest <map> <x> <y>" boots straight there (playtest-bridge.ts). */
+export async function newGame(start?: { mapId: number; x: number; y: number }): Promise<void> {
+  // A fresh world: anything still running against the old one stops here (the
+  // same contract as toTitle and loading a save — engine-context.ts runEpoch).
+  ctx.runEpoch = (ctx.runEpoch || 0) + 1;
+  ctx.pendingGameOver = null;
+  ctx.commonParallels.clear();
+  clearTickTimers(defaultWorld);
+  G.switches = {};
+  G.vars = {};
+  G.selfSw = {};
+  G.pSwitches = {}; // per-player switches (Beacon MP7·B); empty ⇒ inert
+  G.topicsUsed = {}; // spent "ask once" dialogue topics don't survive a New Game
+  G.quests = {};
+  G.gold = ctx.proj.system.startGold || 0;
+  G.wallet = {}; // extra-currency balances all start at zero
+  G.inv = { item: {}, weapon: {}, armor: {} };
+  G.party = (ctx.proj.system.party || [])
+    .slice(0, 4)
+    .map(makeActor)
+    .filter(Boolean);
+  if (!G.party.length && ctx.proj.actors.length)
+    G.party = [makeActor(ctx.proj.actors[0].id)];
+  G.steps = 0;
+  G.timeOfDay = 12; // fresh day/night clock (loadMap applies the map's pin below)
+  G.vehicles = {}; // fresh vehicle placements (lazily seeded from System)
+  G.vehicle = null;
+  G.vehicleImages = null; // M4·A image overrides don't survive a New Game
+  // M4·B audio channels: fresh game = no command BGS, no remembered BGM, no
+  // victory/defeat jingle overrides.
+  G.bgs = null;
+  G.savedBgm = null;
+  G.jingles = null;
+  ctx.cameraZoom = 1;
+  resetPresentation(); // clear pictures/tint/timer/scroll (Project Compass M2·A)
+  // System toggles (Project Compass M2·C): fresh game re-enables everything and
+  // clears any window-colour override back to the project default.
+  G.menuDisabled = false;
+  G.saveDisabled = false;
+  G.encounterDisabled = false;
+  G.formationDisabled = false;
+  G.followersHidden = false;
+  G.windowTone = null;
+  applyWindowTone(null);
+  initPlayer(
+    start ? start.x : ctx.proj.system.startX,
+    start ? start.y : ctx.proj.system.startY,
+    ctx.proj.system.startDir,
+  );
+  G.player.transparent = !!ctx.proj.system.startTransparent;
+  await loadMap(start ? start.mapId : ctx.proj.system.startMapId);
+  syncFollowers(true);
+  ctx.scene = "map";
+}
+
+export async function toTitle(): Promise<void> {
+  await fadeTo(1, 350);
+  ctx.scene = "title";
+  // The world these runs were talking to is gone. Bumping the epoch stops
+  // every interpreter mid-list — a lost battle used to hand control back to
+  // the event, which then painted its remaining text boxes over the title
+  // screen — and clears the flags those runs owned so a New Game starts from
+  // a quiet map. (Their own `finally` blocks are epoch-guarded, so a run that
+  // unwinds after this point can't un-block the new scene.)
+  ctx.runEpoch = (ctx.runEpoch || 0) + 1;
+  ctx.pendingGameOver = null;
+  ctx.blockingRun = false;
+  ctx.parallels.clear();
+  ctx.commonParallels.clear();
+  // Waits parked on the old world's clock would otherwise keep counting (the
+  // tick pump runs before the scene gate) and resolve into the new game.
+  clearTickTimers(defaultWorld);
+  // clear leftover UI
+  while (UIStack.length) removeUI(UIStack[UIStack.length - 1]);
+  ctx.uiLayer
+    .querySelectorAll(".battlewin, .menupanel, .msgwin, .gameoverwin")
+    .forEach((n: any) => n.remove());
+  showTitle();
+  await fadeTo(0, 350);
+}
+// The pause menu's "Return to title" reaches this scene through fns.
+fns.toTitle = toTitle;
+
+export async function showTitle(): Promise<void> {
+  Music.play(sysBgm("title"));
+  const tw = el("div", "titlewin");
+  tw.appendChild(
+    el("div", "title-name", esc(ctx.proj.system.title || "Untitled")),
+  );
+  tw.appendChild(el("div", "title-sub", "made with RPGAtlas"));
+  ctx.uiLayer.appendChild(tw);
+  // decorative title backdrop on the canvas
+  drawTitleBackdrop();
+  while (true) {
+    // The same slot list the Load menu builds (save.ts loadSlots) — including
+    // the Autosave slot when the project uses it, so a game that only ever
+    // autosaved can still be continued.
+    const hasSave = loadSlots().some((s) => slotInfo(s));
+    // "Play Together" appears only when the project enables multiplayer (MP5·C);
+    // absent in the frozen fixtures, so the title menu stays byte-identical
+    // there. Built as a label→action list so ordering can't desync (dispatch is
+    // by label, not a fragile index).
+    const items: { label: string; disabled?: boolean }[] = [
+      { label: "New Game" },
+      { label: "Continue", disabled: !hasSave },
+    ];
+    if (multiplayerEnabled()) items.push({ label: "Play Together" });
+    items.push({ label: "Options" });
+    const i = await showList(items, { className: "titlemenu", cancellable: false });
+    const label = items[i].label;
+    if (label === "New Game") {
+      tw.remove();
+      await fadeTo(1, 300);
+      await newGame();
+      await render();
+      await fadeTo(0, 300);
+      return;
+    } else if (label === "Continue") {
+      const ok2 = await saveLoadMenu("load");
+      if (ok2) {
+        tw.remove();
+        await render();
+        await fadeTo(0, 300);
+        return;
+      }
+    } else if (label === "Play Together") {
+      // The modal's dark overlay covers the title; on success reconstructClient
+      // tears down the title UI (.titlewin/.titlemenu) and starts the game, so
+      // we return. On cancel the loop just re-shows the menu (tw is still here).
+      if (await playTogether()) return;
+    } else if (label === "Options") {
+      await optionsMenu();
+    }
+  }
+}
+function drawTitleBackdrop(): void {
+  const g = ctx.g2d;
+  const grad = g.createLinearGradient(0, 0, 0, ctx.SCREEN_H);
+  grad.addColorStop(0, "#1a2340");
+  grad.addColorStop(1, "#2c4a3a");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, ctx.SCREEN_W, ctx.SCREEN_H);
+  // procedural hills + trees
+  g.fillStyle = "#22382c";
+  g.beginPath();
+  g.moveTo(0, ctx.SCREEN_H);
+  for (let x = 0; x <= ctx.SCREEN_W; x += 40) {
+    g.lineTo(x, ctx.SCREEN_H - 90 - 40 * Math.sin(x / 130));
+  }
+  g.lineTo(ctx.SCREEN_W, ctx.SCREEN_H);
+  g.fill();
+  for (let i = 0; i < 9; i++) {
+    const x = 40 + i * 88,
+      y = ctx.SCREEN_H - 60 - 30 * Math.sin(x / 130);
+    Assets.drawTile(g, Assets.T.pine, x, y - 30);
+  }
+  g.fillStyle = "rgba(255,255,230,0.85)";
+  for (let i = 0; i < 40; i++) {
+    g.fillRect((i * 211) % ctx.SCREEN_W, (i * 137) % (ctx.SCREEN_H - 200), 2, 2);
+  }
+  // faint compass-rose watermark (the RPGAtlas motif)
+  g.save();
+  g.translate(ctx.SCREEN_W - 120, 130);
+  g.globalAlpha = 0.16;
+  g.strokeStyle = g.fillStyle = "#ffe2a0";
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(0, 0, 70, 0, 6.2832);
+  g.stroke();
+  g.beginPath();
+  g.arc(0, 0, 56, 0, 6.2832);
+  g.stroke();
+  for (let i = 0; i < 4; i++) {
+    g.beginPath();
+    g.moveTo(0, -64);
+    g.lineTo(9, 0);
+    g.lineTo(0, 64);
+    g.lineTo(-9, 0);
+    g.closePath();
+    g.fill();
+    g.rotate(Math.PI / 4);
+    g.globalAlpha = i % 2 === 0 ? 0.09 : 0.16; // diagonals fainter than cardinals
+  }
+  g.restore();
+}

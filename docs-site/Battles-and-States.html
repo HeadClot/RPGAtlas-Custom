@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battles & States — RPGAtlas Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+<nav>
+<a class="brand" href="index.html">RPG<span>Atlas</span></a>
+<div class="tag">Chart your world. Tell your story.</div>
+<h3 id="rpgatlas-wiki">RPGAtlas Wiki</h3>
+<p><strong>Getting started</strong></p>
+<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
+<p><strong>Building your world</strong></p>
+<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a class="active" href="Battles-and-States.html">Battles & States</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
+<p><strong>Play together (online)</strong></p>
+<ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
+<p><strong>Polish & ship</strong></p>
+<ul><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
+<p><strong>Reference</strong></p>
+<ul><li><a href="Plugin-and-Script-API.html">Plugin & Script API</a></li><li><a href="Migration-Guide.html">Migration Guide</a></li><li><a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a></li><li><a href="Resources-and-Glossary.html">Resources & Glossary</a></li></ul>
+</nav>
+<main>
+<h1 id="battles-states">Battles & States</h1>
+<p>RPGAtlas ships a complete battle system with three scheduling modes. This page explains how fights are built, the battle views and systems, status effects, and how to keep combat fun and fair.</p>
+<hr>
+<h2 id="how-a-battle-happens">How a battle happens</h2>
+<p>A battle always pits the party against a <strong>troop</strong> (a group of enemies defined in the <a href="The-Database.html#troops">Database</a>). You start one in two ways:</p>
+<ul><li><strong>A fixed battle:</strong> a <strong>Start Battle</strong> <a href="Events.html#battle-shops--audio">event command</a> — for bosses and scripted fights.</li><li><strong>Random encounters:</strong> turn them on in <strong>Map Properties</strong> with a list of troops and a rate. See <a href="Maps-and-Tiles.html#random-encounters">Maps & Tiles</a>.</li></ul>
+<p>When the player wins they gain <strong>EXP, levels, learned skills, and gold drops</strong>. You decide per-battle whether the party <strong>can escape</strong> and whether <strong>losing</strong> ends the game or lets the story continue.</p>
+<hr>
+<h2 id="the-two-battle-views">The two battle views</h2>
+<p>Set this in <strong>Database ▸ System ▸ Battle view</strong>:</p>
+<ul><li><strong>Side view</strong> — the party is shown as animated sprites facing the enemies, classic action-RPG style.</li><li><strong>Front view</strong> — you see the enemies head-on and the party is "behind the camera," classic dragon-questing style.</li></ul>
+<p>Both use the same data; it's purely how combat is presented.</p>
+<hr>
+<h2 id="the-three-battle-systems">The three battle systems</h2>
+<p>Set this in <strong>Database ▸ System ▸ Battle system</strong> — all three share the exact same damage math, states, and animations; only the <em>scheduling</em> differs:</p>
+<ul><li><strong>Turn-based</strong> (default) — classic rounds: everyone picks a command, then all actions resolve in agility order.</li><li><strong>ATB</strong> — every battler has an <strong>active-time gauge</strong> that fills with agility; they act the moment it's full. Gauges are shown on the party rows and under enemies, and pause while you're choosing a command.</li><li><strong>CTB</strong> — one battler acts at a time in an agility-driven order, previewed as a <strong>turn-order strip</strong> across the top of the battle (the highlighted chip acts now).</li></ul>
+<hr>
+<h2 id="in-battle-actions">In-battle actions</h2>
+<p>Players choose from: <strong>Attack</strong>, <strong>Skills</strong>, <strong>Items</strong>, <strong>Guard</strong>, and <strong>Escape</strong>. Turn order follows <strong>agility</strong>. Skills and items can hit one target, all enemies, one ally, or the whole party depending on their <strong>scope</strong>. Combat is enriched with pooled particle effects for hits, magic, healing, guarding, states, and defeats — and skills/weapons can play authored <a href="The-Database.html#animations">battle animations</a>.</p>
+<p><strong>Formation:</strong> the pause menu's <strong>Formation</strong> entry toggles each member between <strong>front</strong> and <strong>back row</strong>. Back row deals and takes 25% less <em>physical</em> damage and is targeted less often — put your mage there. Back-row members show a ▽ marker in battle.</p>
+<hr>
+<h2 id="damage-formulas-advanced">Damage formulas (advanced)</h2>
+<p>Every skill works fine with just <strong>Power</strong> — but if you want full control, open a skill's <strong>Effects & preview</strong> tab and fill in the <strong>Advanced damage</strong> box:</p>
+<ul><li><strong>Formula</strong> — a little math expression that <em>replaces</em> Power, written the RPG Maker way: <code>a.atk * 4 - b.def * 2</code>. <code>a</code> is the user, <code>b</code> is the target, and <code>v[n]</code> reads game variable <em>n</em>. You can use the stats <code>atk def mat mdf agi luk mhp mmp hp mp level</code>, the operators <code>+ - * / %</code>, comparisons with <code>? :</code> choices, and <code>Math.min / max / floor / ceil / round / abs / pow / sqrt / randomInt</code>.</li><li><strong>Variance %</strong> — how much the result wiggles (20 means ±20%).</li><li><strong>Can critical</strong> — lets the hit critical for ×3 damage (the chance comes from the class's crit bonus).</li></ul>
+<p>Formula hits follow the classic order: element rate → critical → variance → guard (a guarding target takes half). The box checks your formula as you type and explains, in plain words, anything it can't accept — formulas are read by Atlas's own safe checker, never run as raw code. Games imported from RPG Maker MV/MZ bring their formulas (and HP/MP drains, MP damage, %-of-max heals, and hit/evade bonuses) across automatically.</p>
+<h3 id="rolling-dice">Rolling dice</h3>
+<p>Formulas speak tabletop dice, so you can build a game that feels like Dungeons & Dragons:</p>
+<table><thead><tr><th>You write</th><th>It means</th></tr></thead><tbody><tr><td><code>2d6</code></td><td>roll two six-sided dice and add them</td></tr><tr><td><code>d20</code></td><td>roll one twenty-sided die</td></tr><tr><td><code>1d8 + a.atk</code></td><td>a die plus the attacker's Attack</td></tr><tr><td><code>2d20kh1</code></td><td><strong>advantage</strong> — roll twice, keep the higher</td></tr><tr><td><code>2d20kl1</code></td><td><strong>disadvantage</strong> — roll twice, keep the lower</td></tr><tr><td><code>4d6kh3</code></td><td>roll four, drop the lowest (the classic stat roll)</td></tr><tr><td><code>roll(a.level, 6)</code></td><td>one six-sided die per level — for a spell that grows</td></tr></tbody></table>
+<p><code>kh</code>/<code>kl</code> means "keep highest / keep lowest", and the number after it is how many dice to keep. Dice are capped at 100 dice of at most 1000 sides each, and the box tells you if you go over. The <strong>Dice</strong> buttons under the Formula field drop a ready-made roll straight in, and <strong>🎲 Roll it five times</strong> shows you what the dice actually do — much more useful than a single average when a fight's whole feel depends on the spread.</p>
+<p>Items can carry a formula too (<strong>Items ▸ Advanced recovery</strong>). There it <em>adds</em> to the flat Restores HP amount, so a classic potion is simply <code>2d4 + 2</code>.</p>
+<hr>
+<h2 id="luck-and-two-weapon-fighting">Luck and two-weapon fighting</h2>
+<ul><li><strong>Luck (LUK)</strong> is the eighth battle stat, on classes (base + growth), enemies, and equipment. It nudges chance effects the RPG Maker way: every point of Luck you have <em>over</em> your target makes your ailments and stat-drops 0.1% more likely to land (and the other way around). A game that never sets Luck plays exactly as before — the stat only shows on the Status screen once it's non-zero.</li><li><strong>Two-weapon fighting</strong>: give a class the <strong>Two-weapon fighting</strong> bonus (Classes ▸ Traits ▸ special) and its heroes get a <strong>second weapon slot</strong> in the Equip menu (set a starting one on the hero's Database entry). Both weapons' stats count toward the hero's totals.</li></ul>
+<hr>
+<h2 id="troop-battle-events">Troop battle events</h2>
+<p>Each troop (Database ▸ Troops) can carry <strong>battle-event pages</strong>: ordinary event commands that run mid-battle when their condition hits — boss dialogue, phase-change switches, reinforcement flags, scripted heals. Conditions: a <strong>turn</strong> pattern (<code>a + b·x</code>), an <strong>enemy's HP</strong> dropping to a threshold, an <strong>actor's HP</strong> dropping to a threshold, or a <strong>switch</strong> being ON (set several — all must hold). The <strong>span</strong> controls refiring: <em>once per battle</em>, <em>once per turn</em>, or <em>each time it becomes true</em>.</p>
+<hr>
+<h2 id="enemies">Enemies</h2>
+<p>Each enemy (Database ▸ Enemies) defines:</p>
+<ul><li><strong>Stats</strong> — HP, MP, attack, defense, agility, etc.</li><li><strong>Rewards</strong> — EXP and gold granted on defeat.</li><li><strong>A weighted action list</strong> — what the enemy tends to do each turn (attack, cast, etc.), with some actions more likely than others. Each row can also carry a <strong>condition</strong> — a turn pattern, own HP above/below a percentage, a random chance, or a state on itself — and rows whose condition fails drop out of that turn's pick. A dragon that breathes fire every third turn and heals under 30% HP is three rows.</li><li><strong>A procedural sprite and color tint</strong> — drawn from one of <strong>twelve monster families</strong>, each with a distinct silhouette, idle motion, and combat role. Re-tint and re-stat them to create many distinct foes from the same family.</li></ul>
+<p>Group enemies into <strong>troops</strong> to use them in battle.</p>
+<p>The same enemy database entries can also power real-time <strong>Action Combat</strong> events on maps. See <a href="Events.html#action-combat-events">Events</a> for sword-swing enemies, touch damage, knockback, and defeat self-switches.</p>
+<hr>
+<h2 id="states">States</h2>
+<p><strong>States</strong> are status effects — the spice of any battle system. Define them in <strong>Database ▸ States</strong>. Each state controls:</p>
+<table><thead><tr><th>Property</th><th>Meaning</th></tr></thead><tbody><tr><td><strong>Per-turn HP change (%)</strong></td><td>Poison drains; regen restores</td></tr><tr><td><strong>Action restriction</strong></td><td>Whether the afflicted can still act (e.g. stun = can't act)</td></tr><tr><td><strong>Duration</strong></td><td>How many turns it lasts</td></tr><tr><td><strong>Removed after battle</strong></td><td>Whether it wears off automatically when combat ends</td></tr><tr><td><strong>Removal rules</strong></td><td>Walk it off after N map steps, a chance to shake it off when hit, or shed it the moment a stun lands</td></tr><tr><td><strong>Traits</strong></td><td>Trait rows that apply <em>while the state is on</em> — a Silence that seals magic, a Blind that drops hit chance</td></tr><tr><td><strong>Colors & icon</strong></td><td>How it's shown</td></tr></tbody></table>
+<p><strong>Skills and items inflict or cure states.</strong> A poison dagger applies <em>Poison</em>; an antidote removes it (set the item's <strong>State effect</strong> to <em>Cure state</em>); a healing spell might also cure <em>Stun</em>. Classic examples to build: Poison, Stun/Paralyze, Regen, Sleep, Silence (seal the Magic type with a state trait), and Berserk.</p>
+<hr>
+<h2 id="buffs-debuffs-extra-effects">Buffs, debuffs & extra effects</h2>
+<p>Skills and items can carry <strong>Extra effects</strong> (on their Effects panel):</p>
+<ul><li><strong>Raise / Lower (buff/debuff)</strong> — nudges a stat by ±25% per step (two steps max) for a few rounds, with an ↑/↓ pop-up. Buffs tick down at the end of each round and clear after battle. A battler's <em>Debuff chance</em> trait can resist incoming debuffs.</li><li><strong>Permanent growth</strong> — adds to a stat for good (the classic stat-seed item).</li><li><strong>Teach a skill</strong> — the target learns a skill permanently.</li><li>Items can also grant <strong>TP</strong> and add or cure <strong>states</strong>.</li></ul>
+<h2 id="tp-optional">TP (optional)</h2>
+<p>Turn on <strong>Show TP in battle</strong> (Database ▸ System) or give any skill a <strong>TP cost</strong> and battles gain a third resource: every battler opens with a little TP, charges more as they <em>take damage</em>, and spends it on their big moves. Skills can also grant TP on use, traits can regenerate it each round or keep it between battles, and the <strong>Change TP</strong> / <strong>Change Enemy TP</strong> event commands adjust it mid-game. Leave the toggle off (and TP costs empty) for classic HP/MP battles.</p>
+<hr>
+<h2 id="traits-classes-enemies-states">Traits (classes, enemies & states)</h2>
+<p>Combat depth largely comes from <strong>traits</strong> — and since the trait editor is shared, they live on <strong>Classes</strong>, <strong>Enemies</strong>, and <strong>States</strong> alike (Database tabs each have a Traits panel):</p>
+<ul><li><strong>Stats and growth</strong> per level (classes), plus stat-rate and <em>debuff chance</em> rows.</li><li><strong>Elemental resistances</strong> (resist fire, weak to ice…) and <strong>attack elements</strong> (“Attack element: Fire” makes every basic attack burn), using the elements you defined in <a href="The-Database.html#types">Types</a>.</li><li><strong>State rows</strong>: infliction rates, outright <strong>Resist</strong> (immunity), and <strong>Inflict on attack</strong> (a poison blade).</li><li><strong>Skill rows</strong>: power bonuses per type, <strong>grant/seal a skill or a whole type</strong> — sealed skills grey out in battle and in the menu.</li><li><strong>Equipment permissions</strong> — which weapons/armors may be wielded, plus <strong>lock</strong> (can't change) and <strong>seal</strong> (slot forced empty) rows.</li><li><strong>Special combat effects</strong> — hit/evade/crit chances, critical dodge, magic evade, <strong>counterattack</strong>, <strong>magic bounce-back</strong>, HP/MP/TP regen, guard strength, healing received, physical/magic damage taken, EXP earned, how often enemies aim here, extra attack hits, extra actions per round, always-guarding, and more.</li></ul>
+<p>Two characters of different classes will <em>feel</em> different in battle even with the same gear — and enemies with traits (an Ice-weak Slime that sometimes counterattacks) fight back with character.</p>
+<p>A few special traits act for the whole team or on their own:</p>
+<ul><li><strong>Fights automatically</strong> — the hero skips the command menu and attacks on their own.</li><li><strong>Covers weak allies</strong> — a bodyguard steps in front of any ally below a quarter health.</li><li><strong>Party abilities</strong> (any one hero carries them for everyone): <em>half</em> or <em>no</em> random battles, <em>more first strikes</em>, <em>never surprised</em>, <em>double gold</em>, and <em>double item drops</em>.</li></ul>
+<hr>
+<h2 id="boss-fights-battle-events">Boss fights & battle events</h2>
+<p>Troops (Database ▸ Troops) are where set-piece fights come together:</p>
+<ul><li><strong>Hidden members</strong> — check <em>hidden at start</em> on a slot and that enemy waits invisibly until a battle event runs <strong>Enemy Appear</strong> (“the boss summons minions!”).</li><li><strong>Battle-event pages</strong> run commands mid-fight when their condition holds (a turn count, an enemy's or hero's HP, a switch — or only <strong>at the end of a turn</strong>). Eight battle commands act on the live troop: <strong>Change Enemy HP/MP/State</strong>, <strong>Enemy Recover All</strong>, <strong>Enemy Appear</strong>, <strong>Enemy Transform</strong>, <strong>Force Action</strong>, and <strong>Abort Battle</strong> — plus battle animations aimed at enemy slots.</li><li><strong>Start Battle branches</strong> — the event command grows optional <strong>If-Win / If-Escape / If-Lose</strong> bodies, so victory hands out the key and a loss can continue the story (with <em>Continue on loss</em>).</li><li><strong>Drops</strong> — give an enemy “1 in N” loot rows (Enemies ▸ Stats & rewards) and victory rolls them with a <em>Found a Potion!</em> line.</li></ul>
+<h2 id="escapes-first-strikes-surprise-rounds">Escapes, first strikes & surprise rounds</h2>
+<p>Mark a skill or item <strong>Escapes the battle</strong> and using it lets the party slip away — a smoke bomb. An <em>enemy</em> using one flees the fight instead (and pays no EXP, gold, or drops).</p>
+<p>Turn on <strong>RPG Maker battle pacing</strong> (Database ▸ System) and random encounters can open with a <strong>first strike</strong> (your side acts alone on turn 1) or a <strong>surprise round</strong> (the enemies do), with escape odds computed from the agility ratio that improve after each failed try — exactly how RPG Maker games feel. Imported MV/MZ games switch this on automatically; Atlas-made games keep the classic pacing until you check the box.</p>
+<hr>
+<h2 id="tips-for-fun-fair-combat">Tips for fun, fair combat</h2>
+<ul><li><strong>Start small.</strong> Test fights against one weak enemy before assembling tough troops.</li><li><strong>Give the player tools.</strong> Make sure healing items/skills exist before you deploy poison enemies.</li><li><strong>Telegraph difficulty.</strong> Use safe (encounter-free) towns between dangerous areas.</li><li><strong>Use states for variety</strong>, not frustration — long stuns or unresisted instant-death feel unfair.</li><li><strong>Reward exploration.</strong> Put the best gear behind optional <a href="Events.html#recipes">chests</a> and tough optional troops.</li><li><strong>Playtest the curve.</strong> Level a fresh party through your dungeon and watch where it spikes.</li></ul>
+<p><strong>Next:</strong> <a href="Characters-and-Custom-Assets.html">Characters & Custom Assets →</a></p>
+<footer><p>RPGAtlas is free software under the <strong>GNU GPL v3.0 or later</strong>. Your games are yours. · <a href="index.html">Home</a> · <a href="Troubleshooting-and-FAQ.html">Troubleshooting</a> · <a href="Resources-and-Glossary.html">Glossary</a></p>
+<p>Generated from the <a href="https://github.com/DriftwoodGaming/RPGAtlas/tree/main/wiki">project wiki</a> by <code>scripts/build-docs-site.mjs</code>.</p></footer>
+</main>
+</div>
+</body>
+</html>

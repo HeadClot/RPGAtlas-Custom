@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coming from RPG Maker MZ / MV — RPGAtlas Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+<nav>
+<a class="brand" href="index.html">RPG<span>Atlas</span></a>
+<div class="tag">Chart your world. Tell your story.</div>
+<h3 id="rpgatlas-wiki">RPGAtlas Wiki</h3>
+<p><strong>Getting started</strong></p>
+<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a class="active" href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
+<p><strong>Building your world</strong></p>
+<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
+<p><strong>Play together (online)</strong></p>
+<ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
+<p><strong>Polish & ship</strong></p>
+<ul><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
+<p><strong>Reference</strong></p>
+<ul><li><a href="Plugin-and-Script-API.html">Plugin & Script API</a></li><li><a href="Migration-Guide.html">Migration Guide</a></li><li><a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a></li><li><a href="Resources-and-Glossary.html">Resources & Glossary</a></li></ul>
+</nav>
+<main>
+<h1 id="coming-from-rpg-maker-mz-mv">Coming from RPG Maker MZ / MV</h1>
+<p>Already made a game in <strong>RPG Maker MV</strong> or <strong>MZ</strong>? You can bring it straight into RPGAtlas. The importer reads your own project, converts the maps, database, and events into RPGAtlas's own format, and hands you a plain-language <strong>report</strong> of what came along and what to do next. Nothing is ever thrown away silently, and your original project isn't touched.</p>
+<p>This page is the friendly guide to that move: what to expect, how to do it, and where the two engines line up.</p>
+<blockquote><p>*<em>Only your </em>own<em> project works.</em>* RPGAtlas unlocks encrypted artwork with the key stored in your own project, exactly as RPG Maker does. There's no way to import a game you don't have the project for — and that's on purpose.</p></blockquote>
+<hr>
+<h2 id="how-to-import">How to import</h2>
+<ol><li>In RPGAtlas, choose <strong>File ▸ Import from RPG Maker…</strong>.</li><li>Point it at your game. Two ways:<ul><li><strong>Choose Folder…</strong> — pick the game's project folder (the one with a <strong><code>data</code></strong> folder inside).</li><li><strong>Choose .zip File…</strong> — pick a <code>.zip</code> of that folder. Handy for moving a project between computers.</li></ul></li><li>Watch the little progress bar — reading, converting, building, done.</li><li>Read the <strong>import report</strong> when it pops up, then press <strong>▶ Playtest (F5)</strong> to try your game.</li></ol>
+<p>Your current RPGAtlas project is <strong>replaced</strong> by the import, so if you have unsaved work, use <strong>File ▸ Export Project As File…</strong> to back it up first.</p>
+<hr>
+<h2 id="the-import-report">The import report</h2>
+<p>When the import finishes you get a report — and you can reopen it any time from <strong>File ▸ Import Report</strong>. It's written in plain words, not error codes, and it's organized as:</p>
+<ul><li><strong>🎉 Everything that came along</strong> — a quick count of maps, heroes, skills, items, enemies, battle groups, common events, switches, and variables.</li><li><strong>✏️ Came in a little differently</strong> — things that converted but aren't a perfect 1:1 match.</li><li><strong>⏳ Saved for a later update</strong> — things RPGAtlas can't convert <em>yet</em>. They're kept, not deleted.</li><li><strong>📦 Left out on purpose</strong> — things RPGAtlas deliberately does differently.</li><li><strong>🔌 Add-ons (plugins)</strong> — every plugin from your game, with honest guidance (see below).</li></ul>
+<p><strong>Save it or copy it.</strong> The report has <strong>💾 Save as Text…</strong> and <strong>📋 Copy</strong> buttons, so you can keep a checklist of anything you want to touch up by hand, or paste it into a question if you get stuck.</p>
+<hr>
+<h2 id="what-comes-across">What comes across</h2>
+<table><thead><tr><th>In RPG Maker</th><th>Becomes in RPGAtlas</th></tr></thead><tbody><tr><td>Maps, layers, and their events</td><td>Maps with their layout, passability, and events</td></tr><tr><td>Tilesets (passability, terrain tags, bush/ladder/counter/damage flags)</td><td>RPGAtlas tilesets with the same tile behaviors</td></tr><tr><td>Actors, Classes, Skills, Items, Weapons, Armors</td><td>The matching <strong>Database</strong> entries</td></tr><tr><td>Enemies and Troops</td><td>Enemies and battle groups</td></tr><tr><td>States (poison, stun, buffs…)</td><td><strong>States</strong></td></tr><tr><td>Common Events</td><td>Common Events</td></tr><tr><td>Switches and Variables (with their names)</td><td>Switches and Variables</td></tr><tr><td>System settings (title, party, starting position, sounds)</td><td><strong>Database ▸ System</strong></td></tr><tr><td>Animations (MV sheet animations)</td><td>Real flipbook battle animations</td></tr><tr><td>Sounds & music (BGM, BGS, ME, SE, volume/pitch/pan)</td><td>The RPGAtlas audio system</td></tr><tr><td>The Luck stat (LUK)</td><td>The eighth battle stat — nudges ailment/debuff odds, just like RM</td></tr><tr><td>Dual wield (two-weapon fighting)</td><td>A second weapon slot on dual-wield heroes</td></tr><tr><td>Autosave</td><td>The dedicated Autosave slot (written after map moves and won battles)</td></tr><tr><td>Menu commands & item categories</td><td>The pause menu shows your picks; the item menu gets Items / Weapons / Armor / <strong>Key Items</strong> tabs</td></tr><tr><td>Key items</td><td>Real key items — their own tab, and they can't be used up by accident</td></tr></tbody></table>
+<p>A <strong>terminology cheat-sheet</strong>, if the words are new:</p>
+<table><thead><tr><th>RPG Maker word</th><th>RPGAtlas word</th></tr></thead><tbody><tr><td>Actor</td><td>Hero / character in the Database</td></tr><tr><td>Troop</td><td>Battle group</td></tr><tr><td>Tileset A/B/C…</td><td>Tileset (one sheet per set)</td></tr><tr><td>Region ID</td><td>Zone / region (used for encounters)</td></tr><tr><td>Plugin</td><td>Add-on</td></tr><tr><td>Note tag</td><td>(not used — RPGAtlas uses fields, not note boxes)</td></tr></tbody></table>
+<hr>
+<h2 id="add-ons-plugins">Add-ons (plugins)</h2>
+<p>RPG Maker plugins are little JavaScript programs written for RPG Maker's own insides — RPGAtlas <strong>can't run their code</strong>, but the import now <strong>converts every one into an Atlas plugin</strong>. Each add-on from your <code>js/plugins.js</code> becomes an entry in <strong>Tools ▸ Plugin Manager</strong> (with a <em>from RPG Maker</em> badge) that keeps:</p>
+<ul><li>the add-on's <strong>name and its original author's credit</strong> (read from the plugin's own <code>@author</code> tag — converting never takes a name off someone's work),</li><li><strong>every setting</strong> you had chosen, readable in the plugin and at <code>atlas.rm.plugins</code> for plugin writers,</li><li>the <strong>original code as clearly-marked reference text</strong> (when the <code>.js</code> file was in your project folder and isn't huge) — carried along so it's never lost, but <strong>never executed</strong>.</li></ul>
+<p>The report still gives honest guidance about the add-on's <em>behavior</em>, one of four things:</p>
+<ul><li><strong>✅ Atlas already does this</strong> — e.g. a quest journal → the built-in <strong>Quests</strong> panel.</li><li><strong>🔷 Atlas has something close</strong> — e.g. a message or battle add-on.</li><li><strong>▫️ Atlas doesn't do this — your game still plays</strong> — e.g. pixel movement, lighting, custom HUDs.</li><li><strong>❔ Settings kept, but it won't run</strong> — an add-on RPGAtlas doesn't recognize.</li></ul>
+<p>RPGAtlas <strong>never runs RPG Maker plugin code</strong> — it reads it as text only. The converted Atlas plugin is a faithful shell of credits + settings; if the add-on was doing something important to your game, the report points you at the closest built-in feature (or a plugin writer can rebuild its behavior with the Atlas plugin API, with everything they need already inside the shell).</p>
+<hr>
+<h2 id="script-snippets">Script snippets</h2>
+<p>Some RPG Maker events use tiny bits of JavaScript — a <strong>Script</strong> command, or a <strong>Conditional Branch</strong> that asks its question in code. RPGAtlas understands the most common, <strong>read-only</strong> ones:</p>
+<ul><li><code>$gameSwitches.value(n)</code> — is a switch on?</li><li><code>$gameVariables.value(n)</code> — a variable's value.</li><li><code>$gameParty.size()</code> / <code>.gold()</code> / <code>.members()</code> / <code>.hasItem(id)</code> — party facts.</li></ul>
+<p>Those convert and <strong>run for real</strong>, so a branch like <em>"is switch 3 on and variable 1 above 5?"</em> picks the right path in your game. For your safety, imported scripts only ever <strong>read</strong> game data — a snippet that <em>changes</em> data (like <code>setValue</code> or <code>gainGold</code>), or reads something RPGAtlas doesn't have yet, is listed honestly in the report and left out. Your game keeps playing either way.</p>
+<hr>
+<h2 id="bringing-in-your-artwork">Bringing in your artwork</h2>
+<p>Your maps keep their <strong>shapes, layout, and events</strong> on import. To see your own <strong>tile artwork</strong>, bring the tileset images in with the <strong>Asset Browser</strong> (Tools ▸ Asset Browser) and <strong>Import Autotile Sheet</strong> — see <a href="The-Asset-Browser.html">The Asset Browser</a> and <a href="Maps-and-Tiles.html">Maps & Tiles</a>. Character and battler images import the same way.</p>
+<hr>
+<h2 id="re-importing-later">Re-importing later</h2>
+<p>RPGAtlas keeps getting better at converting RPG Maker projects. If you imported a game a while ago and something was <strong>"saved for a later update"</strong>, just run <strong>File ▸ Import from RPG Maker…</strong> on the same folder again. The new report has a <strong>🔁 banner</strong> that tells you how many of those waiting things now come across — a re-import is a safe way to pick up whatever RPGAtlas has newly learned.</p>
+<p>(Re-importing replaces the project, so export a backup first if you've done hand-editing you want to keep.)</p>
+<hr>
+<h2 id="if-something-looks-off">If something looks off</h2>
+<ul><li><strong>A map is blank or grey?</strong> Its tiles imported by position, but the <em>artwork</em> comes in through the Asset Browser — see <a href="#bringing-in-your-artwork">Bringing in your artwork</a> above.</li><li><strong>An event does nothing at a certain step?</strong> Check the report's <strong>⏳ Saved for a later update</strong> list — that command may be waiting on a future update. It's kept, so it'll light up when support lands and you re-import.</li><li><strong>The import didn't work at all?</strong> RPGAtlas says so plainly and changes nothing on your computer. Make sure you picked the folder with a <strong><code>data</code></strong> folder inside (or a <code>.zip</code> of it). More help in <a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a>.</li></ul>
+<hr>
+<p><strong>See also:</strong> <a href="Migration-Guide.html">Migration Guide</a> (how RPGAtlas upgrades its <em>own</em> project files) · <a href="The-Database.html">The Database</a> · <a href="Events.html">Events</a> · <a href="Plugins.html">Plugins</a></p>
+<p><strong>Next:</strong> <a href="Your-First-Game.html">Make Your First Game →</a></p>
+<footer><p>RPGAtlas is free software under the <strong>GNU GPL v3.0 or later</strong>. Your games are yours. · <a href="index.html">Home</a> · <a href="Troubleshooting-and-FAQ.html">Troubleshooting</a> · <a href="Resources-and-Glossary.html">Glossary</a></p>
+<p>Generated from the <a href="https://github.com/DriftwoodGaming/RPGAtlas/tree/main/wiki">project wiki</a> by <code>scripts/build-docs-site.mjs</code>.</p></footer>
+</main>
+</div>
+</body>
+</html>
