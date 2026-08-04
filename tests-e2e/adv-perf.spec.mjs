@@ -97,6 +97,8 @@ function bigAdvancedMap() {
 test.describe("advanced-map performance budget (Phase 8)", () => {
   test("64×64 with 8 layers + 50 zones loads and walks inside the budget", async ({ page }) => {
     test.setTimeout(120_000);
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(String(error)));
     await gotoWithAtlasQuest(page, "/play.html?hd2d=0", {
       transformProject: (project) => {
         project.maps.push(bigAdvancedMap());
@@ -110,9 +112,35 @@ test.describe("advanced-map performance budget (Phase 8)", () => {
     const t0 = Date.now();
     await page.getByText("New Game", { exact: true }).click();
     await expect(page.locator(".titlewin")).toHaveCount(0, { timeout: LOAD_BUDGET_MS });
-    await expect
-      .poll(() => page.evaluate(() => window.Atlas.atlas.scene === "map" && !!window.Atlas.atlas.player))
-      .toBe(true);
+    try {
+      await expect
+        .poll(
+          () => page.evaluate(() => {
+            const atlas = window.Atlas?.atlas;
+            return atlas?.scene === "map" && !!atlas?.player;
+          }),
+          { timeout: LOAD_BUDGET_MS },
+        )
+        .toBe(true);
+    } catch (error) {
+      let state;
+      try {
+        state = await page.evaluate(() => {
+          const atlas = window.Atlas?.atlas;
+          const player = atlas?.player;
+          return {
+            scene: atlas?.scene ?? null,
+            player: player ? { x: player.x, y: player.y, moving: !!player.moving } : null,
+            errorOverlay: document.querySelector(".errbox")?.textContent?.trim() || null,
+          };
+        });
+      } catch (diagnosticError) {
+        state = { diagnosticError: String(diagnosticError) };
+      }
+      throw new Error(
+        `${error.message}\n[advanced-map diagnostics] ${JSON.stringify({ state, pageErrors })}`,
+      );
+    }
     const loadMs = Date.now() - t0;
 
     // Walk while measuring: tile entries fire the zone re-checks, steps hit the

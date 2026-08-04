@@ -24,10 +24,14 @@
 
    GPL-3.0-or-later. */
 
-import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HTML_ENTRIES, PASSTHROUGH_DIRS } from "./js/build-manifest.mjs";
+import {
+  HTML_ENTRIES,
+  OPTIONAL_PASSTHROUGH_DIRS,
+  PASSTHROUGH_DIRS,
+} from "./js/build-manifest.mjs";
 import { atlasPlayerBundle } from "./vite/atlas-player-bundle.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -66,6 +70,10 @@ function passthroughFrontend() {
       for (const name of PASSTHROUGH_DIRS) {
         const src = join(root, name);
         const dest = join(outDir, name);
+        if (!existsSync(src)) {
+          if (OPTIONAL_PASSTHROUGH_DIRS.includes(name)) continue;
+          throw new Error(`missing required passthrough source "${name}"`);
+        }
         mkdirSync(dirname(dest), { recursive: true });
         cpSync(src, dest, { recursive: true });
       }

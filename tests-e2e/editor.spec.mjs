@@ -320,6 +320,60 @@ test.describe("map connections view", () => {
     await expect(page.locator("#dock-root .cv-hud-row")).toBeVisible();
   });
 
+  test("removes stale seams when cards move apart and restores them when reconnected", async ({ page }) => {
+    await page.goto("/index.html");
+    const saveIndicator = page.locator("#save-ind");
+    await expect(saveIndicator).toBeVisible();
+    await expect(saveIndicator).toHaveText(/^✓ /);
+
+    await page.evaluate(() => {
+      const project = JSON.parse(localStorage.getItem("rpgatlas_project"));
+      const maps = project.maps.slice(0, 2);
+      for (const map of maps) {
+        map.width = 4;
+        map.height = 3;
+        delete map.worldOrigin;
+      }
+      maps[0].worldOrigin = { x: 0, y: 0 };
+      maps[1].worldOrigin = { x: maps[0].width, y: 0 };
+      project.maps = maps;
+      project.system.startMapId = maps[0].id;
+      localStorage.setItem("rpgatlas_project", JSON.stringify(project));
+    });
+    await page.reload();
+    await expect(saveIndicator).toHaveText(/^✓ /);
+
+    await page.locator("#menus .menu-label", { hasText: "View" }).dispatchEvent("mousedown");
+    await page.locator(".menu-drop .menu-item", { hasText: "Map Connections" }).click();
+    await expect(page.locator("#dock-root .cv-map")).toHaveCount(2);
+    await expect(page.locator("#dock-root .cv-connection")).toHaveCount(1);
+
+    const cards = page.locator("#dock-root .cv-map");
+    for (let cycle = 0; cycle < 2; cycle++) {
+      const firstBefore = await cards.nth(0).boundingBox();
+      const secondBefore = await cards.nth(1).boundingBox();
+      expect(firstBefore).not.toBeNull();
+      expect(secondBefore).not.toBeNull();
+      await page.mouse.move(secondBefore.x + secondBefore.width / 2, secondBefore.y + secondBefore.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(secondBefore.x + secondBefore.width / 2 + 80, secondBefore.y + secondBefore.height / 2, { steps: 4 });
+      await page.mouse.up();
+      await expect(page.locator("#dock-root .cv-connection")).toHaveCount(0);
+
+      const firstAfter = await cards.nth(0).boundingBox();
+      const secondAfter = await cards.nth(1).boundingBox();
+      expect(firstAfter).not.toBeNull();
+      expect(secondAfter).not.toBeNull();
+      const targetX = firstAfter.x + firstAfter.width + secondAfter.width / 2;
+      const targetY = secondAfter.y + secondAfter.height / 2;
+      await page.mouse.move(secondAfter.x + secondAfter.width / 2, secondAfter.y + secondAfter.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(targetX, targetY, { steps: 4 });
+      await page.mouse.up();
+      await expect(page.locator("#dock-root .cv-connection")).toHaveCount(1);
+    }
+  });
+
   test("nudges the selected card one tile with each arrow key and persists the origin", async ({ page }) => {
     await page.goto("/index.html");
     const saveIndicator = page.locator("#save-ind");

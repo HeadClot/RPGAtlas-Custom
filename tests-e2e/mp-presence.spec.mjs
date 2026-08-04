@@ -32,12 +32,34 @@ async function bootToStableMap(page) {
   await page.clock.runFor(700); // clear both newGame fades
   await expect(page.locator(".titlewin")).toHaveCount(0);
   await page.clock.runFor(200); // land walk/idle animation on a stable frame
+  await waitForBlankOverlay(page);
 }
 
 /** The #gamecanvas 2D overlay as a data URL. Under the HD path this surface
  *  holds only overlays (name tags, combat, presentation) — blank when idle. */
 async function overlay(page) {
   return page.evaluate(() => document.getElementById("gamecanvas").toDataURL());
+}
+
+async function blankOverlay(page) {
+  return page.evaluate(() => {
+    const canvas = document.getElementById("gamecanvas");
+    const pixels = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 0; i < pixels.length; i++) if (pixels[i] !== 0) return false;
+    return canvas.toDataURL();
+  });
+}
+
+async function waitForBlankOverlay(page) {
+  // The map render is async on the HD path. Capture the blank check and the
+  // data URL in one browser evaluation so a late title frame cannot slip in
+  // between the two operations.
+  for (let i = 0; i < 10; i++) {
+    await page.clock.runFor(50);
+    const frame = await blankOverlay(page);
+    if (frame) return frame;
+  }
+  throw new Error("Timed out waiting for the idle overlay");
 }
 
 test.describe("MP4·A remote-player presence", () => {
@@ -54,7 +76,7 @@ test.describe("MP4·A remote-player presence", () => {
     expect(await page.evaluate(() => window.RPGATLAS_MP.roster().players.size)).toBe(0);
 
     // Idle overlay, alone on the map.
-    const alone = await overlay(page);
+    const alone = await waitForBlankOverlay(page);
 
     // A second player "joins" one tile to the player's right on the same map.
     const placed = await page.evaluate(() =>
@@ -72,8 +94,7 @@ test.describe("MP4·A remote-player presence", () => {
     // (deterministic under the frozen clock: nothing else changed).
     expect(await page.evaluate(() => window.RPGATLAS_MP.removePlayer(2))).toBe(true);
     expect(await page.evaluate(() => window.RPGATLAS_MP.roster().players.size)).toBe(0);
-    await page.clock.runFor(100);
-    expect(await overlay(page)).toBe(alone);
+    expect(await waitForBlankOverlay(page)).toBe(alone);
 
     expect(errors, `console/page errors:\n${errors.join("\n")}`).toEqual([]);
   });

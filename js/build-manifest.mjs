@@ -55,6 +55,11 @@ export const FRONTEND_INCLUDE = [
   "bin",
 ];
 
+/* Native launcher binaries are generated locally and are intentionally not
+   committed to the repository. Keep the path in the frontend manifest when a
+   developer has built one, but let web/CI builds proceed without it. */
+export const OPTIONAL_PASSTHROUGH_DIRS = ["bin"];
+
 /* The two HTML entry points Vite builds as multi-page bundles. */
 export const HTML_ENTRIES = ["index.html", "play.html"];
 

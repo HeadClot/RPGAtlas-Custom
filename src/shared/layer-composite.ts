@@ -27,10 +27,22 @@ type DrawTile = (g: any, id: number, dx: number, dy: number) => void;
 export function drawEntryTiles(
   g: any, arr: number[], m: any, drawTile: DrawTile, TILE: number, tint?: string, frame = 0,
 ): void {
+  // Advanced maps commonly carry optional detail layers that are empty or
+  // sparse. Avoid walking/calling the shared cell helper for transparent cells
+  // while preserving the exact draw order and blend state for painted cells.
+  let hasTiles = false;
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i]) { hasTiles = true; break; }
+  }
+  if (!hasTiles) return;
+
   const paint = (dst: any) => {
     for (let y = 0; y < m.height; y++) {
+      const row = y * m.width;
       for (let x = 0; x < m.width; x++) {
-        drawLayerCell(dst, arr, m.width, m.height, x, y, x * TILE, y * TILE, TILE, drawTile, frame);
+        if (arr[row + x]) {
+          drawLayerCell(dst, arr, m.width, m.height, x, y, x * TILE, y * TILE, TILE, drawTile, frame);
+        }
       }
     }
   };

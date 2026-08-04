@@ -5,6 +5,36 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Advanced-map CI readiness",
+    summary:
+      "Large advanced maps now prerender more efficiently and report useful browser diagnostics when CI cannot finish loading them.",
+    items: [
+      "Skip empty and transparent cells while compositing generalized tile layers.",
+      "Keep the 8-second advanced-map load budget while reporting scene, player, overlay, and page-error state on readiness failures.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "CI builds without a local launcher binary",
+    summary:
+      "Web builds now finish on clean checkouts even when the locally generated Windows launcher is absent.",
+    items: [
+      "Keep bin/RPGAtlasLauncher.exe available to builds when developers generate it locally.",
+      "Treat the optional bin passthrough as absent in GitHub Actions instead of failing the Vite build.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "Map Connections clears stale seams",
+    summary:
+      "Map Connections now removes old green seam lines when map cards are moved apart.",
+    items: [
+      "Redraw only the seams for maps that are currently touching.",
+      "Moving cards apart and reconnecting them no longer leaves duplicate or obsolete lines.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Node 24 CI runtime",
     summary:
       "GitHub Actions now uses the supported Node 24 runtime for checkout, setup, and project verification jobs.",
