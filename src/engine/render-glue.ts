@@ -33,6 +33,7 @@ import { updateHud } from "./hud.js";
 import { drawPresentation, scrollOffsetPx } from "./scenes/presentation-runtime.js";
 import { motionReduced } from "./state/player-options.js";
 import { weatherMotionScale } from "../shared/a11y.js";
+import { clampCameraAxis, connectedCameraBounds } from "../shared/map-connections.js";
 // The fixed tick length is owned by the loop (src/engine/loop.ts); render()
 // only uses it to interpolate by the leftover fraction. Function-scope use
 // only, so the loop↔render-glue import cycle is eval-order safe.
@@ -91,8 +92,13 @@ export async function render(): Promise<void> {
   const loopV = !hdLive && !!(ctx.map.loop && ctx.map.loop.v);
   const rawCamX = pix * TILE + TILE / 2 - viewW / 2 + scr.x;
   const rawCamY = piy * TILE + TILE / 2 - viewH / 2 + scr.y;
-  const camX = loopH ? rawCamX : clamp(rawCamX, 0, Math.max(0, ctx.map.width * TILE - viewW));
-  const camY = loopV ? rawCamY : clamp(rawCamY, 0, Math.max(0, ctx.map.height * TILE - viewH));
+  const cameraBounds = connectedCameraBounds(ctx.map, connected.map((neighbor) => neighbor.map));
+  const camX = loopH ? rawCamX : clampCameraAxis(
+    rawCamX, viewW, cameraBounds.minX * TILE, cameraBounds.maxX * TILE,
+  );
+  const camY = loopV ? rawCamY : clampCameraAxis(
+    rawCamY, viewH, cameraBounds.minY * TILE, cameraBounds.maxY * TILE,
+  );
   const drawables = [];
   for (const rt of ctx.evRTs) {
     if (rt.erased || !rt.page || rt.charsetIdx < 0) continue;

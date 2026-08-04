@@ -17,6 +17,7 @@ export interface BoundaryCrossing {
   fromX: number; fromY: number; toX: number; toY: number;
 }
 export interface MapConnectionSegment { x1: number; y1: number; x2: number; y2: number; }
+export interface CameraBounds { minX: number; minY: number; maxX: number; maxY: number; }
 export interface LayoutIssue {
   kind: "invalid-origin" | "overlap" | "gap" | "loop-conflict";
   mapIds: number[]; message: string; distance?: number;
@@ -39,6 +40,35 @@ function rect(map: any): { x: number; y: number; right: number; bottom: number }
 function overlapStart(a0: number, a1: number, b0: number, b1: number): { start: number; length: number } | null {
   const start = Math.max(a0, b0), end = Math.min(a1, b1);
   return end > start ? { start, length: end - start } : null;
+}
+
+/** Return camera-space tile bounds for an active map and its already-resolved
+ * neighboring maps. The active map is always anchored at (0, 0), while
+ * placed neighbors extend the legal camera area in their world-space
+ * direction. Legacy maps without a world origin retain their local bounds. */
+export function connectedCameraBounds(activeMap: any, neighbors: any[] = []): CameraBounds {
+  if (!validMap(activeMap)) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  const activeRect = rect(activeMap);
+  if (!activeRect) {
+    return { minX: 0, minY: 0, maxX: activeMap.width, maxY: activeMap.height };
+  }
+  let minX = 0, minY = 0, maxX = activeMap.width, maxY = activeMap.height;
+  for (const neighbor of Array.isArray(neighbors) ? neighbors : []) {
+    const r = rect(neighbor);
+    if (!r) continue;
+    minX = Math.min(minX, r.x - activeRect.x);
+    minY = Math.min(minY, r.y - activeRect.y);
+    maxX = Math.max(maxX, r.right - activeRect.x);
+    maxY = Math.max(maxY, r.bottom - activeRect.y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+/** Clamp a camera origin to a world interval. If the viewport is wider than
+ * the interval, keep its origin at the interval's minimum just like the
+ * legacy bounded-map camera did at zero. */
+export function clampCameraAxis(raw: number, viewSize: number, min: number, max: number): number {
+  return Math.max(min, Math.min(raw, Math.max(min, max - viewSize)));
 }
 
 /** Return each touching pair once. Pair order is stable by input order. */

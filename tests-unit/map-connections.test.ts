@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   connectionSegment,
+  clampCameraAxis,
+  connectedCameraBounds,
   deriveConnections,
   resolveBoundaryCrossing,
   validateLayout,
@@ -61,5 +63,25 @@ describe("map connection geometry", () => {
     expect(localToWorld(m, 2, 1)).toEqual({ x: -1, y: 9 });
     expect(worldToLocal(m, -1, 9)).toEqual({ x: 2, y: 1 });
     expect(worldToLocal(m, 99, 99)).toBeNull();
+  });
+
+  it("extends camera bounds across an east or west neighbor", () => {
+    const active = map(1, 0, 0);
+    expect(connectedCameraBounds(active, [map(2, 4, 0)])).toEqual({ minX: 0, minY: 0, maxX: 8, maxY: 3 });
+    expect(connectedCameraBounds(active, [map(2, -4, 0)])).toEqual({ minX: -4, minY: 0, maxX: 4, maxY: 3 });
+  });
+
+  it("extends camera bounds across a north or south neighbor", () => {
+    const active = map(1, 0, 0);
+    expect(connectedCameraBounds(active, [map(2, 0, 3)])).toEqual({ minX: 0, minY: 0, maxX: 4, maxY: 6 });
+    expect(connectedCameraBounds(active, [map(2, 0, -3)])).toEqual({ minX: 0, minY: -3, maxX: 4, maxY: 3 });
+  });
+
+  it("keeps legacy maps isolated and anchors oversized views", () => {
+    const active = { id: 1, width: 4, height: 3 };
+    expect(connectedCameraBounds(active, [map(2, 4, 0)])).toEqual({ minX: 0, minY: 0, maxX: 4, maxY: 3 });
+    expect(clampCameraAxis(10, 8, 0, 4)).toBe(0);
+    expect(clampCameraAxis(-10, 2, -4, 4)).toBe(-4);
+    expect(clampCameraAxis(10, 2, -4, 4)).toBe(2);
   });
 });

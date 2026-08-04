@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Connected-map camera visibility",
+    summary:
+      "The camera now pans into touching neighboring maps instead of stopping at the active map's edge and revealing the black background.",
+    items: [
+      "Extend follow-camera and scripted Scroll Map bounds across maps placed edge-to-edge in Map Connections.",
+      "Keep ordinary Transfer Player destinations isolated and preserve existing seamless border movement.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     version: "2.3.1",
     title: "Stable animated-terrain E2E timing",
     summary:
