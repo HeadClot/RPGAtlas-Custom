@@ -17,6 +17,7 @@ import { defaultWorld } from "./default-world.js";
 import { clearTickTimers } from "../../shared/sim/timers.js";
 import { loadMap, initPlayer, syncFollowers } from "../scenes/map-runtime.js";
 import { serializePresentation, restorePresentation } from "../scenes/presentation-runtime.js";
+import { toCombatNetState } from "../../shared/sim/action-combat.js";
 import { applyWindowTone } from "./window-tone.js";
 import { browserSaveRepository as saves } from "../../platform/browser/save-repository.js";
 
@@ -145,11 +146,19 @@ function buildSavePayload(): any {
         windowTone: G.windowTone || null,
       },
       mapId: G.mapId,
+      combatLedger: Array.isArray((G as any).combatLedger) ? (G as any).combatLedger.slice(-1024) : [],
+      combatEvents: (ctx.evRTs || []).filter((rt: any) => rt.combat).map((rt: any) => ({
+        id: rt.ev.id, x: rt.x, y: rt.y, erased: !!rt.erased,
+        combat: { ...toCombatNetState(rt.combat), hp: Number(rt.combat.hp || 0), maxHp: Number(rt.combat.maxHp || 0), respawn: Number(rt.combat.respawn || 0) },
+      })),
       player: {
         x: G.player.x,
         y: G.player.y,
         dir: G.player.dir,
         transparent: !!G.player.transparent,
+        hp: Number((G.player as any).hp ?? (G.party[0] && G.party[0].hp) ?? 0),
+        maxHp: Number((G.player as any).maxHp ?? (G.party[0] && param(G.party[0], "mhp")) ?? 100),
+        combat: (G.player as any).combat ? toCombatNetState((G.player as any).combat) : null,
       },
     },
   };
@@ -208,7 +217,17 @@ async function applySave(d: any): Promise<void> {
   const p = d.player || {};
   initPlayer(p.x || 0, p.y || 0, p.dir);
   G.player.transparent = !!p.transparent;
+  if (p.hp != null) (G.player as any).hp = Number(p.hp) || 0;
+  if (p.maxHp != null) (G.player as any).maxHp = Number(p.maxHp) || 100;
+  if (p.combat && (G.player as any).combat) Object.assign((G.player as any).combat, p.combat);
   await loadMap(d.mapId);
+  for (const saved of d.combatEvents || []) {
+    const rt = (ctx.evRTs || []).find((item: any) => item.ev && item.ev.id === saved.id);
+    if (!rt) continue;
+    rt.x = rt.tx = Number(saved.x ?? rt.x); rt.y = rt.ty = Number(saved.y ?? rt.y);
+    rt.erased = !!saved.erased;
+    if (saved.combat && rt.combat) Object.assign(rt.combat, saved.combat, { hitIds: new Set() });
+  }
   syncFollowers(true);
   // After loadMap: the saved clock wins over the map's on-entry pin (the
   // player was already on this map at that time). Old saves lack the field.

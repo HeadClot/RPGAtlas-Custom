@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Action combat authoring and persistence",
+    summary:
+      "Expanded reusable field-combat authoring and enabled persistent, server-authoritative combat recovery across Node and Cloudflare hosts.",
+    items: [
+      "Added the Attack Profiles database tab, actor/weapon/armor/enemy/page combat settings, VFX/SFX selectors, and timeline previews.",
+      "Persist player HP/death/revive state, enemy defeat/respawn state, and a bounded 1,024-entry combat ledger through saves, worlds, and friend-room snapshots.",
+      "Enabled the shared Cloudflare world and friend-room action-combat adapter with cold-start snapshot recovery and validation coverage.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Authoritative action combat",
     summary:
       "Added a shared Minish Cap–style real-time PvE combat layer for solo play and supported multiplayer rooms.",

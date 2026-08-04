@@ -520,6 +520,14 @@ export class BeaconRoom {
   }
 
   /** Force-close the room: kick every connected member, drop all state. */
+  snapshotData(): JsonValue | null {
+    return this.sim && this.sim.snapshotData ? this.sim.snapshotData() : null;
+  }
+
+  restoreData(data: JsonValue): void {
+    if (this.sim && this.sim.restoreData) this.sim.restoreData(data);
+  }
+
   close(reason: "room-closed" = "room-closed"): void {
     for (const m of this.members.values()) {
       if (m.conn) {

@@ -17,6 +17,8 @@ import {
   STAT_KEYS, listFormTab, nameRefresher, iconPickerField,
   traitsEditor, subTabs,
 } from "./shared";
+import { combatPresentationFields, combatProfileIdField } from "./combat-tab";
+import { resolveActorCombat, resolveEnemyCombat } from "../../shared/sim/combat-profiles";
 
 export const actorsTab = () => listFormTab({
   kind: "actors",
@@ -40,6 +42,15 @@ export const actorsTab = () => listFormTab({
     if (e.weapon2Id == null) e.weapon2Id = 0;
     box.appendChild(row(field("Second weapon (needs the class's Two-weapon fighting bonus)",
       sel(e, "weapon2Id", dbOpts(S.proj.weapons, "(none)")))));
+    e.combat = e.combat || {};
+    box.appendChild(h("div", { class: "subhead" }, "Action Combat profile"));
+    box.appendChild(row(combatProfileIdField(e.combat), field("Max HP override", nIn(e.combat, "maxHp", 1, 99999)),
+      field("Invulnerability frames", nIn(e.combat, "invulnFrames", 0, 600)), field("Stagger resistance", nIn(e.combat, "staggerResistance", 0, 600))));
+    box.appendChild(row(field("Revive frames", nIn(e.combat, "reviveFrames", 0, 36000)), field("Revive HP", nIn(e.combat, "reviveHp", 1, 99999)),
+      field("Death behavior", sel(e.combat, "defeatBehavior", [{ v: "checkpoint", l: "Return to checkpoint" }, { v: "respawn", l: "Respawn in place" }, { v: "gameOver", l: "Game over" }]))));
+    box.appendChild(combatPresentationFields(e.combat));
+    const resolved = resolveActorCombat(S.proj, e.id);
+    box.appendChild(h("div", { class: "dim" }, "Resolved combat: " + resolved.damage.toFixed(1) + " damage · " + resolved.maxHp + " HP · range " + resolved.range + " · profile " + (resolved.profileId || "default")));
     rp();
   },
 });
@@ -434,6 +445,7 @@ export const enemiesTab = () => listFormTab({
     box.appendChild(subTabs("enemies", [
       { label: "Stats & rewards", build: buildStats },
       { label: "Actions (AI)", build: buildActions },
+      { label: "Action Combat", build: buildCombat },
       // M3·B: enemies carry their own traits (element/state rates, counters…).
       { label: "Traits", build: () => traitsEditor(e, "No traits. This enemy uses the engine's normal rules.") },
     ]));
@@ -578,6 +590,24 @@ export const enemiesTab = () => listFormTab({
       redrawA();
       p.appendChild(h("div", { class: "dim" }, "Each turn the enemy picks one action by weight among the rows whose condition holds."));
       p.appendChild(abox);
+      return p;
+    }
+
+    function buildCombat() {
+      const p = h("div");
+      e.actionCombat = e.actionCombat || {};
+      p.appendChild(h("div", { class: "dim" }, "Reusable defaults for Action Combat event pages. Pages can inherit these values and override selected settings."));
+      p.appendChild(row(combatProfileIdField(e.actionCombat), field("HP", nIn(e.actionCombat, "hp", 1, 99999)), field("Touch damage", nIn(e.actionCombat, "touchDamage", 0, 999)), field("AI", sel(e.actionCombat, "ai", RA.ACTION_COMBAT_AI))));
+      p.appendChild(row(field("Cooldown", nIn(e.actionCombat, "attackCooldown", 0, 3600)), field("Telegraph", nIn(e.actionCombat, "attackWindupFrames", 0, 180)), field("Active", nIn(e.actionCombat, "attackActiveFrames", 1, 180)), field("Recovery", nIn(e.actionCombat, "attackRecoveryFrames", 0, 600))));
+      p.appendChild(row(field("Range", nIn(e.actionCombat, "attackRange", 1, 16)), field("Knockback", nIn(e.actionCombat, "knockbackTiles", 0, 8)), field("Stagger", nIn(e.actionCombat, "staggerFrames", 0, 600)), field("Respawn", nIn(e.actionCombat, "respawnFrames", 0, 36000))));
+      p.appendChild(row(field("Invulnerability", nIn(e.actionCombat, "invulnFrames", 0, 600)), field("Persistent defeat", chk(e.actionCombat, "persistentDefeat")), field("Defeat switch", sel(e.actionCombat, "defeatSelfSwitch", [{ v: "", l: "None" }, { v: "A", l: "A" }, { v: "B", l: "B" }, { v: "C", l: "C" }, { v: "D", l: "D" }]))));
+      p.appendChild(combatPresentationFields(e.actionCombat));
+      const resolved = resolveEnemyCombat(S.proj, { combat: {
+        enabled: true, enemyId: e.id, ai: "none", hp: 0, touchDamage: 0,
+        knockbackTiles: 1, invulnFrames: 24, defeatSelfSwitch: "", inheritDefaults: true,
+        ...e.actionCombat,
+      } });
+      if (resolved) p.appendChild(h("div", { class: "dim" }, "Resolved enemy combat: " + resolved.hp + " HP · contact " + resolved.touchDamage + " · range " + resolved.attackRange + " · profile " + (resolved.profileId || "default")));
       return p;
     }
   },

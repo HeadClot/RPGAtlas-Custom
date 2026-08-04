@@ -31,6 +31,7 @@ import { Zone, type ZoneApi, type ZoneOutbox } from "./zone.js";
 import { DEFAULT_WORLD_LIMITS, type BeaconLimits, type WorldLimits } from "./config.js";
 import type { Clock } from "./room.js";
 import type { ClientMessage, JsonValue, PlayerId } from "../../../src/shared/net/protocol.js";
+import type { ZoneSnapshot } from "./store.js";
 
 /** Where a RoomWorld sends its outbound frames — back to the room's member
  *  sockets (in-process: the room's connection map; worker: across the thread
@@ -55,6 +56,8 @@ export interface RoomSim {
   /** Advance one 60 Hz tick (in-process driver; a worker self-ticks and no-ops). */
   tick(): void;
   stop(): void;
+  snapshotData?(): JsonValue;
+  restoreData?(data: JsonValue): void;
 }
 
 export interface RoomWorldOptions {
@@ -96,6 +99,7 @@ export class RoomWorld implements RoomSim {
   /** World-shared state (switch:N / var:N / timeOfDay) so a zone created later
    *  by a transfer inherits the room's current world flags. */
   private readonly shared = new Map<string, JsonValue>();
+  private readonly pendingSnapshots = new Map<number, ZoneSnapshot>();
   private readonly outbox: ZoneOutbox;
   /** Scratch world for pure project reads (resolveSpawn) — never ticked. */
   private readonly scratch: World;
@@ -171,6 +175,23 @@ export class RoomWorld implements RoomSim {
     this.names.clear();
   }
 
+  snapshotData(): JsonValue {
+    const zones: JsonValue[] = [];
+    for (const [mapId, zone] of this.zones) if (zone instanceof Zone) zones.push({ mapId, snapshot: zone.snapshot() as unknown as JsonValue });
+    return { shared: Object.fromEntries(this.shared), zones } as unknown as JsonValue;
+  }
+
+  restoreData(data: JsonValue): void {
+    if (!data || typeof data !== "object") return;
+    const raw = data as Record<string, JsonValue>;
+    if (raw.shared && typeof raw.shared === "object") for (const [key, value] of Object.entries(raw.shared)) this.shared.set(key, value as JsonValue);
+    if (Array.isArray(raw.zones)) for (const value of raw.zones) {
+      const row = value && typeof value === "object" ? value as Record<string, JsonValue> : null;
+      if (!row || !row.snapshot || typeof row.mapId !== "number") continue;
+      this.pendingSnapshots.set(row.mapId, row.snapshot as unknown as ZoneSnapshot);
+    }
+  }
+
   /** Live zone count (tests / logging). */
   get zoneCount(): number {
     return this.zones.size;
@@ -209,6 +230,8 @@ export class RoomWorld implements RoomSim {
       // Replay the room's current world-shared state into the fresh zone so a
       // transfer target sees the switches/vars the party already flipped.
       for (const [key, value] of this.shared) zone.applyShared(key, value);
+      const saved = this.pendingSnapshots.get(mapId);
+      if (saved && zone instanceof Zone) { zone.restore(saved); this.pendingSnapshots.delete(mapId); }
     }
     return zone;
   }

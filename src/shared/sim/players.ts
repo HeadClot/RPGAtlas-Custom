@@ -61,6 +61,9 @@ export interface PlayerEntity {
   combat: CombatState;
   /** Authoritative runtime HP; omitted from network state until HUD support is added. */
   hp?: number;
+  maxHp?: number;
+  /** Remaining revive/respawn ticks; 0 means immediately revivable. */
+  revive?: number;
   /** Social overlay (MP4·C fills these): a transient emote bubble / say line,
    *  each stamped with the world tick it started so the client can expire it.
    *  Null in stage A. */
@@ -159,6 +162,8 @@ export function addPlayer(world: World, id: PlayerId, name: string, spawn: Spawn
     animT: 0,
     combat: createCombatState(),
     hp: 100,
+    maxHp: 100,
+    revive: 0,
     emote: null,
     say: null,
   };
@@ -234,6 +239,9 @@ export interface PlayerState {
   moving: boolean;
   animT: number;
   combat?: CombatNetState;
+  hp?: number;
+  maxHp?: number;
+  revive?: number;
 }
 
 function wireCombat(state: CombatState | undefined): CombatNetState | undefined {
@@ -259,6 +267,9 @@ export function localPlayerState(world: World, name: string, charset: string): P
     moving: !!p.moving,
     animT: p.animT || 0,
     combat: wireCombat(p.combat),
+    hp: typeof p.hp === "number" ? p.hp : undefined,
+    maxHp: typeof p.maxHp === "number" ? p.maxHp : undefined,
+    revive: typeof p.revive === "number" ? p.revive : undefined,
   };
 }
 
@@ -268,6 +279,9 @@ export function entityState(e: PlayerEntity): PlayerState {
     id: e.id, name: e.name, charset: e.charset, mapId: e.mapId,
     x: e.x, y: e.y, rx: e.rx, ry: e.ry, dir: e.dir, moving: e.moving, animT: e.animT,
     combat: wireCombat(e.combat),
+    hp: e.hp,
+    maxHp: e.maxHp,
+    revive: e.revive,
   };
 }
 
@@ -320,6 +334,9 @@ export function applyPlayerStates(
     e.dir = s.dir;
     e.moving = s.moving;
     e.animT = s.animT;
+    if (typeof s.hp === "number") e.hp = s.hp;
+    if (typeof s.maxHp === "number") e.maxHp = s.maxHp;
+    if (typeof s.revive === "number") e.revive = s.revive;
     if (s.combat) {
       e.combat.phase = s.combat.phase;
       e.combat.dir = s.combat.dir;

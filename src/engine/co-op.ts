@@ -238,6 +238,9 @@ function writeLocalPlayer(s: PlayerState): void {
         me.dir = s.dir;
         me.moving = false;
         me.route = null;
+        if (typeof s.hp === "number") { me.hp = s.hp; if (G.party[0]) G.party[0].hp = s.hp; }
+        if (typeof s.maxHp === "number") me.maxHp = s.maxHp;
+        if (typeof s.revive === "number") me.revive = s.revive;
         applyLocalCombat(me, s);
         syncFollowers(true);
       } finally {
@@ -255,6 +258,9 @@ function writeLocalPlayer(s: PlayerState): void {
   p.dir = s.dir;
   p.moving = s.moving;
   p.animT = s.animT;
+  if (typeof s.hp === "number") { p.hp = s.hp; if (G.party[0]) G.party[0].hp = s.hp; }
+  if (typeof s.maxHp === "number") p.maxHp = s.maxHp;
+  if (typeof s.revive === "number") p.revive = s.revive;
   applyLocalCombat(p, s);
 }
 

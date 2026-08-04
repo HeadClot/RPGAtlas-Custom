@@ -243,6 +243,12 @@ const RA = {
     { key: "escape", label: "Escape battle", def: "escape" },
     { key: "levelup", label: "Level up / victory", def: "levelup" },
     { key: "gameover", label: "Game over", def: "gameover" },
+    { key: "combatAttack", label: "Action-combat attack", def: "hit" },
+    { key: "combatTelegraph", label: "Action-combat telegraph", def: "buzzer" },
+    { key: "combatHit", label: "Action-combat hit", def: "hit" },
+    { key: "combatHurt", label: "Action-combat hurt", def: "hit" },
+    { key: "combatDefeat", label: "Action-combat defeat", def: "levelup" },
+    { key: "combatRevive", label: "Action-combat revive", def: "heal" },
   ],
   defaultSounds() {
     const o = {};
@@ -660,7 +666,19 @@ const RA = {
   // an older one), migrateProject() runs NO steps and does NOT touch the
   // stamped formatVersion (never downgrade it) — the project is returned as-is
   // so an older build doesn't silently mangle a newer save format.
-  FORMAT_VERSION: 2,
+  defaultAttackProfile() {
+    return {
+      id: 0, name: "Attack", damage: 1, damageScale: 1,
+      windupFrames: 3, activeFrames: 9, recoveryFrames: 6, cooldown: 0,
+      range: 1, knockbackTiles: 1, staggerFrames: 10, hitbox: "directional",
+      animationId: 0, telegraphAnimationId: 0, hitAnimationId: 0,
+      hurtAnimationId: 0, defeatAnimationId: 0, reviveAnimationId: 0,
+      attackSound: "combatAttack", telegraphSound: "combatTelegraph",
+      hitSound: "combatHit", hurtSound: "combatHurt",
+      defeatSound: "combatDefeat", reviveSound: "combatRevive",
+    };
+  },
+  FORMAT_VERSION: 3,
   migrations: [
     {
       // v0 -> v1: the pre-existing ad-hoc migration (decor2 layer, shadows,
@@ -679,6 +697,12 @@ const RA = {
       // behavior is unchanged until an author uses them.
       version: 2,
       migrate(p) { RA._migrateV1toV2(p); },
+    },
+    {
+      // v2 -> v3 (Action Combat Authoring): reusable attack profiles, actor /
+      // weapon / enemy combat data, and explicit page inheritance markers.
+      version: 3,
+      migrate(p) { RA._migrateV2toV3(p); },
     },
   ],
   // upgrade older projects in place (adds the decor2 layer, shadows,
@@ -893,6 +917,18 @@ const RA = {
       p.meta.builtinsSeeded = true;
     }
   },
+  _migrateV2toV3(p) {
+    if (!Array.isArray(p.attackProfiles)) p.attackProfiles = [];
+    for (const page of (p.maps || []).flatMap((m) => (m.events || []).flatMap((e) => e.pages || []))) {
+      if (!page.combat || typeof page.combat !== "object") continue;
+      // Existing pages retain their fully authored legacy values. New pages
+      // created after this migration opt into database/profile inheritance.
+      if (page.combat.inheritDefaults == null) page.combat.inheritDefaults = false;
+    }
+    for (const actor of p.actors || []) if (actor.combat && typeof actor.combat !== "object") delete actor.combat;
+    for (const weapon of p.weapons || []) if (weapon.combat && typeof weapon.combat !== "object") delete weapon.combat;
+    for (const enemy of p.enemies || []) if (enemy.actionCombat && typeof enemy.actionCombat !== "object") delete enemy.actionCombat;
+  },
   // v1 -> v2 (Phase 5): gameplay-systems backfills. Idempotent; every field
   // is additive and inert at its default, so a migrated project plays
   // identically until an author opts in.
@@ -1022,13 +1058,18 @@ const DataDefaults = (() => {
       },
       charset: "", dir: 0,
       moveType: "fixed", trigger: "action", priority: "same", through: false,
+      // The event editor marks newly authored pages as inheriting defaults.
+      // Keep the raw legacy constructor shape stable for import/export callers;
+      // migrated existing pages explicitly carry false to preserve overrides.
       combat: RA.defaultActionCombat(),
       commands: [],
     };
   }
 
   function newEvent(id, x, y, name) {
-    return { id, name: name || ("EV" + String(id).padStart(3, "0")), x, y, pages: [newPage()] };
+    const firstPage = newPage();
+    firstPage.combat.inheritDefaults = true;
+    return { id, name: name || ("EV" + String(id).padStart(3, "0")), x, y, pages: [firstPage] };
   }
 
   // ---- map building helpers (sample game) ----
@@ -1488,6 +1529,7 @@ const DataDefaults = (() => {
           { at: 30, type: "particles", kind: "heal", shape: "ring", count: 14, radius: 48, size: 6, duration: 480 },
         ] },
       ],
+      attackProfiles: [],
       actors: [
         { id: 1, name: "Ardan", classId: 1, level: 1, charset: "hero",    weaponId: 1, armorId: 1 },
         { id: 2, name: "Mira",  classId: 2, level: 1, charset: "heroine", weaponId: 3, armorId: 3 },

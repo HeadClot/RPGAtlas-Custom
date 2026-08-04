@@ -25,7 +25,7 @@ import { anyAutotileAnimated, isAutotileId, autotilePassable } from "../../share
 import { clamp, rnd, compareVariable, sysSe } from "../util.js";
 import { DEVELOPER_THROUGH_ACTION } from "../developer-mode.js";
 import { ctx, fns } from "../state/engine-context.js";
-import { G, Quests, objectiveDone, onEnemyKilled, param } from "../state/game-state.js";
+import { G, Quests, objectiveDone, onEnemyKilled } from "../state/game-state.js";
 import { Plugins } from "../plugin-runtime.js";
 import { setAmbience } from "../../shared/audio-deck.js";
 import { mergeCommandBgs } from "../../shared/audio-math.js";
@@ -46,6 +46,7 @@ import {
 } from "../../shared/sim/action-combat.js";
 import { defaultWorld } from "../state/default-world.js";
 import { playersOnMap } from "../../shared/sim/players.js";
+import { resolveActorCombat, resolveEnemyCombat } from "../../shared/sim/combat-profiles.js";
 
 const TILE = Assets.TILE;
 
@@ -517,8 +518,7 @@ export function diagonalStepClear(x: any, y: any, dir: any, passable: any): bool
 const mapFloatTexts: any[] = [];
 
 function combatConfig(page: any): any {
-  const cfg = page && page.combat;
-  return cfg && cfg.enabled ? cfg : null;
+  return page ? resolveEnemyCombat(ctx.proj as any, page) : null;
 }
 function combatEnemy(cfg: any): any {
   return RA.byId(ctx.proj.enemies || [], Number(cfg && cfg.enemyId) || 0);
@@ -597,9 +597,9 @@ export function startPlayerAttack(): boolean {
 }
 function mapAttackDamage(enemy: any): number {
   const a = G.party[0];
-  const atk = a ? param(a, "atk") : 10;
+  const resolved = resolveActorCombat(ctx.proj as any, Number(a && a.actorId) || 1);
   const def = Number(enemy && enemy.stats && enemy.stats.def) || 0;
-  return Math.max(1, Math.floor(atk * 1.35 - def * 0.6));
+  return Math.max(1, Math.floor(resolved.damage * 1.35 - def * 0.6));
 }
 function applyEnemyKnockback(rt: any, dir: any, tiles: any): void {
   if (!rt || rt.moving || tiles <= 0) return;
@@ -973,10 +973,15 @@ export function eventRuntimeById(id: any): any {
 
 // ---- player entity ----
 export function initPlayer(x: any, y: any, dir?: any): void {
+  const previous = G.player;
+  const actor = resolveActorCombat(ctx.proj as any, Number(G.party[0] && G.party[0].actorId) || 1);
+  const maxHp = actor.maxHp || 100;
   G.player = {
     x, y, rx: x, ry: y, prx: x, pry: y, tx: x, ty: y, dir: dir == null ? 0 : dir,
     moving: false, animT: 0, frame: 1, route: null, kind: "human",
-    charsetIdx: 0, page: null, attack: null, hurtInvuln: 0, combat: createCombatState(), hp: 100,
+    charsetIdx: 0, page: null, attack: null, hurtInvuln: 0, combat: createCombatState(),
+    hp: previous && typeof previous.hp === "number" ? previous.hp : (G.party[0] && G.party[0].hp) || maxHp,
+    maxHp, revive: previous && previous.revive || 0,
   };
   refreshPlayerCharset();
 }

@@ -25,6 +25,7 @@ import { generateRoomCode } from "../../../src/shared/net/room-code.js";
 import { BeaconRoom, type Clock, type RoomMember, type RoomOptions } from "./room.js";
 import { DEFAULT_LIMITS, type BeaconLimits } from "./config.js";
 import type { ServerConnection } from "./connection.js";
+import type { JsonValue } from "../../../src/shared/net/protocol.js";
 
 export interface BeaconServerOptions {
   /** The game project every room in this process hosts (the configured game;
@@ -122,6 +123,16 @@ export class BeaconServer {
 
   get connectionCount(): number {
     return this.conns.size;
+  }
+
+  /** Snapshot/restore hook used by the Cloudflare friend-room DO. The core
+   * remains transport-agnostic; the DO decides when and where to persist it. */
+  snapshotRoom(code: string): JsonValue | null {
+    return this.rooms.get(code)?.snapshotData() || null;
+  }
+
+  restoreRoom(code: string, data: JsonValue): void {
+    this.rooms.get(code)?.restoreData(data);
   }
 
   /** Snapshot of live counts (health/metrics; carries no player data). */

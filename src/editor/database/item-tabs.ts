@@ -13,6 +13,7 @@ import { touch } from "../persistence";
 import { cmdListWidget } from "../event-editor/command-list";
 import { PARAM_KEYS, listFormTab, nameRefresher, iconPickerField, subTabs } from "./shared";
 import { damageFormulaEditor, extraEffectsEditor } from "./battler-tabs";
+import { combatPresentationFields, combatProfileIdField } from "./combat-tab";
 
 export const itemsTab = () => listFormTab({
   kind: "items",
@@ -75,6 +76,11 @@ export const weaponsTab = () => listFormTab({
     // Normal-attack battle animation (Phase 5). "(default FX)" = legacy hit FX.
     if (e.animationId == null) e.animationId = 0;
     box.appendChild(field("Attack animation", sel(e, "animationId", dbOpts(S.proj.animations || [], "(default FX)"))));
+    e.combat = e.combat || {};
+    box.appendChild(h("div", { class: "subhead" }, "Action Combat attack settings"));
+    box.appendChild(row(combatProfileIdField(e.combat), field("Damage override", nIn(e.combat, "damage", 0, 99999)), field("Damage scale", nIn(e.combat, "damageScale", 0, 100, 0.05)), field("Range", nIn(e.combat, "range", 1, 16))));
+    box.appendChild(row(field("Wind-up", nIn(e.combat, "windupFrames", 0, 180)), field("Active", nIn(e.combat, "activeFrames", 1, 180)), field("Recovery", nIn(e.combat, "recoveryFrames", 0, 600)), field("Cooldown", nIn(e.combat, "cooldown", 0, 3600)), field("Knockback", nIn(e.combat, "knockbackTiles", 0, 8)), field("Stagger", nIn(e.combat, "staggerFrames", 0, 600))));
+    box.appendChild(combatPresentationFields(e.combat));
   },
 });
 
@@ -92,6 +98,11 @@ export const armorsTab = () => listFormTab({
     const pr = h("div", { class: "frow" });
     for (const k of PARAM_KEYS) { if (e.params[k] == null) e.params[k] = 0; pr.appendChild(field(k.toUpperCase() + " +", nIn(e.params, k, -999, 999))); }
     box.appendChild(pr);
+    e.combat = e.combat || {};
+    box.appendChild(h("div", { class: "subhead" }, "Action Combat defensive settings"));
+    box.appendChild(row(combatProfileIdField(e.combat), field("Invulnerability", nIn(e.combat, "invulnFrames", 0, 600)), field("Stagger resistance %", nIn(e.combat, "staggerResistance", 0, 100))));
+    box.appendChild(row(field("Revive delay", nIn(e.combat, "reviveFrames", 0, 36000)), field("Revive HP", nIn(e.combat, "reviveHp", 1, 99999)), field("Hurt VFX", sel(e.combat, "hurtAnimationId", dbOpts(S.proj.animations || [], "(none)"))), field("Revive VFX", sel(e.combat, "reviveAnimationId", dbOpts(S.proj.animations || [], "(none)")))));
+    box.appendChild(row(field("Hurt SFX", sel(e.combat, "hurtSound", [{ v: "", l: "(none)" }].concat(Object.keys((S.proj.system && S.proj.system.sounds) || {}).map((v) => ({ v, l: v }))))), field("Revive SFX", sel(e.combat, "reviveSound", [{ v: "", l: "(none)" }].concat(Object.keys((S.proj.system && S.proj.system.sounds) || {}).map((v) => ({ v, l: v })))))));
   },
 });
 

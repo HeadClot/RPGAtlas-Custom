@@ -18,6 +18,11 @@
 import { BeaconServer } from "../core/server.js";
 import type { ServerConnection } from "../core/connection.js";
 import { isCanonicalRoomCode } from "../../../src/shared/net/room-code.js";
+import { RoomWorld, roomWorldLimits } from "../core/room-world.js";
+import { DEFAULT_LIMITS } from "../core/config.js";
+import { cloudActionZoneFactory } from "./action-combat-adapter.js";
+import { doCombatPersistence } from "./do-store.js";
+import type { JsonValue } from "../../../src/shared/net/protocol.js";
 
 /** The Worker env bindings this DO needs. The game project JSON lives in a KV
  *  namespace (`GAME`, key `project`) — too large for a plaintext var — and is
@@ -72,12 +77,19 @@ export class BeaconRoomDO {
       const projectJson = await this.env.GAME.get("project");
       if (!projectJson) throw new Error("beacon: GAME KV has no 'project' key");
       this.code = code;
+      const project = JSON.parse(projectJson);
       this.server = new BeaconServer({
-        project: JSON.parse(projectJson),
+        project,
         fixedRoomCode: code,
-        supportsActionCombat: false,
+        supportsActionCombat: true,
+        roomSimFactory: (_project, outbox) => new RoomWorld(project, outbox, {
+          limits: DEFAULT_LIMITS,
+          zoneFactory: cloudActionZoneFactory({ project, limits: roomWorldLimits(DEFAULT_LIMITS), persistence: doCombatPersistence(this.state.storage) }),
+        }),
       });
       this.server.ensureRoom(code);
+      const saved = await this.state.storage.get<JsonValue>("combat-room");
+      if (saved) this.server.restoreRoom(code, saved);
     }
     return this.server;
   }
@@ -150,6 +162,12 @@ export class BeaconRoomDO {
    *  isolate would otherwise sleep. Re-arms while the room still has state. */
   async alarm(): Promise<void> {
     this.server?.sweep();
+    if (this.server && this.server.roomCount > 0) {
+      const snapshot = this.server.snapshotRoom(this.code);
+      if (snapshot) await this.state.storage.put("combat-room", snapshot);
+    } else {
+      await this.state.storage.delete("combat-room");
+    }
     const live = this.state.getWebSockets().length > 0;
     if (live || (this.server && this.server.roomCount > 0)) {
       void this.state.storage.setAlarm(Date.now() + SWEEP_ALARM_MS);

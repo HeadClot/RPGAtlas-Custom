@@ -18,10 +18,11 @@ import { Zone, type ZoneOutbox } from "../core/zone.js";
 import { createZoneEventRuntime, engineDefaultWorld } from "./engine-zone.js";
 import type { WorldLimits } from "../core/config.js";
 import type { ClientMessage, JsonValue, PlayerId } from "../../../src/shared/net/protocol.js";
+import type { PlayerCombatSnapshot } from "../../../src/shared/sim/combat-persistence.js";
 
 /** Parent → worker ops (mirror ZoneApi, all fire-and-forget). */
 export type ZoneWorkerIn =
-  | { op: "admit"; pid: PlayerId; name: string; charset: string; x: number; y: number; dir: number; snapshot: boolean }
+  | { op: "admit"; pid: PlayerId; name: string; charset: string; x: number; y: number; dir: number; snapshot: boolean; combat?: PlayerCombatSnapshot }
   | { op: "remove"; pid: PlayerId; announce: boolean }
   | { op: "frame"; pid: PlayerId; msg: ClientMessage }
   | { op: "snap"; pid: PlayerId }
@@ -109,7 +110,7 @@ function main(): void {
   port.on("message", (msg: ZoneWorkerIn) => {
     if (msg.op === "admit") {
       pids.add(msg.pid);
-      zone.admit(msg.pid, msg.name, msg.charset, msg.x, msg.y, msg.dir, msg.snapshot);
+      zone.admit(msg.pid, msg.name, msg.charset, msg.x, msg.y, msg.dir, msg.snapshot, msg.combat);
     } else if (msg.op === "remove") {
       // Mirror the exit position BEFORE the entity goes (transfer/leave both
       // want the final tile in the record; the mapId stamp keeps a late

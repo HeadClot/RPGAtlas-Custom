@@ -48,7 +48,9 @@ import { createWorld, type World } from "../../../src/shared/sim/world.js";
 import { Zone, type ZoneApi, type ZoneOutbox } from "./zone.js";
 import { DEFAULT_WORLD_LIMITS, type WorldLimits } from "./config.js";
 import { randomResumeToken } from "./tokens.js";
-import type { PlayerRecord, WorldStore, ZoneSnapshot } from "./store.js";
+import { WorldStoreCombatPersistence, type PlayerRecord, type WorldStore, type ZoneSnapshot } from "./store.js";
+import type { CombatEvent, PlayerCombatSnapshot } from "../../../src/shared/sim/combat-persistence.js";
+import type { CombatPersistence } from "../../../src/shared/sim/combat-persistence.js";
 import type { Clock } from "./room.js";
 import type { ServerConnection } from "./connection.js";
 
@@ -157,6 +159,10 @@ export class BeaconWorld {
   private readonly outbox: ZoneOutbox;
   /** Durable store (§A5) or null (in-memory only). */
   private readonly store: WorldStore | null;
+  /** Shared combat persistence facade exposed to host/runtime adapters. */
+  readonly combatPersistence: CombatPersistence | null;
+  readonly capabilities: { actionCombat: boolean; persistence: boolean };
+  private readonly actionCombatBlocked: boolean;
   /** Fingerprints whose record changed since the last flush (flush only these). */
   private readonly dirtyRecords = new Set<string>();
   /** ZoneSnapshots loaded at start, applied when their map's zone is created. */
@@ -171,9 +177,15 @@ export class BeaconWorld {
     this.seed = opts.seed ?? null;
     this.requirePassport = opts.requirePassport !== false;
     this.store = opts.store || null;
+    this.combatPersistence = this.store ? new WorldStoreCombatPersistence(this.store) : null;
+    this.actionCombatBlocked = projectHasActionCombat(this.project) && !opts.zoneFactory;
+    this.capabilities = { actionCombat: !this.actionCombatBlocked, persistence: !!this.store };
     this.zoneFactory =
       opts.zoneFactory ||
-      ((mapId, outbox) => new Zone(mapId, this.project, outbox, { limits: this.limits, clock: this.clock, seed: this.seed }));
+      ((mapId, outbox) => new Zone(mapId, this.project, outbox, {
+        limits: this.limits, clock: this.clock, seed: this.seed,
+        combatPersistence: this.combatPersistence || undefined,
+      }));
     this.log = opts.log || (() => {});
     this.code = generateRoomCode();
     this.scratch = createWorld(this.project);
@@ -221,6 +233,8 @@ export class BeaconWorld {
           else if (k === "x" && typeof v === "number") rec.x = v;
           else if (k === "y" && typeof v === "number") rec.y = v;
           else if (k === "dir" && typeof v === "number") rec.dir = v;
+          else if (k === "combat" && v && typeof v === "object") rec.combat = v as unknown as PlayerCombatSnapshot;
+          else if (k === "combatHistory" && Array.isArray(v)) rec.combatHistory = v as unknown as CombatEvent[];
           else rec.data[k] = v;
         }
         this.dirtyRecords.add(fingerprint);
@@ -334,10 +348,10 @@ export class BeaconWorld {
     const to = this.zoneFor(mapId);
     member.mapId = mapId;
     this.bumpZone(mapId, +1);
+    const rec = this.records.get(member.fingerprint);
     // Admit pushes the fresh snapshot — the client renders the new map from
     // it exactly like a late join (the socket never moved: gateway model).
-    to.admit(pid, member.name, member.charset, spawn.x, spawn.y, spawn.dir, true);
-    const rec = this.records.get(member.fingerprint);
+    to.admit(pid, member.name, member.charset, spawn.x, spawn.y, spawn.dir, true, rec?.combat);
     if (rec) {
       rec.mapId = mapId;
       rec.x = spawn.x;
@@ -651,6 +665,10 @@ export class BeaconWorld {
 
   private handleJoin(st: ConnState, code: string | undefined): void {
     if (!this.allowJoinAttempt(st)) return;
+    if (this.actionCombatBlocked) {
+      this.sendError(st, "not-allowed", true);
+      return;
+    }
     if (code !== undefined && code !== this.code) {
       // A world has no other rooms; a stray room code cannot exist here.
       this.sendError(st, "room-not-found");
@@ -689,7 +707,7 @@ export class BeaconWorld {
     this.byFingerprint.set(st.fingerprint, member);
     this.records.set(st.fingerprint, {
       name: member.name, mapId: spawn.mapId, x: spawn.x, y: spawn.y, dir: spawn.dir,
-      data: rec ? rec.data : {}, lastSeen: this.clock(),
+      data: rec ? rec.data : {}, combat: rec?.combat, combatHistory: rec?.combatHistory, lastSeen: this.clock(),
     });
     this.dirtyRecords.add(st.fingerprint);
     st.member = member;
@@ -700,7 +718,7 @@ export class BeaconWorld {
     }));
     const zone = this.zoneFor(spawn.mapId);
     this.bumpZone(spawn.mapId, +1);
-    zone.admit(pid, member.name, member.charset, spawn.x, spawn.y, spawn.dir, true);
+    zone.admit(pid, member.name, member.charset, spawn.x, spawn.y, spawn.dir, true, rec?.combat);
     this.log("info", "world-join", { pid, mapId: spawn.mapId, players: this.members.size });
   }
 
@@ -817,6 +835,18 @@ export class BeaconWorld {
     const s = resolveSpawn(this.scratch, { mapId, x, y, dir });
     return { mapId, x: s.x, y: s.y, dir: s.dir };
   }
+}
+
+function projectHasActionCombat(project: unknown): boolean {
+  const maps = (project as { maps?: unknown[] } | null)?.maps;
+  if (!Array.isArray(maps)) return false;
+  return maps.some((map) => {
+    const events = (map as { events?: unknown[] } | null)?.events;
+    return Array.isArray(events) && events.some((event) => {
+      const pages = (event as { pages?: unknown[] } | null)?.pages;
+      return Array.isArray(pages) && pages.some((page) => !!((page as { combat?: { enabled?: unknown } } | null)?.combat?.enabled));
+    });
+  });
 }
 
 /** UTF-8 byte length (the true wire size the byte cap enforces). */

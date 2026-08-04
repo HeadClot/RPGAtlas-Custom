@@ -15,6 +15,7 @@ import type { InputIntent, JsonValue, PlayerId } from "./protocol.js";
 import type { World } from "../sim/world.js";
 import type { MapCollision } from "../sim/collision.js";
 import type { CombatNetState } from "../sim/action-combat.js";
+import type { CombatPersistence } from "../sim/combat-persistence.js";
 
 /** The party verbs a zone routes to its engine runtime (Beacon MP9·E — the
  *  F-1 fix: these §C5 intents were silently dropped by every server zone). */
@@ -39,6 +40,8 @@ export interface ZoneRuntimeContext {
   mapId: number;
   collision: MapCollision;
   outbox: ZoneRuntimeOutbox;
+  /** Optional durable combat adapter supplied by the host. */
+  persistence?: CombatPersistence;
 }
 
 /** One event's networked state (for the world-zone delta, so a future client
@@ -60,6 +63,9 @@ export interface EventNetState {
 /** The engine runtime the zone drives. Every method is fire-and-forget (the
  *  zone never blocks on it), mirroring the ZoneApi discipline. */
 export interface ZoneRuntime {
+  /** Host capabilities are explicit so unsupported targets cannot silently
+   * fall back to client-authoritative action combat. */
+  capabilities?: { actionCombat: boolean; persistence: boolean };
   /** Resolve events + bind the world to this map (called once, at attach). */
   start(): void;
   /** Advance the engine layer one 60 Hz tick (after the zone moved players,

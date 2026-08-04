@@ -57,6 +57,11 @@ import {
 } from "../../../src/shared/sim/collision.js";
 import { resolveBoundaryCrossing } from "../../../src/shared/map-connections.js";
 import type { GameMap } from "../../../src/shared/schema.js";
+import type { Project } from "../../../src/shared/schema.js";
+import type { PlayerCombatSnapshot } from "../../../src/shared/sim/combat-persistence.js";
+import type { CombatPersistence } from "../../../src/shared/sim/combat-persistence.js";
+import { resolveActorCombat } from "../../../src/shared/sim/combat-profiles.js";
+import { toCombatNetState } from "../../../src/shared/sim/action-combat.js";
 import { advanceStep, startStep, translateIntent, type PendingMove } from "./motion.js";
 import { buildChunkIndex, chunkKeyOf, interestSetOf } from "./interest.js";
 import type { WorldLimits } from "./config.js";
@@ -74,7 +79,7 @@ export type { ZoneRuntime, ZoneRuntimeFactory, ZoneRuntimeContext, ZoneRuntimeOu
  *  the calls marshal across a worker/DO boundary unchanged. */
 export interface ZoneApi {
   readonly mapId: number;
-  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean): void;
+  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean, combat?: PlayerCombatSnapshot): void;
   /** Remove a player. `announce` broadcasts the presence `leave` (false when
    *  the directory is moving them to another zone mid-transfer). */
   remove(pid: PlayerId, announce: boolean): void;
@@ -124,6 +129,8 @@ export interface ZoneOptions {
    *  the headless zone core stays off the engine graph. Requires `world` to be
    *  the engine default world. */
   runtimeFactory?: ZoneRuntimeFactory;
+  /** Durable combat state adapter supplied by Node/DO hosts. */
+  combatPersistence?: CombatPersistence;
 }
 
 interface ZoneMember {
@@ -157,6 +164,9 @@ export class Zone implements ZoneApi {
   private readonly outbox: ZoneOutbox;
   private readonly limits: WorldLimits;
   private readonly members = new Map<PlayerId, ZoneMember>();
+  /** Friend-room snapshots have no passport identity. Keep restored combat by
+   * display name until that player rejoins and receives a fresh room pid. */
+  private readonly restoredCombatByName = new Map<string, PlayerCombatSnapshot>();
   private readonly runFlags = new WeakMap<PlayerEntity, boolean>();
   private collision: MapCollision | null = null;
   private sinceBroadcast = 0;
@@ -192,6 +202,7 @@ export class Zone implements ZoneApi {
         mapId,
         collision: this.collisionGrid(),
         outbox: this.outbox,
+        persistence: opts.combatPersistence,
       });
       this.runtime.start();
     } else {
@@ -216,8 +227,24 @@ export class Zone implements ZoneApi {
 
   /* ── membership ──────────────────────────────────────────────────────── */
 
-  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean): void {
-    addPlayer(this.world, pid, name, { mapId: this.mapId, x, y, dir, charset });
+  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean, savedCombat?: PlayerCombatSnapshot): void {
+    const player = addPlayer(this.world, pid, name, { mapId: this.mapId, x, y, dir, charset });
+    const defaults = resolveActorCombat(this.world.proj as Project, 1);
+    player.maxHp = defaults.maxHp;
+    player.hp = defaults.maxHp;
+    const restored = savedCombat || this.restoredCombatByName.get(name);
+    if (restored) {
+      const hp = Number(restored.hp);
+      const maxHp = Number(restored.maxHp);
+      const revive = Number(restored.revive);
+      player.hp = Number.isFinite(hp) ? Math.max(0, hp) : player.hp || 100;
+      player.maxHp = Number.isFinite(maxHp) ? Math.max(1, maxHp) : player.maxHp || 100;
+      player.revive = Number.isFinite(revive) ? Math.max(0, revive) : 0;
+      if (restored.state) Object.assign(player.combat, restored.state, { hitIds: new Set() });
+      player.combat.dead = !!restored.dead;
+      player.combat.phase = player.combat.dead ? "dead" : player.combat.phase;
+      this.restoredCombatByName.delete(name);
+    }
     this.members.set(pid, { pid, name, charset, lastSeq: 0, pending: null, social: newSocialBucket(this.world.tick) });
     if (snapshot) this.requestSnapshot(pid);
     this.announce(
@@ -295,9 +322,18 @@ export class Zone implements ZoneApi {
   snapshot(): ZoneSnapshot {
     // selfSw is zone-local (map-scoped self-switches); `data` carries the engine
     // runtime's event positions/pages when one is attached (D-8-0).
+    const runtimeData = this.runtime ? this.runtime.snapshotData() : {};
+    const data = runtimeData && typeof runtimeData === "object" && !Array.isArray(runtimeData)
+      ? { ...(runtimeData as Record<string, JsonValue>) }
+      : {};
+    data.players = [...this.world.roster.players.values()].map((p) => ({
+      name: p.name, hp: Number(p.hp ?? 0), maxHp: Number(p.maxHp ?? 100),
+      dead: !!p.combat.dead, revive: Number(p.revive ?? p.combat.respawn ?? 0),
+      state: toCombatNetState(p.combat),
+    })) as unknown as JsonValue;
     return {
       selfSw: { ...this.world.g.selfSw },
-      data: this.runtime ? this.runtime.snapshotData() : {},
+      data,
     };
   }
 
@@ -306,6 +342,19 @@ export class Zone implements ZoneApi {
     // Restore event runtime state AFTER selfSw (pages resolve against selfSw).
     if (this.runtime && snap.data) {
       this.runtime.restoreData(snap.data);
+      const rows = snap.data && typeof snap.data === "object" && !Array.isArray(snap.data)
+        ? (snap.data as Record<string, JsonValue>).players
+        : undefined;
+      if (Array.isArray(rows)) for (const row of rows) {
+        if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+        const value = row as Record<string, JsonValue>;
+        if (typeof value.name !== "string") continue;
+        this.restoredCombatByName.set(value.name, {
+          hp: Number(value.hp) || 0, maxHp: Number(value.maxHp) || 100,
+          dead: !!value.dead, revive: Number(value.revive) || 0,
+          state: value.state as unknown as PlayerCombatSnapshot["state"],
+        });
+      }
     }
   }
 
@@ -407,6 +456,25 @@ export class Zone implements ZoneApi {
     // Advance the engine layer (NPCs/events/interpreter) after player motion,
     // before the broadcast — so event positions + world effects are current.
     if (this.runtime) this.runtime.tick();
+    // Mirror field-combat state into the directory-owned player record. The
+    // directory batches these patches into Node files or Durable Object KV.
+    if (this.world.tick % 30 === 0) {
+      const runtimeData = this.runtime?.snapshotData();
+      const combatHistory = runtimeData && typeof runtimeData === "object" && !Array.isArray(runtimeData)
+        ? (runtimeData as Record<string, JsonValue>).combatLedger
+        : undefined;
+      for (const member of this.members.values()) {
+        const p = getPlayer(this.world, member.pid);
+        if (!p) continue;
+        const patch: Record<string, JsonValue> = { combat: {
+          hp: Number(p.hp ?? 0), maxHp: Number(p.maxHp ?? 100),
+          dead: !!p.combat.dead, revive: Number(p.revive ?? p.combat.respawn ?? 0),
+          state: toCombatNetState(p.combat),
+        } as unknown as JsonValue };
+        if (Array.isArray(combatHistory)) patch.combatHistory = combatHistory;
+        this.outbox.recordPatch(member.pid, patch);
+      }
+    }
     if (++this.sinceBroadcast >= this.limits.broadcastEveryTicks) {
       this.sinceBroadcast = 0;
       this.broadcast();

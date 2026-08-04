@@ -13,6 +13,7 @@
    into. GPL-3.0-or-later (see LICENSE). */
 
 import type { AsyncKv } from "../core/store.js";
+import { KeyValueCombatPersistence } from "../../../src/shared/sim/combat-persistence.js";
 
 /** Adapt a Durable Object storage handle to the world persistence `AsyncKv`.
  *  Only the four operations the WorldStore needs are exposed; DO storage's
@@ -33,4 +34,12 @@ export function doStorageKv(storage: DurableObjectStorage): AsyncKv {
       return Array.from(map.keys());
     },
   };
+}
+
+/** Cloudflare action-combat persistence uses the same DO storage handle and
+ * key contract as browser/Node adapters. WorldStore remains responsible for
+ * the broader world record; this adapter is available to zone runtimes and
+ * cold-start recovery tests for combat-only state. */
+export function doCombatPersistence(storage: DurableObjectStorage): KeyValueCombatPersistence {
+  return new KeyValueCombatPersistence(doStorageKv(storage));
 }
