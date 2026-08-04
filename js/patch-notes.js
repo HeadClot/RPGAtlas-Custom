@@ -11,7 +11,7 @@ export const PATCH_NOTES = [
       "The live WebSocket emote regression test now synchronizes on the guest join before sending its first social frame.",
     items: [
       "Prevent CI load from racing guest welcome delivery against host join presence delivery.",
-      "Keep the emote relay assertion focused on the server-to-client presence path.",
+      "Wait for the authoritative roster delta before checking the emote state on the remote player.",
     ],
   },
   {

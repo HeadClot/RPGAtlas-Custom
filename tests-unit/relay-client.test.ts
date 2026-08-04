@@ -98,6 +98,9 @@ describe("MP5·C RelayClient over a real WebSocket", () => {
     // social frame. The runner can deliver guest welcome before the host's
     // join presence under CI load; waiting here removes that transport race.
     await waitFor(() => host.rec.presence.some((p) => p.kind === "join" && p.playerId === 2));
+    // The presence frame is social-only; the host's roster entity is populated
+    // by the next authoritative delta. Wait for it before checking emote state.
+    await waitFor(() => host.client.world.roster.players.has(2));
 
     guest.client.sendEmote("wave");
     await waitFor(() => host.rec.presence.some((p) => p.kind === "emote" && p.playerId === 2 && p.emote === "wave"));
