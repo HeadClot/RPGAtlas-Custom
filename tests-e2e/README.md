@@ -13,6 +13,15 @@ npm run test:e2e          # headless, builds first (webServer does this for you)
 npx playwright show-report  # after a run, opens the HTML report
 ```
 
+The repository uses one Playwright configuration, `playwright.config.mjs`, and
+one browser project: Chromium. The Chromium-only project is intentional because
+the renderer golden tests use software WebGL rendering and committed baselines
+are maintained for that harness. Install the matching browser locally with:
+
+```
+npx playwright install chromium
+```
+
 The dev server is NOT used here (no `npm run dev`). `playwright.config.mjs`'s
 `webServer` block runs `npm run build && npm run preview -- --port 4173
 --strictPort` and waits for `http://localhost:4173` to answer before tests

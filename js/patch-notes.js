@@ -6,6 +6,18 @@ export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
     version: "2.2.1",
+    title: "Playwright uses the built Chromium harness",
+    summary:
+      "End-to-end tests now run through one explicit configuration against the built app with the intended Chromium-only coverage.",
+    items: [
+      "The test:e2e command explicitly selects playwright.config.mjs, including its Vite preview server and software-rendering settings.",
+      "Removed the stale generated multi-browser configuration and network-dependent example tests.",
+      "Documented the canonical Chromium installation and test command.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.1",
     title: "Map Connections panel renders correctly",
     summary:
       "Fixed the Map Connections editor opening as an empty canvas instead of showing maps and placement controls.",
