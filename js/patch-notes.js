@@ -5,6 +5,28 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    version: "2.3.0",
+    title: "Linux E2E gates match CI capabilities",
+    summary:
+      "GitHub Actions now handles platform-specific renderer baselines and SwiftShader capacity without masking the editor and relay smoke tests.",
+    items: [
+      "Skip renderer goldens only when the complete platform baseline set is unavailable; committed baselines remain enforced.",
+      "Use an 800ms CI SwiftShader budget while retaining the 300ms local performance target and environment override.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.9",
+    title: "CI relay and map-card stability",
+    summary:
+      "Relay E2E coverage now starts its Beacon bundle in CI, and unplaced Map Connections cards no longer overlap during initial layout.",
+    items: [
+      "Build server/dist/beacon.mjs before browser relay tests launch their local server.",
+      "Lay out unplaced map cards using each map's width so card clicks reach the selected map reliably.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     version: "2.2.8",
     title: "Map connection seams render cleanly",
     summary:

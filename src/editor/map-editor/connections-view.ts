@@ -34,7 +34,14 @@ function visible(): boolean {
 }
 function originFor(m: any, index: number): { x: number; y: number } {
   if (m.worldOrigin && Number.isInteger(m.worldOrigin.x) && Number.isInteger(m.worldOrigin.y)) return m.worldOrigin;
-  if (!provisional.has(m.id)) provisional.set(m.id, { x: index * 8, y: 0 });
+  if (!provisional.has(m.id)) {
+    // Keep unplaced cards in a non-overlapping provisional row. The old
+    // index * 8 spacing put wide maps on top of one another, so a later card
+    // intercepted clicks intended for the first card in the CI browser.
+    const x = S.proj.maps.slice(0, index)
+      .reduce((sum: number, previous: any) => sum + Math.max(1, Number(previous.width) || 1) + 1, 0);
+    provisional.set(m.id, { x, y: 0 });
+  }
   return provisional.get(m.id)!;
 }
 function allMaps() { return (S.proj.maps || []).map((m: any, i: number) => ({ m, o: originFor(m, i) })); }
@@ -68,8 +75,11 @@ function mapPreview(m: any): HTMLCanvasElement {
   const previewHeight = Math.max(1, Math.round(m.height * TILE * scale));
   canvas.width = previewWidth;
   canvas.height = previewHeight;
-  canvas.style.width = "100%";
-  canvas.style.height = "100%";
+  // Absolute positioning is relative to the card's padding box. Extend the
+  // preview across the border so its rendered bounds match the full card.
+  canvas.style.inset = "0";
+  canvas.style.width = "calc(100% + 4px)";
+  canvas.style.height = "calc(100% + 4px)";
   const view: MapView = {
     zoom: scale, mode: "map", layer: "auto", tool: "pen",
     selection: null, hoverCell: null, hoverQuad: 0, rectStart: null,
@@ -157,7 +167,7 @@ function beginDrag(e: MouseEvent, id: number) {
   e.preventDefault(); e.stopPropagation(); selectedId = id;
   root?.focus({ preventScroll: true });
   const m = S.proj.maps.find((x: any) => x.id === id); if (!m) return;
-  const start = worldFromMouse(e), initial = { ...originFor(m, 0) };
+  const start = worldFromMouse(e), initial = { ...originFor(m, S.proj.maps.indexOf(m)) };
   let moved = false;
   const move = (ev: MouseEvent) => {
     const p = worldFromMouse(ev);

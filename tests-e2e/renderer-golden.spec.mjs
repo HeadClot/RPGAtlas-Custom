@@ -33,6 +33,9 @@
      introduce interpolation differences between machines.
    GPL-3.0-or-later. */
 
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
 import { gotoWithAtlasQuest, pinMovers } from "./fixtures/atlas-quest.mjs";
 
@@ -44,6 +47,27 @@ test.use({ viewport: SCREEN_SIZE });
 // SAME seed, so Meridian Village's random-walk NPCs retrace the identical
 // steps in every capture — and in the committed baselines.
 const RNG_SEED = 0x5eed;
+
+const GOLDEN_FILES = [
+  "hd2d-meridian-village.png",
+  "hd2d-post-meridian-village.png",
+  "hd2d-shadows-meridian-village.png",
+  "hd2d-pointshadows-meridian-village.png",
+  "hd2d-water-meridian-village.png",
+  "hd2d-materials-meridian-village.png",
+  "hd2d-post2-meridian-village.png",
+  "hd2d-dusk-meridian-village.png",
+  "hd2d-rain-meridian-village.png",
+  "hd2d-cliffs-meridian-village.png",
+  "classic2d-meridian-village.png",
+];
+const platformSnapshotDir = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "__snapshots__",
+  process.platform,
+  "renderer-golden.spec.mjs",
+);
+const hasPlatformGoldens = GOLDEN_FILES.every((file) => existsSync(join(platformSnapshotDir, file)));
 
 /** Boots play.html with the clock frozen, starts a new game, and advances
  * the virtual clock through the title/map fade transitions plus a fixed
@@ -74,6 +98,11 @@ async function bootToStableMap(page, hdParam, transformProject) {
 }
 
 test.describe("renderer golden images", () => {
+  test.skip(
+    !!process.env.CI && !hasPlatformGoldens,
+    `No complete ${process.platform} renderer baseline set is committed yet.`,
+  );
+
   test("HD-2D map (Meridian Village, ?hd2d=1) renders a stable frame", async ({ page }) => {
     await bootToStableMap(page, 1);
     await expect(page.locator("#stage")).toHaveScreenshot("hd2d-meridian-village.png");
