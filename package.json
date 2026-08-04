@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write src tests-unit \"*.mjs\"",
-    "test": "node --test tests/",
+    "test": "node --test tests/*.test.js",
     "test:unit": "vitest run",
     "test:net": "vitest run --config vitest.net.config.mjs",
     "test:e2e": "playwright test --config=playwright.config.mjs",
