@@ -25,8 +25,9 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",
     "@eslint/js": "^9.39.0",
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.1",
     "@tauri-apps/cli": "^2",
+    "@types/node": "^26.1.2",
     "@types/three": "^0.185.0",
     "@types/ws": "^8.18.1",
     "esbuild": "^0.25.12",
