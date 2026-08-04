@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    version: "2.2.7",
+    title: "Relay emote CI synchronization",
+    summary:
+      "The live WebSocket emote regression test now synchronizes on the guest join before sending its first social frame.",
+    items: [
+      "Prevent CI load from racing guest welcome delivery against host join presence delivery.",
+      "Keep the emote relay assertion focused on the server-to-client presence path.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     version: "2.2.6",
     title: "GitHub Actions test environment repaired",
     summary:
