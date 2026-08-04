@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Live Map Connection seams",
+    summary:
+      "Map Connection seam lines now follow cards while they are being dragged, so stale green lines disappear as soon as maps separate.",
+    items: [
+      "Recalculate seam geometry from each card's live provisional position during dragging.",
+      "Keep saved map origins, drag snapping, and runtime seamless movement unchanged.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Connected-map camera visibility",
     summary:
       "The camera now pans into touching neighboring maps instead of stopping at the active map's edge and revealing the black background.",

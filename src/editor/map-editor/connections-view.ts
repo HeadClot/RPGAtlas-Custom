@@ -33,6 +33,7 @@ function visible(): boolean {
   return !!root && root.offsetParent !== null && root.clientWidth > 0;
 }
 function originFor(m: any, index: number): { x: number; y: number } {
+  if (provisional.has(m.id)) return provisional.get(m.id)!;
   if (m.worldOrigin && Number.isInteger(m.worldOrigin.x) && Number.isInteger(m.worldOrigin.y)) return m.worldOrigin;
   if (!provisional.has(m.id)) {
     // Keep unplaced cards in a non-overlapping provisional row. The old
@@ -45,6 +46,9 @@ function originFor(m: any, index: number): { x: number; y: number } {
   return provisional.get(m.id)!;
 }
 function allMaps() { return (S.proj.maps || []).map((m: any, i: number) => ({ m, o: originFor(m, i) })); }
+function positionedMaps() {
+  return allMaps().map(({ m, o }) => ({ ...m, worldOrigin: { x: o.x, y: o.y } }));
+}
 function bounds() {
   const items = allMaps();
   if (!items.length) return { minX: 0, minY: 0, maxX: 20, maxY: 15 };
@@ -121,9 +125,11 @@ function rebuild() {
 
 function drawConnections() {
   if (!svg) return;
-  const items = allMaps();
+  svg.replaceChildren();
+  const liveMaps = positionedMaps();
+  const items = liveMaps.map((m: any) => ({ m, o: m.worldOrigin }));
   const byId = new Map(items.map(({ m, o }) => [m.id, { m, o }]));
-  for (const c of deriveConnections(S.proj.maps)) {
+  for (const c of deriveConnections(liveMaps)) {
     const a = byId.get(c.aMapId), bb = byId.get(c.bMapId);
     if (!a || !bb) continue;
     const segment = connectionSegment(c, a.m);

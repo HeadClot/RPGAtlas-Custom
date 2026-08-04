@@ -320,6 +320,37 @@ test.describe("map connections view", () => {
     await expect(page.locator("#dock-root .cv-hud-row")).toBeVisible();
   });
 
+  test("updates seam lines immediately while dragging a connected card apart", async ({ page }) => {
+    await page.goto("/index.html");
+    const saveIndicator = page.locator("#save-ind");
+    await expect(saveIndicator).toBeVisible();
+    await expect(saveIndicator).toHaveText(/^✓ /);
+
+    const project = await page.evaluate(() => JSON.parse(localStorage.getItem("rpgatlas_project")));
+    project.maps = project.maps.slice(0, 2);
+    const [first, second] = project.maps;
+    for (const map of project.maps) delete map.worldOrigin;
+    first.worldOrigin = { x: 0, y: 0 };
+    second.worldOrigin = { x: first.width, y: 0 };
+    await page.evaluate((seeded) => localStorage.setItem("rpgatlas_project", JSON.stringify(seeded)), project);
+    await page.reload();
+    await expect(saveIndicator).toHaveText(/^✓ /);
+
+    await page.locator("#menus .menu-label", { hasText: "View" }).dispatchEvent("mousedown");
+    await page.locator(".menu-drop .menu-item", { hasText: "Map Connections" }).click();
+    await expect(page.locator("#dock-root .cv-map")).toHaveCount(project.maps.length);
+    await expect(page.locator("#dock-root .cv-connection")).toHaveCount(1);
+
+    const card = page.locator("#dock-root .cv-map").nth(1);
+    const box = await card.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, { steps: 4 });
+    await expect(page.locator("#dock-root .cv-connection")).toHaveCount(0);
+    await page.mouse.up();
+    await expect(page.locator("#dock-root .cv-connection")).toHaveCount(0);
+  });
+
   test("nudges the selected card one tile with each arrow key and persists the origin", async ({ page }) => {
     await page.goto("/index.html");
     const saveIndicator = page.locator("#save-ind");
