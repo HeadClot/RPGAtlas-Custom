@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    version: "2.3.1",
+    title: "Stable animated-terrain E2E timing",
+    summary:
+      "The HD-2D terrain animation regression test now isolates frame changes from WebGL startup noise on CI runners.",
+    items: [
+      "Capture static and later water frames within one browser boot instead of comparing separately initialized WebGL textures.",
+      "Keep the deterministic frozen-clock assertion for both unchanged and advanced terrain frames.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     version: "2.3.0",
     title: "Linux E2E gates match CI capabilities",
     summary:
