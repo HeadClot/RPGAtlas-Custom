@@ -14,6 +14,7 @@
 import type { InputIntent, JsonValue, PlayerId } from "./protocol.js";
 import type { World } from "../sim/world.js";
 import type { MapCollision } from "../sim/collision.js";
+import type { CombatNetState } from "../sim/action-combat.js";
 
 /** The party verbs a zone routes to its engine runtime (Beacon MP9·E — the
  *  F-1 fix: these §C5 intents were silently dropped by every server zone). */
@@ -52,6 +53,8 @@ export interface EventNetState {
   dir: number;
   moving: boolean;
   page: number;
+  erased?: boolean;
+  combat?: CombatNetState;
 }
 
 /** The engine runtime the zone drives. Every method is fire-and-forget (the
@@ -67,6 +70,8 @@ export interface ZoneRuntime {
   onAct(pid: PlayerId, x: number, y: number, dir: number): void;
   /** A player finished a step onto (x,y) — fire a touch event on that tile. */
   onArrive(pid: PlayerId, x: number, y: number): void;
+  /** A player requested a field-combat attack; the runtime validates and applies it. */
+  onAttack?(pid: PlayerId): void;
   /** Live event states for the world-zone broadcast. */
   eventStates(): EventNetState[];
   /** The event-runtime state for the ZoneSnapshot data bag (§A5 D-8-0). */

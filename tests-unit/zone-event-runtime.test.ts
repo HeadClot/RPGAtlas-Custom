@@ -203,6 +203,25 @@ describe("per-zone engine event runtime (D-8-0)", () => {
     expect(saved.x).toBe(11);
   });
 
+  it("routes an authoritative attack, rejects a replay, and replicates enemy defeat", async () => {
+    const project = makeProject([
+      ev(7, 1, 2, [page({ combat: {
+        enabled: true, enemyId: 1, hp: 10, touchDamage: 0, knockbackTiles: 1,
+        invulnFrames: 12, defeatSelfSwitch: "",
+      } })]),
+    ]);
+    const { zone: z } = mkZone(project);
+    z.admit(8, "Ada", "", 1, 3, 3, false); // south of the enemy, facing up
+    z.frame(8, input({ k: "attack" }, 1));
+    z.frame(8, input({ k: "attack" }, 1)); // replay must not start a second swing
+    expect((z.world.roster.players.get(8) as any)?.combat.attackId).toBe(1);
+    await step(6); // wind-up completes and the sword's active frame resolves
+    const enemy = z.eventStates().find((e) => e.id === 7)!;
+    expect(enemy.combat?.attackId).toBe(0);
+    expect(enemy.erased).toBe(true);
+    expect(enemy.combat?.dead).toBe(true);
+  });
+
   it("restoreData re-applies snapshotted event positions after an eviction", async () => {
     const project = makeProject([ev(6, 10, 10, [page({ trigger: "action" })])]);
     const { zone: z } = mkZone(project);

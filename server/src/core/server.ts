@@ -47,6 +47,10 @@ export interface BeaconServerOptions {
    *  factory; the CF DO target leaves it unset (engine rooms stay Node-only in
    *  2.0 — D-9E-1). */
   roomSimFactory?: RoomOptions["simFactory"];
+  /** Whether the selected room simulation can authoritatively run field
+   *  action combat. Defaults to true only when an engine room simulator is
+   *  supplied; player-only and Cloudflare targets must opt in explicitly. */
+  supportsActionCombat?: boolean;
   /** Optional structured log sink (dev-facing; never player copy). */
   log?: (level: "info" | "warn", event: string, detail?: Record<string, unknown>) => void;
 }
@@ -79,6 +83,7 @@ export class BeaconServer {
   private readonly seed: number | null;
   private readonly fixedRoomCode: string | undefined;
   private readonly roomSimFactory: BeaconServerOptions["roomSimFactory"];
+  private readonly actionCombatBlocked: boolean;
   private readonly log: NonNullable<BeaconServerOptions["log"]>;
   private readonly rooms = new Map<string, BeaconRoom>();
   private readonly conns = new Set<ConnState>();
@@ -91,6 +96,8 @@ export class BeaconServer {
     this.seed = opts.seed ?? null;
     this.fixedRoomCode = opts.fixedRoomCode;
     this.roomSimFactory = opts.roomSimFactory;
+    this.actionCombatBlocked = projectHasActionCombat(opts.project) &&
+      !(opts.supportsActionCombat ?? !!opts.roomSimFactory);
     this.log = opts.log || (() => {});
   }
 
@@ -246,6 +253,10 @@ export class BeaconServer {
 
   private handleJoin(st: ConnState, code: string | undefined): void {
     if (!this.allowJoinAttempt(st)) return;
+    if (this.actionCombatBlocked) {
+      this.sendError(st, "not-allowed", true);
+      return;
+    }
     // One-room-per-DO: a codeless (create) OR matching-code join both enter the
     // pinned room; any other code cannot exist here.
     if (this.fixedRoomCode) {
@@ -283,6 +294,10 @@ export class BeaconServer {
 
   private handleResume(st: ConnState, code: string, token: string): void {
     if (!this.allowJoinAttempt(st)) return;
+    if (this.actionCombatBlocked) {
+      this.sendError(st, "not-allowed", true);
+      return;
+    }
     const room = this.rooms.get(code);
     const member = room ? room.resume(st.conn, token) : null;
     if (!room || !member) {
@@ -372,4 +387,20 @@ function byteLen(s: string): number {
     else bytes += 3;
   }
   return bytes;
+}
+
+/** Detect authored field combat without importing the engine schema/runtime.
+ *  This keeps the transport core able to reject an unsupported deployment
+ *  before a player enters a room. */
+function projectHasActionCombat(project: unknown): boolean {
+  const maps = (project as { maps?: unknown[] } | null)?.maps;
+  if (!Array.isArray(maps)) return false;
+  return maps.some((map) => {
+    const events = (map as { events?: unknown[] } | null)?.events;
+    return Array.isArray(events) && events.some((event) => {
+      const pages = (event as { pages?: unknown[] } | null)?.pages;
+      return Array.isArray(pages) && pages.some((page) =>
+        !!((page as { combat?: { enabled?: unknown } } | null)?.combat?.enabled));
+    });
+  });
 }

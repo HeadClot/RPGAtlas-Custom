@@ -31,6 +31,8 @@ import { deliverReply } from "../../shared/sim/directives.js";
 import { drainBattleOutbox, type BattleEvent } from "../../shared/sim/coop-battle.js";
 import { consumePartyDirty, partyTable } from "../../shared/sim/party.js";
 import { addPlayer, buildPlayerStates, getPlayer, removePlayer } from "../../shared/sim/players.js";
+import type { EventNetState } from "../../shared/net/zone-runtime.js";
+import { toCombatNetState, type CombatState } from "../../shared/sim/action-combat.js";
 import { openBroadcastServer, type BroadcastServer } from "./broadcast-transport.js";
 import type { WorldHost } from "./world-host.js";
 import { session } from "./session.js";
@@ -48,6 +50,7 @@ interface ClientLink {
   pid: number;
   transport: Transport;
   name: string;
+  lastSeq: number;
 }
 
 export interface RoomHostOptions {
@@ -106,6 +109,21 @@ export class RoomHost {
     return buildPlayerStates(this.world, this.opts.localName, this.opts.localCharset);
   }
 
+  private events(): EventNetState[] {
+    return (this.world.evRTs || []).map((rt) => ({
+      id: rt.ev.id,
+      x: rt.x,
+      y: rt.y,
+      rx: rt.rx,
+      ry: rt.ry,
+      dir: rt.dir,
+      moving: !!rt.moving,
+      page: rt.pageIndex == null ? -1 : rt.pageIndex,
+      erased: !!rt.erased,
+      combat: rt.combat ? toCombatNetState(rt.combat as CombatState) : undefined,
+    }));
+  }
+
   private accept(transport: Transport): void {
     let pid = -1;
     transport.onMessage((msg) => {
@@ -121,7 +139,7 @@ export class RoomHost {
         pid = this.nextId++;
         const name = helloName || "Player " + pid;
         addPlayer(this.world, pid, name, { charset: this.opts.localCharset });
-        this.clients.set(pid, { pid, transport, name });
+        this.clients.set(pid, { pid, transport, name, lastSeq: 0 });
         transport.send({
           t: "welcome",
           proto: PROTOCOL_VERSION,
@@ -137,6 +155,7 @@ export class RoomHost {
             players: this.states(),
             mapId: this.world.g ? this.world.g.mapId : 0,
             timeOfDay: this.world.g ? this.world.g.timeOfDay : 12,
+            events: this.events(),
             // MP6·A: a late joiner learns the current party table too.
             party: partyTable(this.world),
           } as unknown as JsonValue,
@@ -148,6 +167,11 @@ export class RoomHost {
       }
       if (pid < 0) return; // no frames accepted before hello
       if (m.t === "input") {
+        const link = this.clients.get(pid);
+        if (!link) return;
+        const isAttack = m.intent.k === "attack";
+        if (isAttack && m.seq <= link.lastSeq) return;
+        link.lastSeq = Math.max(link.lastSeq, m.seq);
         this.worldHost.pushInput(pid, m.seq, m.intent);
       } else if (m.t === "reply") {
         deliverReply(this.world, pid, m.id, m.value);
@@ -257,7 +281,7 @@ export class RoomHost {
       }
     }
     for (const c of this.clients.values()) {
-      const changes: Record<string, unknown> = { players };
+      const changes: Record<string, unknown> = { players, events: this.events() };
       if (table) changes.party = table;
       const mine = byPid && byPid.get(c.pid);
       if (mine) changes.battle = mine;

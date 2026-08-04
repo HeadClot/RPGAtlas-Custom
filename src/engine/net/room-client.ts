@@ -29,6 +29,7 @@ import {
 import type { Transport } from "../../shared/net/transport.js";
 import type { World } from "../../shared/sim/world.js";
 import type { BattleEvent } from "../../shared/sim/coop-battle.js";
+import type { EventNetState } from "../../shared/net/zone-runtime.js";
 import { applyPartyTable, type PartyChange, type PartyTableEntry } from "../../shared/sim/party.js";
 import { applyPlayerStates, getPlayer, type PlayerState } from "../../shared/sim/players.js";
 import type { DirectiveRenderer } from "./client-session.js";
@@ -43,6 +44,7 @@ export interface RoomSnapshot {
   mapId: number;
   timeOfDay: number;
   party?: PartyTableEntry[];
+  events?: EventNetState[];
 }
 
 export interface RoomClientOptions {
@@ -63,6 +65,8 @@ export interface RoomClientOptions {
   onParty?: (change: PartyChange) => void;
   /** MP6·A: a shared-battle event addressed to me (stage B renders it). */
   onBattle?: (ev: BattleEvent) => void;
+  /** Apply authoritative NPC/event positions and combat state. */
+  onEvents?: (events: EventNetState[]) => void;
   /** MP7·C: a plugin custom message from another player in the room. */
   onCustom?: (msg: { from: number; data: JsonValue }) => void;
   /** MP9·A: a player report reached ME (I'm the room owner). */
@@ -106,12 +110,14 @@ export class RoomClient {
         if (this.opts.onSnapshot) await this.opts.onSnapshot(snap);
         applyPlayerStates(this.world, this.localPlayerId, snap.players || [], this.opts.onLocal);
         if (snap.party) applyPartyTable(this.world, snap.party);
+        if (snap.events) this.opts.onEvents?.(snap.events);
       })();
     } else if (m.t === "delta") {
       this.world.tick = m.tick;
       const changes = m.changes as unknown as {
         players?: PlayerState[];
         party?: PartyTableEntry[];
+        events?: EventNetState[];
         battle?: BattleEvent[];
       };
       applyPlayerStates(this.world, this.localPlayerId, changes.players || [], this.opts.onLocal);
@@ -120,6 +126,7 @@ export class RoomClient {
         const diff = applyPartyTable(this.world, changes.party);
         this.opts.onParty?.(diff);
       }
+      if (changes.events) this.opts.onEvents?.(changes.events);
       if (changes.battle) for (const ev of changes.battle) this.opts.onBattle?.(ev);
     } else if (m.t === "directive") {
       const render = this.opts.renderDirective;

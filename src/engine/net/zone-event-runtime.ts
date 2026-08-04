@@ -72,6 +72,18 @@ import { createHeadlessBattle } from "./battle-runtime.js";
 import { pumpTickTimers, waitTicks, tickTweenTicks } from "../../shared/sim/timers.js";
 import { DIR_OFFSET, isPassable, type MapCollision } from "../../shared/sim/collision.js";
 import { advanceRoute, eventMayStep, type RouteOps } from "../../shared/move-route.js";
+import {
+  applyHurt,
+  attackIsActive,
+  createCombatState,
+  markDead,
+  normalizeActionCombat,
+  respawnIfReady,
+  startAttack,
+  swordHitsEntity,
+  tickAttack,
+  toCombatNetState,
+} from "../../shared/sim/action-combat.js";
 import type { JsonValue, PlayerId } from "../../shared/net/protocol.js";
 import type { World } from "../../shared/sim/world.js";
 import type {
@@ -119,9 +131,7 @@ function pageActive(mapId: number, evId: any, page: any): boolean {
   return true;
 }
 
-/** Build one event runtime state — the headless subset of map-runtime.makeEvRT
- *  (no charset index / light / on-map combat: the server needs event LOGIC, not
- *  its sprite). */
+/** Build one event runtime state — the headless subset of map-runtime.makeEvRT. */
 function makeEvRT(world: World, mapId: number, evData: any): any {
   const rt: any = {
     ev: evData,
@@ -129,7 +139,7 @@ function makeEvRT(world: World, mapId: number, evData: any): any {
     rx: evData.x, ry: evData.y,
     prx: evData.x, pry: evData.y,
     dir: 0, animT: 0, moving: false, tx: evData.x, ty: evData.y,
-    page: null, pageIndex: -1, erased: false, locked: false,
+    page: null, pageIndex: -1, erased: false, locked: false, combat: null,
     moveT: 30 + world.rnd(90), route: null, speed: 0.05,
   };
   refreshPage(mapId, rt);
@@ -149,6 +159,18 @@ function refreshPage(mapId: number, rt: any): void {
   rt.pageIndex = pi;
   rt.page = pi >= 0 ? rt.ev.pages[pi] : null;
   if (rt.page) rt.dir = rt.page.dir || 0;
+  const cfg = rt.page && rt.page.combat && rt.page.combat.enabled
+    ? normalizeActionCombat(rt.page.combat)
+    : null;
+  if (!cfg) rt.combat = null;
+  else if (!rt.combat || rt.combat.pageIndex !== pi || rt.combat.enemyId !== cfg.enemyId) {
+    rt.combat = Object.assign(createCombatState(), {
+      pageIndex: pi,
+      enemyId: cfg.enemyId,
+      hp: cfg.hp || 100,
+      maxHp: cfg.hp || 100,
+    });
+  }
 }
 
 /* ── the runtime ─────────────────────────────────────────────────────────── */
@@ -230,6 +252,113 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     ent.tx = ent.x + dx;
     ent.ty = ent.y + dy;
     ent.moving = true;
+  }
+
+  function combatConfig(rt: any): ReturnType<typeof normalizeActionCombat> | null {
+    return rt && rt.page && rt.page.combat && rt.page.combat.enabled
+      ? normalizeActionCombat(rt.page.combat)
+      : null;
+  }
+
+  function playerAttackDamage(player: any, rt: any): number {
+    const actor = world.g.party && world.g.party[0];
+    const atk = Number(actor && (actor.atk || (actor.params && actor.params.atk))) || 10;
+    const enemy = world.proj && world.proj.enemies
+      ? world.proj.enemies.find((e: any) => Number(e.id) === Number(rt.combat.enemyId))
+      : null;
+    const def = Number(enemy && enemy.stats && enemy.stats.def) || 0;
+    return Math.max(1, Math.floor(atk * 1.35 - def * 0.6));
+  }
+
+  function defeatEvent(rt: any, cfg: ReturnType<typeof normalizeActionCombat>): void {
+    if (!rt.combat || rt.combat.dead) return;
+    markDead(rt.combat, cfg.respawnFrames);
+    rt.combat.hp = 0;
+    // A defeat self-switch is permanent authored defeat. Respawn is the
+    // alternate authored behavior and keeps the event on the field.
+    const sw = Number(cfg.respawnFrames) > 0 ? "" : cfg.defeatSelfSwitch;
+    if (sw) {
+      G.selfSw[mapId + ":" + rt.ev.id + ":" + sw] = true;
+      refreshAllPages();
+    } else if (Number(cfg.respawnFrames) <= 0) {
+      rt.erased = true;
+      rt.page = null;
+      rt.pageIndex = -1;
+    }
+  }
+
+  function hitEvent(player: any, rt: any): void {
+    const cfg = combatConfig(rt);
+    if (!cfg || !rt.combat || rt.combat.dead || rt.combat.invuln > 0) return;
+    const dmg = playerAttackDamage(player, rt);
+    rt.combat.hp = Math.max(0, Number(rt.combat.hp || 100) - dmg);
+    applyHurt(rt.combat, cfg.invulnFrames, cfg.staggerFrames || 10);
+    if (rt.combat.hp <= 0) defeatEvent(rt, cfg);
+    else {
+      const [dx, dy] = DIR_OFFSET[player.combat.dir] || [0, 0];
+      const nx = rt.x + dx, ny = rt.y + dy;
+      if (!rt.moving && canEntityPass(rt, nx, ny)) startMove(rt, player.combat.dir);
+    }
+  }
+
+  function hitPlayer(rt: any, player: any, cfg: ReturnType<typeof normalizeActionCombat>): void {
+    if (!player || player.combat.dead || player.combat.invuln > 0) return;
+    if (rt.combat.hitIds.has(player.id)) return;
+    rt.combat.hitIds.add(player.id);
+    player.hp = Math.max(0, Number(player.hp || 100) - Math.max(0, cfg.touchDamage));
+    applyHurt(player.combat, 60, cfg.staggerFrames || 0);
+    if (player.hp <= 0) markDead(player.combat);
+  }
+
+  function tickFieldCombat(): void {
+    const players = [...world.roster.players.values()];
+    for (const player of players) {
+      if (!player.combat || player.combat.dead) continue;
+      if (attackIsActive(player.combat)) {
+        for (const rt of world.evRTs) {
+          if (!rt.combat || rt.combat.dead || player.combat.hitIds.has(rt.ev.id)) continue;
+          if (swordHitsEntity(player, rt, player.combat.dir)) {
+            player.combat.hitIds.add(rt.ev.id);
+            hitEvent(player, rt);
+          }
+        }
+      }
+      tickAttack(player.combat, 3, 9);
+    }
+    for (const rt of world.evRTs) {
+      const cfg = combatConfig(rt);
+      if (!cfg || !rt.combat) continue;
+      if (rt.combat.dead) {
+        if (Number(cfg.respawnFrames) > 0 && respawnIfReady(rt.combat)) {
+          rt.combat.hp = cfg.hp;
+          rt.erased = false;
+          refreshPage(mapId, rt);
+        }
+        continue;
+      }
+      if (attackIsActive(rt.combat)) {
+        for (const player of players) {
+          const dist = Math.abs(player.x - rt.x) + Math.abs(player.y - rt.y);
+          if (dist <= (cfg.attackRange || 1)) hitPlayer(rt, player, cfg);
+        }
+      } else if (rt.combat.phase === "idle" && rt.combat.attackCooldown <= 0 && cfg.touchDamage > 0) {
+        const target = players.find((p: any) => !p.combat.dead && Math.abs(p.x - rt.x) + Math.abs(p.y - rt.y) <= (cfg.attackRange || 1));
+        if (target) {
+          rt.dir = dirTo(rt.x, rt.y, target.x, target.y);
+          rt.combat.hitIds.clear();
+          startAttack(rt.combat, rt.dir, cfg.attackWindupFrames, cfg.attackActiveFrames, cfg.attackRecoveryFrames);
+          rt.combat.attackCooldown = cfg.attackCooldown || 45;
+          // Zero-windup attacks are active immediately on this tick.
+          if (attackIsActive(rt.combat)) {
+            for (const player of players) {
+              const dist = Math.abs(player.x - rt.x) + Math.abs(player.y - rt.y);
+              if (dist <= (cfg.attackRange || 1)) hitPlayer(rt, player, cfg);
+            }
+          }
+        }
+      }
+      tickAttack(rt.combat, cfg.attackWindupFrames, cfg.attackActiveFrames);
+    }
   }
   /** Advance an in-progress step (map-runtime.updateEntityMotion). */
   function updateEntityMotion(ent: any, speed: number): boolean {
@@ -577,6 +706,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
             });
         }
       }
+      tickFieldCombat();
       updateCommonEvents();
       diffAndPropagate();
     },
@@ -615,13 +745,19 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       }
     },
 
+    onAttack(pid: PlayerId): void {
+      const player = world.roster.players.get(pid) as any;
+      if (!player || player.moving || player.combat.dead || world.blocking.has(pid)) return;
+      startAttack(player.combat, player.dir, 3, 9, 6);
+    },
+
     eventStates(): EventNetState[] {
       const out: EventNetState[] = [];
       for (const rt of world.evRTs) {
-        if (!rt.page || rt.erased) continue;
         out.push({
           id: rt.ev.id, x: rt.x, y: rt.y, rx: rt.rx, ry: rt.ry,
-          dir: rt.dir, moving: rt.moving, page: rt.pageIndex,
+          dir: rt.dir, moving: rt.moving, page: rt.pageIndex, erased: !!rt.erased,
+          combat: rt.combat ? toCombatNetState(rt.combat) : undefined,
         });
       }
       return out;
@@ -630,7 +766,21 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     snapshotData(): Record<string, JsonValue> {
       const events: JsonValue[] = [];
       for (const rt of world.evRTs) {
-        events.push({ id: rt.ev.id, x: rt.x, y: rt.y, dir: rt.dir, page: rt.pageIndex, erased: rt.erased });
+        events.push({
+          id: rt.ev.id,
+          x: rt.x,
+          y: rt.y,
+          dir: rt.dir,
+          page: rt.pageIndex,
+          erased: rt.erased,
+          combat: rt.combat ? {
+            ...toCombatNetState(rt.combat),
+            hp: Number(rt.combat.hp || 0),
+            maxHp: Number(rt.combat.maxHp || 0),
+            attackCooldown: Number(rt.combat.attackCooldown || 0),
+            respawn: Number(rt.combat.respawn || 0),
+          } : null,
+        });
       }
       return { events };
     },
@@ -647,6 +797,9 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
         rt.rx = rt.prx = e.x; rt.ry = rt.pry = e.y;
         rt.dir = e.dir;
         rt.erased = !!e.erased;
+        if (e.combat && rt.combat) {
+          Object.assign(rt.combat, e.combat, { hitIds: new Set() });
+        }
       }
     },
 

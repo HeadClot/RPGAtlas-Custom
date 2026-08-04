@@ -57,6 +57,7 @@ import {
   combatChaseDir,
   combatStaggered,
   startPlayerAttack,
+  tickPlayerAttackPresentation,
   setRoute,
   regionAt,
   timeBandOf,
@@ -525,8 +526,8 @@ function handlePartyIntent(pid: number, intent: InputIntent): void {
 }
 
 /** MP4·B (host): apply one remote player's input to THEIR roster entity. MP4
- *  supports movement + facing; a remote's attack/act (which would trigger the
- *  host's events) is a later slice — it rides the participants-only structure. */
+ *  supports movement + facing plus the cosmetic start of a remote attack; the
+ *  authoritative hit is resolved by the host's combat tick. */
 function applyRemoteIntent(pid: number, intent: InputIntent): void {
   const e = defaultWorld.roster.players.get(pid) as any;
   if (!e) return;
@@ -544,7 +545,13 @@ function applyRemoteIntent(pid: number, intent: InputIntent): void {
     e.dir = NUM_OF_CARDINAL[intent.dir];
     return;
   }
-  if (intent.k !== "move") return; // attack/act by peers: later slice
+  if (intent.k === "attack") {
+    if (!e.moving && !e.combat.dead) {
+      startRemotePlayerAttack(e);
+    }
+    return;
+  }
+  if (intent.k !== "move") return; // act by peers is handled by event runtime
   if (e.moving || e.jumping) return;
   const d = intent.dir8 != null ? intent.dir8 : NUM_OF_CARDINAL[intent.dir];
   e.dir = d;
@@ -558,6 +565,17 @@ function applyRemoteIntent(pid: number, intent: InputIntent): void {
     if (G.player && G.player.x === nx && G.player.y === ny) return; // don't stack on the host
   }
   startMove(e, d);
+}
+
+function startRemotePlayerAttack(e: any): void {
+  // The shared timing module is loaded by map-runtime; this small state
+  // transition mirrors the local attack contract without resolving damage on
+  // the client or on message arrival.
+  e.combat.phase = "windup";
+  e.combat.framesLeft = 18;
+  e.combat.totalFrames = 18;
+  e.combat.attackId += 1;
+  e.combat.hitIds.clear();
 }
 
 /** MP4·B (host): advance every remote player's in-progress step one tick. */
@@ -590,8 +608,11 @@ export function clientTick(): void {
   const attack = ctx.Input.consume("attack");
   const ok = ctx.Input.consume("ok");
   const cancel = ctx.Input.consume("cancel");
-  if (attack) client.sendInput({ k: "attack" });
-  else if (d >= 0) client.sendInput({ k: "move", dir: CARDINAL_OF[d], dir8: d as GridDir, run: wantsDash() });
+  if (attack) {
+    startPlayerAttack();
+    client.sendInput({ k: "attack" });
+  } else if (d >= 0) client.sendInput({ k: "move", dir: CARDINAL_OF[d], dir8: d as GridDir, run: wantsDash() });
+  tickPlayerAttackPresentation();
   if (ok) client.sendInput({ k: "act" });
   if (cancel) fns.openMenu();
 }

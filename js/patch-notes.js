@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Authoritative action combat",
+    summary:
+      "Added a shared Minish Cap–style real-time PvE combat layer for solo play and supported multiplayer rooms.",
+    items: [
+      "Directional sword attacks now use shared wind-up, active, recovery, stagger, knockback, and defeat state.",
+      "Friend-room and Node-authoritative sessions route remote attacks and replicate player/enemy combat state.",
+      "Action Combat event pages now expose enemy telegraph, range, cooldown, stagger, recovery, and respawn settings.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Advanced-map CI readiness",
     summary:
       "Large advanced maps now prerender more efficiently and report useful browser diagnostics when CI cannot finish loading them.",

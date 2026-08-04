@@ -72,7 +72,11 @@ export class BeaconRoomDO {
       const projectJson = await this.env.GAME.get("project");
       if (!projectJson) throw new Error("beacon: GAME KV has no 'project' key");
       this.code = code;
-      this.server = new BeaconServer({ project: JSON.parse(projectJson), fixedRoomCode: code });
+      this.server = new BeaconServer({
+        project: JSON.parse(projectJson),
+        fixedRoomCode: code,
+        supportsActionCombat: false,
+      });
       this.server.ensureRoom(code);
     }
     return this.server;

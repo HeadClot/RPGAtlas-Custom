@@ -302,6 +302,17 @@ const RA = {
       defeatSelfSwitch: "",
     };
   },
+  defaultActionCombatTiming() {
+    return {
+      attackCooldown: 45,
+      attackWindupFrames: 0,
+      attackActiveFrames: 1,
+      attackRecoveryFrames: 0,
+      attackRange: 1,
+      staggerFrames: 10,
+      respawnFrames: 0,
+    };
+  },
   ACTION_COMBAT_AI: [
     { v: "none", l: "None" },
     { v: "chase", l: "Chase player" },
@@ -815,7 +826,7 @@ const RA = {
       for (const ev of m.events || []) {
         for (const page of ev.pages || []) {
           const hadCombatAi = page.combat && Object.prototype.hasOwnProperty.call(page.combat, "ai");
-          page.combat = Object.assign(RA.defaultActionCombat(), page.combat || {});
+          page.combat = Object.assign(RA.defaultActionCombat(), RA.defaultActionCombatTiming(), page.combat || {});
           page.combat.enabled = !!page.combat.enabled;
           page.combat.enemyId = Number(page.combat.enemyId) || 0;
           if (!hadCombatAi && page.combat.enabled && page.moveType === "random" && Number(page.combat.touchDamage) > 0) {
@@ -827,6 +838,13 @@ const RA = {
           page.combat.touchDamage = Math.max(0, Number(page.combat.touchDamage) || 0);
           page.combat.knockbackTiles = Math.max(0, Number(page.combat.knockbackTiles) || 0);
           page.combat.invulnFrames = Math.max(0, Number(page.combat.invulnFrames) || 0);
+          page.combat.attackCooldown = Math.max(0, Number(page.combat.attackCooldown ?? 45) || 0);
+          page.combat.attackWindupFrames = Math.max(0, Number(page.combat.attackWindupFrames ?? 0) || 0);
+          page.combat.attackActiveFrames = Math.max(1, Number(page.combat.attackActiveFrames ?? 1) || 1);
+          page.combat.attackRecoveryFrames = Math.max(0, Number(page.combat.attackRecoveryFrames ?? 0) || 0);
+          page.combat.attackRange = Math.max(1, Number(page.combat.attackRange ?? 1) || 1);
+          page.combat.staggerFrames = Math.max(0, Number(page.combat.staggerFrames ?? 10) || 0);
+          page.combat.respawnFrames = Math.max(0, Number(page.combat.respawnFrames ?? 0) || 0);
           if (!["", "A", "B", "C", "D"].includes(page.combat.defeatSelfSwitch)) {
             page.combat.defeatSelfSwitch = "";
           }

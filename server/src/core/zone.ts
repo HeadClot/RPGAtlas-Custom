@@ -315,9 +315,14 @@ export class Zone implements ZoneApi {
     const member = this.members.get(pid);
     if (!member) return;
     if (msg.t === "input") {
-      member.lastSeq = msg.seq;
+      const isAttack = msg.intent.k === "attack";
+      if (isAttack && msg.seq <= member.lastSeq) return;
+      member.lastSeq = Math.max(member.lastSeq, msg.seq);
       const pm = translateIntent(msg.intent);
       if (pm) member.pending = pm; // latest move/face wins for the next tick
+      else if (this.runtime && msg.intent.k === "attack") {
+        this.runtime.onAttack?.(pid);
+      }
       else if (this.runtime && msg.intent.k === "act") {
         // Action-button interaction (talk to an NPC / open a door) — only a
         // world zone with an engine runtime acts on it; the player must be

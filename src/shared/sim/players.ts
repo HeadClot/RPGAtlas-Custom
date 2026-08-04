@@ -24,6 +24,7 @@
 import type { PlayerId } from "../net/protocol.js";
 import type { World } from "./world.js";
 import { DIR_OFFSET } from "./collision.js";
+import { createCombatState, toCombatNetState, type CombatNetState, type CombatState } from "./action-combat.js";
 
 /** One OTHER player as this world knows them. The motion sextet
  *  (x/y, rx/ry, prx/pry, tx/ty, dir, moving, animT) mirrors the map runtime's
@@ -56,6 +57,10 @@ export interface PlayerEntity {
   dir: number;
   moving: boolean;
   animT: number;
+  /** Authoritative field-combat state. Idle state is omitted from the wire. */
+  combat: CombatState;
+  /** Authoritative runtime HP; omitted from network state until HUD support is added. */
+  hp?: number;
   /** Social overlay (MP4·C fills these): a transient emote bubble / say line,
    *  each stamped with the world tick it started so the client can expire it.
    *  Null in stage A. */
@@ -152,6 +157,8 @@ export function addPlayer(world: World, id: PlayerId, name: string, spawn: Spawn
     dir: s.dir,
     moving: false,
     animT: 0,
+    combat: createCombatState(),
+    hp: 100,
     emote: null,
     say: null,
   };
@@ -226,6 +233,12 @@ export interface PlayerState {
   dir: number;
   moving: boolean;
   animT: number;
+  combat?: CombatNetState;
+}
+
+function wireCombat(state: CombatState | undefined): CombatNetState | undefined {
+  if (!state || (state.phase === "idle" && state.attackId === 0 && !state.dead && state.hurtFlash <= 0 && state.stagger <= 0)) return undefined;
+  return toCombatNetState(state);
 }
 
 /** The current position of the local player (host: player 0, read off
@@ -245,6 +258,7 @@ export function localPlayerState(world: World, name: string, charset: string): P
     dir: p.dir || 0,
     moving: !!p.moving,
     animT: p.animT || 0,
+    combat: wireCombat(p.combat),
   };
 }
 
@@ -253,6 +267,7 @@ export function entityState(e: PlayerEntity): PlayerState {
   return {
     id: e.id, name: e.name, charset: e.charset, mapId: e.mapId,
     x: e.x, y: e.y, rx: e.rx, ry: e.ry, dir: e.dir, moving: e.moving, animT: e.animT,
+    combat: wireCombat(e.combat),
   };
 }
 
@@ -305,6 +320,19 @@ export function applyPlayerStates(
     e.dir = s.dir;
     e.moving = s.moving;
     e.animT = s.animT;
+    if (s.combat) {
+      e.combat.phase = s.combat.phase;
+      e.combat.dir = s.combat.dir;
+      e.combat.framesLeft = s.combat.framesLeft;
+      e.combat.totalFrames = s.combat.totalFrames;
+      e.combat.attackId = s.combat.attackId;
+      e.combat.invuln = s.combat.invuln;
+      e.combat.stagger = s.combat.stagger;
+      e.combat.dead = s.combat.dead;
+      e.combat.hurtFlash = s.combat.hurtFlash;
+    } else {
+      Object.assign(e.combat, createCombatState());
+    }
   }
   // Drop roster entities the host no longer reports (they left / changed map off
   // this view). The caller's presence handling can toast the leave separately.

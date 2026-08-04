@@ -29,6 +29,7 @@ import {
 import type { Transport } from "../../shared/net/transport.js";
 import type { World } from "../../shared/sim/world.js";
 import type { BattleEvent } from "../../shared/sim/coop-battle.js";
+import type { EventNetState } from "../../shared/net/zone-runtime.js";
 import { passportPublicRaw, signChallenge, type Passport } from "../../shared/net/passport.js";
 import { applyPartyTable, type PartyChange, type PartyTableEntry } from "../../shared/sim/party.js";
 import { applyPlayerStates, getPlayer, type PlayerState } from "../../shared/sim/players.js";
@@ -66,6 +67,7 @@ export interface RelayClientOptions {
   onSnapshot?: (snap: RoomSnapshot) => void | Promise<void>;
   /** Apply the local player's authoritative position (engine writes G.player). */
   onLocal?: (s: PlayerState) => void;
+  onEvents?: (events: EventNetState[]) => void;
   /** Join/leave/emote/say for toasts + bubbles. */
   onPresence?: (p: ServerPresence) => void;
   /** Render a modal directive with the engine UI and resolve with the reply. */
@@ -177,12 +179,14 @@ export class RelayClient {
         if (this.opts.onSnapshot) await this.opts.onSnapshot(snap);
         applyPlayerStates(this.world, this.localPlayerId, snap.players || [], this.opts.onLocal);
         if (snap.party) applyPartyTable(this.world, snap.party);
+        if (snap.events) this.opts.onEvents?.(snap.events);
       })();
     } else if (m.t === "delta") {
       this.world.tick = m.tick;
       const changes = m.changes as unknown as {
         players?: PlayerState[];
         party?: PartyTableEntry[];
+        events?: EventNetState[];
         battle?: BattleEvent[];
       };
       applyPlayerStates(this.world, this.localPlayerId, changes.players || [], this.opts.onLocal);
@@ -190,6 +194,7 @@ export class RelayClient {
         const diff = applyPartyTable(this.world, changes.party);
         this.opts.onParty?.(diff);
       }
+      if (changes.events) this.opts.onEvents?.(changes.events);
       if (changes.battle) for (const ev of changes.battle) this.opts.onBattle?.(ev);
     } else if (m.t === "directive") {
       const render = this.opts.renderDirective;

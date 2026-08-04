@@ -43,6 +43,8 @@ import { mpText } from "./mp-i18n.js";
 import { mountSocialUI, unmountSocialUI, type SocialApi } from "./net/social-ui.js";
 import { clearMuted } from "./net/moderation.js";
 import type { PlayerState } from "../shared/sim/players.js";
+import { createCombatState } from "../shared/sim/action-combat.js";
+import type { EventNetState } from "../shared/net/zone-runtime.js";
 import type { ErrorCode, InputIntent, ModAction } from "../shared/net/protocol.js";
 
 /** Host a room from an ALREADY-running game (player 0 = G.player). Returns the
@@ -75,6 +77,7 @@ export function joinRoom(rawCode: string, name: string): RoomClient | null {
     name: myName,
     onSnapshot: reconstructClient,
     onLocal: writeLocalPlayer,
+    onEvents: applyEventStates,
     onPresence: (p) => {
       if (p.kind === "join") toast(mpText("playerJoined", { name: p.name || mpText("someone") }));
       firePresencePlugins(p);
@@ -235,6 +238,7 @@ function writeLocalPlayer(s: PlayerState): void {
         me.dir = s.dir;
         me.moving = false;
         me.route = null;
+        applyLocalCombat(me, s);
         syncFollowers(true);
       } finally {
         clientMapSwitching = false;
@@ -251,6 +255,51 @@ function writeLocalPlayer(s: PlayerState): void {
   p.dir = s.dir;
   p.moving = s.moving;
   p.animT = s.animT;
+  applyLocalCombat(p, s);
+}
+
+function applyLocalCombat(p: any, s: PlayerState): void {
+  if (!s.combat) return;
+  p.combat = p.combat || createCombatState();
+  Object.assign(p.combat, {
+    phase: s.combat.phase,
+    dir: s.combat.dir,
+    framesLeft: s.combat.framesLeft,
+    totalFrames: s.combat.totalFrames,
+    attackId: s.combat.attackId,
+    invuln: s.combat.invuln,
+    stagger: s.combat.stagger,
+    dead: s.combat.dead,
+    hurtFlash: s.combat.hurtFlash,
+  });
+  if (s.combat.phase !== "idle" && s.combat.phase !== "dead") {
+    p.attack = { total: s.combat.totalFrames || 18, framesLeft: s.combat.framesLeft, dir: s.combat.dir, hitIds: new Set() };
+  } else if (s.combat.phase === "dead" || s.combat.framesLeft <= 0) {
+    p.attack = null;
+  }
+}
+
+function applyEventStates(events: EventNetState[]): void {
+  const byId = new Map(events.map((e) => [e.id, e]));
+  for (const rt of ctx.evRTs || []) {
+    const s = byId.get(rt.ev.id);
+    if (!s) continue;
+    rt.prx = rt.rx;
+    rt.pry = rt.ry;
+    rt.x = s.x;
+    rt.y = s.y;
+    rt.rx = s.rx;
+    rt.ry = s.ry;
+    rt.dir = s.dir;
+    rt.moving = s.moving;
+    rt.erased = !!s.erased;
+    rt.pageIndex = s.page;
+    rt.page = s.page >= 0 ? rt.ev.pages[s.page] || null : null;
+    if (s.combat) {
+      rt.combat = rt.combat || createCombatState();
+      Object.assign(rt.combat, s.combat);
+    } else rt.combat = null;
+  }
 }
 
 // The host's own party feedback (map.ts handlePartyIntent) reaches the toast
@@ -515,6 +564,7 @@ function connectRelay(
         onWelcome: (_pid, roomCode) => { settle(); onWelcome(roomCode); },
         onSnapshot: reconstructClient,
         onLocal: writeLocalPlayer,
+        onEvents: applyEventStates,
         onPresence: (p) => { if (p.kind === "join") toast(mpText("playerJoined", { name: p.name || mpText("someone") })); firePresencePlugins(p); },
         renderDirective,
         onError: (c) => { if (!settled) { settle(); onFail(friendlyError(c)); } else inSessionError(c); },
@@ -566,7 +616,8 @@ function connectWorld(name: string, url: string, onEntered: () => void, onFail: 
       passport,
       onWelcome: () => { settled = true; onEntered(); },
       onSnapshot: reconstructClient,
-      onLocal: writeLocalPlayer,
+        onLocal: writeLocalPlayer,
+        onEvents: applyEventStates,
       onPresence: (p) => { if (p.kind === "join") toast(mpText("playerJoined", { name: p.name || mpText("someone") })); firePresencePlugins(p); },
       renderDirective,
       onError: (c) => { if (!settled) { settled = true; onFail(friendlyError(c)); } else inSessionError(c); },
@@ -603,6 +654,7 @@ function reconnectWorld(url: string, token: string): void {
       resume: { code: session.roomCode, token },
       onSnapshot: reconstructClient,
       onLocal: writeLocalPlayer,
+      onEvents: applyEventStates,
       onPresence: (p) => firePresencePlugins(p),
       renderDirective,
       onKick: (c) => { toast(friendlyKick(c)); leaveRelay(); },

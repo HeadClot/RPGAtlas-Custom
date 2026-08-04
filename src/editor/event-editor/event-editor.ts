@@ -342,7 +342,7 @@ import { compileGraph, decompileCommands } from "../../shared/event-graph";
           propRow("Priority", sel(pg, "priority", [{ v: "below", l: "Below player" }, { v: "same", l: "Same as player" }, { v: "above", l: "Above player" }])),
           propRow("Through", chk(pg, "through"))),
       ]);
-      pg.combat = Object.assign(RA.defaultActionCombat(), pg.combat || {});
+      pg.combat = Object.assign(RA.defaultActionCombat(), RA.defaultActionCombatTiming(), pg.combat || {});
       const combatBadge = h("span", { class: "ev-badge" }, pg.combat.enabled ? "enabled" : "");
       combatBadge.style.display = pg.combat.enabled ? "" : "none";
       const refreshCombatBadge = () => {
@@ -359,10 +359,18 @@ import { compileGraph, decompileCommands } from "../../shared/event-graph";
           propRow("Touch damage", nIn(pg.combat, "touchDamage", 0, 999)),
           propRow("Knockback", nIn(pg.combat, "knockbackTiles", 0, 4)),
           propRow("Invuln frames", nIn(pg.combat, "invulnFrames", 0, 180)),
+          h("div", { class: "subhead" }, "Enemy attack timing"),
+          propRow("Attack cooldown", nIn(pg.combat, "attackCooldown", 0, 600)),
+          propRow("Telegraph frames", nIn(pg.combat, "attackWindupFrames", 0, 180)),
+          propRow("Active frames", nIn(pg.combat, "attackActiveFrames", 1, 180)),
+          propRow("Recovery frames", nIn(pg.combat, "attackRecoveryFrames", 0, 600)),
+          propRow("Attack range", nIn(pg.combat, "attackRange", 1, 8)),
+          propRow("Stagger frames", nIn(pg.combat, "staggerFrames", 0, 180)),
+          propRow("Respawn frames", nIn(pg.combat, "respawnFrames", 0, 3600)),
           propRow("Defeat switch", sel(pg.combat, "defeatSelfSwitch",
             [{ v: "", l: "(erase event)" }, { v: "A", l: "Self-Switch A" }, { v: "B", l: "Self-Switch B" }, { v: "C", l: "Self-Switch C" }, { v: "D", l: "Self-Switch D" }])),
           h("div", { class: "dim" },
-            "Players use the remappable Attack action to swing. Enemy AI controls extra movement such as chasing; Touch damage controls adjacent strikes. In messages, use \\input[attack] for an input-aware prompt. HP 0 uses the selected enemy's database HP.")),
+            "Players use the remappable Attack action to swing. Telegraph, active, and recovery frames make enemy contact attacks readable. Enemy AI controls extra movement such as chasing; Touch damage controls legacy immediate contact. In messages, use \\input[attack] for an input-aware prompt. HP 0 uses the selected enemy's database HP.")),
       ], combatBadge);
       combatSection.addEventListener("change", refreshCombatBadge);
 

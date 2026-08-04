@@ -28,6 +28,14 @@ const PROJECT = {
   autotiles: [],
 };
 
+const ACTION_PROJECT = {
+  ...PROJECT,
+  maps: [{
+    ...PROJECT.maps[0],
+    events: [{ id: 1, x: 1, y: 1, pages: [{ combat: { enabled: true } }] }],
+  }],
+};
+
 let idc = 0;
 class MockConn implements ServerConnection {
   readonly id = ++idc;
@@ -87,6 +95,17 @@ const roster = (m: ServerMessage | undefined): Array<{ id: number; x: number; y:
   (m as any)?.world?.players ?? (m as any)?.changes?.players ?? [];
 
 describe("MP5 BeaconServer lifecycle", () => {
+  it("rejects authored action-combat rooms when the target has no combat runtime", () => {
+    const server = new BeaconServer({ project: ACTION_PROJECT, clock: clockAt({ now: 1000 }), seed: 1 });
+    const conn = new MockConn();
+    server.accept(conn);
+    conn.recv({ t: "hello", proto: 1, name: "Robin" });
+    conn.recv({ t: "join" });
+    expect(conn.last("error")?.code).toBe("not-allowed");
+    expect(conn.isOpen).toBe(false);
+    expect(server.roomCount).toBe(0);
+  });
+
   it("handshake → create room → welcome + snapshot", () => {
     const { server } = makeServer();
     const { conn, code } = createRoom(server, "Robin");

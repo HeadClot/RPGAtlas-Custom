@@ -1534,6 +1534,13 @@ export interface ActionCombat {
   knockbackTiles: number;
   invulnFrames: number;
   defeatSelfSwitch: "" | "A" | "B" | "C" | "D" | string;
+  attackCooldown?: number;
+  attackWindupFrames?: number;
+  attackActiveFrames?: number;
+  attackRecoveryFrames?: number;
+  attackRange?: number;
+  staggerFrames?: number;
+  respawnFrames?: number;
 }
 
 // ---- Atlas Graph (Phase 4): node-based visual scripting IR ----
