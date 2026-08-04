@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    version: "2.2.8",
+    title: "Map connection seams render cleanly",
+    summary:
+      "Fixed Map Connections showing isolated green dots where touching map borders should be indicated.",
+    items: [
+      "Render full green seam segments across shared map borders instead of zero-length point markers.",
+      "Keep seam indicators visible above map previews without changing map connectivity or movement.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     version: "2.2.7",
     title: "Relay emote CI synchronization",
     summary:

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  connectionSegment,
   deriveConnections,
   resolveBoundaryCrossing,
   validateLayout,
@@ -13,6 +14,16 @@ const map = (id: number, x: number, y: number, width = 4, height = 3, extra: Par
 });
 
 describe("map connection geometry", () => {
+  it("returns a full shared seam segment instead of a point", () => {
+    const eastMaps = [map(1, 0, 2), map(2, 4, 0, 5, 6)];
+    const east = deriveConnections(eastMaps)[0];
+    expect(connectionSegment(east, eastMaps[0])).toEqual({ x1: 4, y1: 2, x2: 4, y2: 5 });
+
+    const southMaps = [map(1, 0, 0), map(2, 0, 3)];
+    const south = deriveConnections(southMaps)[0];
+    expect(connectionSegment(south, southMaps[0])).toEqual({ x1: 0, y1: 3, x2: 4, y2: 3 });
+  });
+
   it("derives an east/west connection with the shared offset", () => {
     const cs = deriveConnections([map(1, 0, 2), map(2, 4, 0, 5, 6)]);
     expect(cs).toEqual([{ aMapId: 1, bMapId: 2, aSide: "east", bSide: "west", aStart: 0, bStart: 2, length: 3 }]);

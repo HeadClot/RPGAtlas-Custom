@@ -16,6 +16,7 @@ export interface BoundaryCrossing {
   fromMapId: number; toMapId: number; fromSide: MapSide; toSide: MapSide;
   fromX: number; fromY: number; toX: number; toY: number;
 }
+export interface MapConnectionSegment { x1: number; y1: number; x2: number; y2: number; }
 export interface LayoutIssue {
   kind: "invalid-origin" | "overlap" | "gap" | "loop-conflict";
   mapIds: number[]; message: string; distance?: number;
@@ -78,6 +79,20 @@ export function deriveConnections(maps: any[]): MapConnection[] {
     }
   }
   return out;
+}
+
+/** Return the world-space seam segment for a connection, rather than the
+ * zero-length bridge between two touching map rectangles. */
+export function connectionSegment(connection: MapConnection, map: any): MapConnectionSegment {
+  const origin = map.worldOrigin;
+  if (connection.aSide === "east" || connection.aSide === "west") {
+    const x = origin.x + (connection.aSide === "east" ? map.width : 0);
+    return { x1: x, y1: origin.y + connection.aStart,
+      x2: x, y2: origin.y + connection.aStart + connection.length };
+  }
+  const y = origin.y + (connection.aSide === "south" ? map.height : 0);
+  return { x1: origin.x + connection.aStart, y1: y,
+    x2: origin.x + connection.aStart + connection.length, y2: y };
 }
 
 function sideFor(dx: number, dy: number): MapSide | null {

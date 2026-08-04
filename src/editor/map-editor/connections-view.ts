@@ -10,7 +10,7 @@ import { mapAnimFrame, renderMap, renderMapView, type MapView } from "./map-rend
 import { rebuildMapList } from "./map-list";
 import { setStatus, flashStatus } from "./status";
 import { focusPanel, getFocusedPanel, isPanelVisible, togglePanel } from "../dock/dock";
-import { deriveConnections, validateLayout } from "../../shared/map-connections";
+import { connectionSegment, deriveConnections, validateLayout } from "../../shared/map-connections";
 
 export const CONNECTIONS_PANEL = "connections";
 const TILE_PX = 24;
@@ -116,21 +116,11 @@ function drawConnections() {
   for (const c of deriveConnections(S.proj.maps)) {
     const a = byId.get(c.aMapId), bb = byId.get(c.bMapId);
     if (!a || !bb) continue;
-    let x1: number, y1: number, x2: number, y2: number;
-    if (c.aSide === "east" || c.aSide === "west") {
-      x1 = stagePoint(a.o.x + (c.aSide === "east" ? a.m.width : 0), a.o.y + c.aStart + c.length / 2).x;
-      y1 = stagePoint(a.o.x, a.o.y).y + (c.aStart + c.length / 2) * TILE_PX;
-      x2 = stagePoint(bb.o.x + (c.bSide === "east" ? bb.m.width : 0), bb.o.y).x;
-      y2 = y1;
-    } else {
-      x1 = stagePoint(a.o.x + c.aStart + c.length / 2, a.o.y + (c.aSide === "south" ? a.m.height : 0)).x;
-      y1 = stagePoint(a.o.x, a.o.y + (c.aSide === "south" ? a.m.height : 0)).y;
-      x2 = x1;
-      y2 = stagePoint(bb.o.x, bb.o.y + (c.bSide === "south" ? bb.m.height : 0)).y;
-    }
+    const segment = connectionSegment(c, a.m);
+    const start = stagePoint(segment.x1, segment.y1), end = stagePoint(segment.x2, segment.y2);
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(x1)); line.setAttribute("y1", String(y1));
-    line.setAttribute("x2", String(x2)); line.setAttribute("y2", String(y2));
+    line.setAttribute("x1", String(start.x)); line.setAttribute("y1", String(start.y));
+    line.setAttribute("x2", String(end.x)); line.setAttribute("y2", String(end.y));
     line.setAttribute("class", "cv-connection"); svg.appendChild(line);
   }
 }
