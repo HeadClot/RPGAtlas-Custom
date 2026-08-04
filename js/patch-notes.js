@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    version: "2.2.6",
+    title: "GitHub Actions test environment repaired",
+    summary:
+      "The CI engine-test job now provisions its required Playwright browser and accepts the editor's preview-aware event-pin guard.",
+    items: [
+      "Install Chromium and its Linux dependencies before the Node test suite runs.",
+      "Keep the editor playtest synchronization contract aligned with preview rendering behavior.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     version: "2.2.5",
     title: "Playwright uses one canonical configuration",
     summary:
