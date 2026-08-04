@@ -283,6 +283,16 @@ With the Rust toolchain, `node scripts/package-game-exe.mjs <project.json>` addi
 any exported project as a **native desktop executable** (its own window, no browser) using the same
 Tauri shell as the RPGAtlas desktop app.
 
+An experimental ARM64 Linux PortMaster package can be built on an ARM64 Linux host with:
+
+```sh
+npm run package:portmaster -- MyGame.json --screenshot gameplay-640x480.png --out MyGame-portmaster.zip
+```
+
+See [`docs/portmaster-arm64.md`](docs/portmaster-arm64.md) for the required screenshot, build-host,
+runtime, and device-testing constraints. This target is intentionally CLI-only until its
+WebKitGTK/WestonPack path is validated on a supported handheld.
+
 Players do not need RPGAtlas, the editor, a local web server, or a separate project file.
 Save slots are stored by the player's browser. The Windows launcher is unsigned, so Windows may show
 a security warning for downloaded builds. Full guide: [Publishing Your Game](wiki/Publishing-Your-Game.md).

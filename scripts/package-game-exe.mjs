@@ -4,7 +4,7 @@
    step (the in-editor "Windows EXE" launcher remains the no-toolchain path).
 
    Usage:
-     node scripts/package-game-exe.mjs <project.json> [--out <file.exe>] [--skip-frontend-build]
+     node scripts/package-game-exe.mjs <project.json> [--out <file>] [--target <triple>] [--skip-frontend-build]
 
    <project.json> should be a project SAVED/EXPORTED AS A FILE from the
    editor — file saves embed the library assets the game uses
@@ -36,9 +36,14 @@ const run = (cmd) => execSync(cmd, { cwd: root, stdio: "inherit" });
 const args = process.argv.slice(2);
 const projectPath = args.find((a) => !a.startsWith("--"));
 const outFlag = args.includes("--out") ? args[args.indexOf("--out") + 1] : null;
+const targetFlag = args.includes("--target") ? args[args.indexOf("--target") + 1] : null;
 const skipBuild = args.includes("--skip-frontend-build");
 if (!projectPath) {
-  console.error("Usage: node scripts/package-game-exe.mjs <project.json> [--out <file.exe>] [--skip-frontend-build]");
+  console.error("Usage: node scripts/package-game-exe.mjs <project.json> [--out <file>] [--target <triple>] [--skip-frontend-build]");
+  process.exit(1);
+}
+if (targetFlag && !/^[A-Za-z0-9_.-]+$/.test(targetFlag)) {
+  console.error("[package-game] invalid Rust target triple: " + targetFlag);
   process.exit(1);
 }
 
@@ -127,11 +132,12 @@ writeFileSync(overlayPath, JSON.stringify(overlay, null, 2));
 
 // ---- 4. native build ----
 console.log("[package-game] tauri build --no-bundle (this needs the Rust toolchain)");
-run('npx tauri build --no-bundle --config "' + overlayPath + '"');
+const targetArg = targetFlag ? ' --target "' + targetFlag + '"' : "";
+run('npx tauri build --no-bundle' + targetArg + ' --config "' + overlayPath + '"');
 
 // The binary name follows productName; scan target/release for the newest exe.
-const releaseDir = join(root, "src-tauri", "target", "release");
-const exeName = process.platform === "win32" ? ".exe" : "";
+const releaseDir = join(root, "src-tauri", "target", ...(targetFlag ? [targetFlag] : []), "release");
+const exeName = (targetFlag || process.platform) === "win32" || targetFlag?.includes("windows") ? ".exe" : "";
 const candidates = readdirSync(releaseDir)
   .filter((f) => (exeName ? f.endsWith(exeName) : !f.includes(".")) && statSync(join(releaseDir, f)).isFile())
   .map((f) => ({ f, t: statSync(join(releaseDir, f)).mtimeMs }))

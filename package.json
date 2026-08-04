@@ -20,7 +20,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "package:exe": "node scripts/package-exe.mjs"
+    "package:exe": "node scripts/package-exe.mjs",
+    "package:portmaster": "node scripts/package-portmaster.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",

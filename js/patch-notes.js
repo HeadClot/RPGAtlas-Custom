@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Experimental ARM64 PortMaster export",
+    summary:
+      "Added a CLI-only ARM64 Linux PortMaster package builder for runtime and handheld compatibility testing.",
+    items: [
+      "Generate a PortMaster ZIP with aarch64 metadata, launcher, gameinfo.xml, gptokeyb mappings, licenses, and a supplied gameplay screenshot.",
+      "Build the per-game Tauri binary for aarch64-unknown-linux-gnu on an ARM64 Linux host and preserve saves under the port's conf directory.",
+      "Keep the target marked experimental until WebKitGTK/WestonPack rendering, audio, input, resolutions, and save/load pass on a supported device.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Connected-map camera visibility",
     summary:
       "The camera now pans into touching neighboring maps instead of stopping at the active map's edge and revealing the black background.",
