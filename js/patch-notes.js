@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "CI builds without a local launcher binary",
+    summary:
+      "Web builds now finish on clean checkouts even when the locally generated Windows launcher is absent.",
+    items: [
+      "Keep bin/RPGAtlasLauncher.exe available to builds when developers generate it locally.",
+      "Treat the optional bin passthrough as absent in GitHub Actions instead of failing the Vite build.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Map Connections clears stale seams",
     summary:
       "Map Connections now removes old green seam lines when map cards are moved apart.",

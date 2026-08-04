@@ -10,6 +10,7 @@ import {
   PLAYER_BUNDLE_DEV_URL,
   FRONTEND_INCLUDE,
   HTML_ENTRIES,
+  OPTIONAL_PASSTHROUGH_DIRS,
   PASSTHROUGH_DIRS,
 } from "../js/build-manifest.mjs";
 
@@ -40,5 +41,10 @@ describe("build-manifest", () => {
     for (const entry of HTML_ENTRIES) {
       expect(PASSTHROUGH_DIRS).not.toContain(entry);
     }
+  });
+
+  it("keeps the locally generated launcher directory optional", () => {
+    expect(OPTIONAL_PASSTHROUGH_DIRS).toEqual(["bin"]);
+    expect(PASSTHROUGH_DIRS).toContain(OPTIONAL_PASSTHROUGH_DIRS[0]);
   });
 });
