@@ -289,6 +289,25 @@ test.describe("world view", () => {
   });
 });
 
+test.describe("map connections view", () => {
+  test("opens with map cards, SVG seam layer, and placement HUD", async ({ page }) => {
+    await page.goto("/index.html");
+    const saveIndicator = page.locator("#save-ind");
+    await expect(saveIndicator).toBeVisible();
+    await expect(saveIndicator).toHaveText(/^✓ /);
+
+    const mapCount = await page.evaluate(() => JSON.parse(localStorage.getItem("rpgatlas_project")).maps.length);
+    await page.locator("#menus .menu-label", { hasText: "View" }).dispatchEvent("mousedown");
+    await page.locator(".menu-drop .menu-item", { hasText: "Map Connections" }).click();
+
+    await expect(page.locator(".dock-tab", { hasText: "Connections" })).toBeVisible();
+    await expect(page.locator("#dock-root .cv-map")).toHaveCount(mapCount);
+    await expect(page.locator("#dock-root .cv-edges")).toBeAttached();
+    await expect(page.locator("#dock-root .cv-hud")).toBeVisible();
+    await expect(page.locator("#dock-root .cv-hud-row")).toBeVisible();
+  });
+});
+
 test.describe("database list upgrades", () => {
   test("search filters the list and checking a row reveals the bulk bar", async ({ page }) => {
     await page.goto("/index.html");

@@ -1121,6 +1121,28 @@ button.danger:hover { background: #6a3636; }
 .wv-notes, .map-notes { width: 100%; resize: vertical; font: inherit; }
 .wv-inspect-empty { padding-top: 4px; }
 
+/* Spatial map connections editor */
+.connections-view { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #0f1017; }
+.cv-viewport { position: absolute; inset: 0 0 78px 0; overflow: auto; cursor: grab;
+  background-image: radial-gradient(var(--panel-3) 1px, transparent 1px); background-size: 24px 24px; }
+.cv-stage { position: relative; transform-origin: 0 0; }
+.cv-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.cv-connection { stroke: #76d6a0; stroke-width: 5; stroke-linecap: round; opacity: .8; }
+.cv-map { position: absolute; box-sizing: border-box; min-width: 48px; min-height: 40px; padding: 7px;
+  background: rgba(53, 73, 107, .92); border: 2px solid #637da9; border-radius: 5px; cursor: move;
+  overflow: hidden; box-shadow: 0 3px 9px rgba(0,0,0,.45); }
+.cv-map.placed { border-color: #6e9bd0; }
+.cv-map.unplaced { border-style: dashed; opacity: .75; }
+.cv-map.sel { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold) inset, 0 3px 9px rgba(0,0,0,.5); }
+.cv-map-name { font-weight: 600; color: #ecf3ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cv-map-dims, .cv-dim { color: var(--text-dim); font-size: var(--fs-tiny); }
+.cv-hud { position: absolute; left: 0; right: 0; bottom: 0; min-height: 78px; padding: 6px 8px;
+  background: rgba(14,16,23,.94); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.cv-hud-row, .cv-inspect { display: flex; align-items: center; gap: 8px; font-size: var(--fs-small); color: #b8bcce; }
+.cv-spacer { flex: 1; }.cv-zoom { min-width: 42px; text-align: center; }.cv-info { color: var(--accent-text); }
+.cv-warn { color: #e0b060; font-size: var(--fs-tiny); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cv-origin { width: 58px; font: inherit; }
+
 /* Database list upgrades: search, multi-select, bulk bar */
 .dbsearch { width: 100%; }
 .db-entry-check { margin: 0; cursor: pointer; flex: 0 0 auto; }

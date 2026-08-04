@@ -4,6 +4,31 @@
 
 export const PATCH_NOTES = [
   {
+    date: "August 4, 2026",
+    version: "2.2.1",
+    title: "Map Connections panel renders correctly",
+    summary:
+      "Fixed the Map Connections editor opening as an empty canvas instead of showing maps and placement controls.",
+    items: [
+      "The Connections panel now initializes its SVG seam layer before the first refresh.",
+      "Map cards, diagnostics, numeric origins, and the placement HUD appear immediately when the panel opens.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.0",
+    title: "Seamless map connections",
+    summary:
+      "Place maps in absolute tile-space and walk across touching borders without a fade, in solo play and multiplayer.",
+    items: [
+      "Map Connections opens a spatial editor with real map dimensions, drag-and-snap placement, numeric origins, seam lines, overlap/gap warnings, and one-click edge-to-edge placement.",
+      "Maps with touching non-overlapping borders now connect automatically; the runtime composes neighboring map art and authored events around the player.",
+      "Players can cross connected borders without a fade, while explicit Transfer Player commands keep their existing transfer behavior.",
+      "Beacon and local co-op movement validate connected-map crossings on the authoritative side before changing mapId and position.",
+      "Existing maps remain isolated until they receive a world origin; the previous World View transfer graph remains available.",
+    ],
+  },
+  {
     date: "August 2, 2026",
     version: "2.1.0",
     title: "Move routes, dice damage, and a condition builder you can read",

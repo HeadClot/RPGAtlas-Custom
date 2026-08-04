@@ -1724,6 +1724,13 @@ export interface MapLight {
   radius: number;
 }
 
+/** Absolute tile-space placement used by seamless map connections. Absent
+ * means the map remains an isolated legacy map. */
+export interface MapWorldOrigin {
+  x: number;
+  y: number;
+}
+
 export interface Hd2dConfig {
   enabled?: boolean;
   tilt?: number;
@@ -1799,6 +1806,9 @@ export interface GameMap {
   /** Pinned bird's-eye position in the World View, in grid cells (Phase 3
    *  Stage E). Editor-only; absent ⇒ the view auto-lays the node out. */
   worldPos?: { x: number; y: number };
+  /** Absolute tile-space origin for Essentials-style seamless connections.
+   * This is separate from worldPos, which remains the transfer-graph layout. */
+  worldOrigin?: MapWorldOrigin;
   /** Generalized layer stack (Phase 8). Absent ⇒ the classic four-array
    *  stack, byte-identical rendering. See AdvLayer. */
   layersAdv?: AdvLayer[];

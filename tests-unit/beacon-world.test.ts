@@ -39,6 +39,15 @@ const PROJECT = {
   autotiles: [],
 };
 
+const CONNECTED_PROJECT = {
+  ...PROJECT,
+  system: { ...PROJECT.system, startMapId: 1, startX: 1, startY: 0 },
+  maps: [
+    { id: 1, width: 2, height: 1, worldOrigin: { x: 0, y: 0 }, layers: { ground: [1, 1] } },
+    { id: 7, width: 2, height: 1, worldOrigin: { x: 2, y: 0 }, layers: { ground: [1, 1] } },
+  ],
+};
+
 /** Map 1 swapped for a 100×100 field (AOI tests need chunk distance). */
 const BIG_PROJECT = {
   ...PROJECT,
@@ -177,6 +186,20 @@ describe("MP8·A world auth (passport challenge gate)", () => {
 });
 
 describe("MP8·A zones: movement, cadence, AOI", () => {
+  it("authoritatively hands a player across an authored world seam", async () => {
+    const { world } = makeWorld(CONNECTED_PROJECT, { broadcastEveryTicks: 1 });
+    const p = await generatePassport("Seam-Walker");
+    const { conn, pid } = await joinWorld(world, p);
+    conn.sent.length = 0;
+    conn.recv({ t: "input", seq: 1, intent: { k: "move", dir: "right" } });
+    world.tickZones();
+    const snap = conn.last("snapshot")!;
+    expect((snap as any).world.mapId).toBe(7);
+    const me = players(snap).find((x) => x.id === pid);
+    expect(me.x).toBe(0);
+    expect(me.y).toBe(0);
+  });
+
   it("authoritative movement with the decimated broadcast cadence", async () => {
     const { world } = makeWorld(PROJECT, { broadcastEveryTicks: 5 });
     const p = await generatePassport("Riko");

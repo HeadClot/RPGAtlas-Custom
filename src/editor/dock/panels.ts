@@ -14,6 +14,7 @@ import { registerCommand, refreshToolbar } from "../workspace";
 import { flashStatus } from "../map-editor/status";
 import { mountViewport, VIEWPORT_PANEL } from "../map-editor/hd-viewport";
 import { mountWorldView, WORLD_PANEL } from "../map-editor/world-view";
+import { mountConnectionsView, CONNECTIONS_PANEL } from "../map-editor/connections-view";
 import { mountConsole, CONSOLE_PANEL } from "../console/console-panel";
 import { mountAdvanced, ADV_PANEL, captureStampCommand, toggleStampRandom, stampRandomActive } from "../advanced/adv-panel";
 import { openTerrainStudio } from "../advanced/terrain-studio";
@@ -34,6 +35,7 @@ export function initDockWorkspace() {
   registerDockPanel({ id: VIEWPORT_PANEL, title: "HD-2D", mount: mountViewport, closable: true });
   // The World View (Stage E) — the map-connection graph — also mounts lazily.
   registerDockPanel({ id: WORLD_PANEL, title: "World", mount: mountWorldView, closable: true });
+  registerDockPanel({ id: CONNECTIONS_PANEL, title: "Connections", mount: mountConnectionsView, closable: true });
   // The Console (post-1.0) — first tab of the map region, lazy-mounted; the
   // power-user command line over the same operations the menus drive.
   registerDockPanel({ id: CONSOLE_PANEL, title: "Console", mount: mountConsole, closable: true });

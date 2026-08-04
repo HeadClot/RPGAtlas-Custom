@@ -44,9 +44,12 @@ import { deliverReply } from "../../../src/shared/sim/directives.js";
 import {
   bakeMapCollision,
   canStep,
+  isPassable,
   DIR_OFFSET,
   type MapCollision,
 } from "../../../src/shared/sim/collision.js";
+import { resolveBoundaryCrossing } from "../../../src/shared/map-connections.js";
+import type { GameMap } from "../../../src/shared/schema.js";
 import { advanceStep, startStep, translateIntent, type PendingMove } from "./motion.js";
 import { randomResumeToken } from "./tokens.js";
 import type { BeaconLimits } from "./config.js";
@@ -444,10 +447,27 @@ export class BeaconRoom {
   private tryMove(e: PlayerEntity, dir: number, run: boolean): void {
     e.dir = dir;
     const mc = this.collisionFor(e.mapId);
-    if (!canStep(mc, e.x, e.y, dir)) return;
     const [dx, dy] = DIR_OFFSET[dir] || [0, 0];
     const nx = e.x + dx;
     const ny = e.y + dy;
+    const maps = this.world.proj && typeof this.world.proj === "object" && "maps" in this.world.proj
+      ? ((this.world.proj as { maps?: GameMap[] }).maps || []) : [];
+    if ((nx < 0 || ny < 0 || nx >= mc.width || ny >= mc.height) && maps.length) {
+      const cross = resolveBoundaryCrossing(maps, e.mapId, e.x, e.y, dx, dy);
+      if (cross) {
+        const target = maps.find((m) => Number(m.id) === Number(cross.toMapId));
+        if (!target || !isPassable(this.collisionFor(cross.toMapId), cross.toX, cross.toY)) return;
+        for (const other of this.world.roster.players.values()) {
+          if (other !== e && other.mapId === cross.toMapId && other.x === cross.toX && other.y === cross.toY) return;
+        }
+        e.mapId = cross.toMapId;
+        e.x = e.tx = e.rx = e.prx = cross.toX;
+        e.y = e.ty = e.ry = e.pry = cross.toY;
+        e.moving = false;
+      }
+      return;
+    }
+    if (!canStep(mc, e.x, e.y, dir)) return;
     for (const other of this.world.roster.players.values()) {
       if (other === e || other.mapId !== e.mapId) continue;
       const ox = other.moving ? other.tx : other.x;

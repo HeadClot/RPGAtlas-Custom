@@ -23,6 +23,7 @@ import { Plugins } from "./plugin-runtime.js";
 import {
   drawMapCombatOverlay,
   drawMapParallax,
+  connectedMapBuffers,
   tilePassable,
   walkFrame,
   vehicleDrawables,
@@ -47,7 +48,11 @@ export async function render(): Promise<void> {
   // back to the Canvas 2D path for as long as the loss lasts instead of
   // freezing on the last GL frame (Renderer recovers hdActive's underlying
   // resources on webglcontextrestored, so this is just a live override).
-  const hdLive = ctx.hdActive && !(typeof Renderer !== "undefined" && Renderer.isLost());
+  // Connected worlds currently use the deterministic 2D compositor so the
+  // active map and its neighboring buffers share one world-space surface.
+  // Isolated maps retain the existing HD-2D path unchanged.
+  const connected = connectedMapBuffers();
+  const hdLive = ctx.hdActive && connected.length === 0 && !(typeof Renderer !== "undefined" && Renderer.isLost());
   ctx.g2d.clearRect(0, 0, ctx.SCREEN_W, ctx.SCREEN_H);
   if (!hdLive || ctx.scene !== "map") {
     ctx.g2d.fillStyle = "#101018";
@@ -95,6 +100,17 @@ export async function render(): Promise<void> {
     // flag; events gained it with move routes). Unset ⇒ drawn as before.
     if (rt.transparent) continue;
     drawables.push(rt);
+  }
+  if (!hdLive && connected.length && ctx.map.worldOrigin) {
+    for (const neighbor of connected) {
+      if (!neighbor.map.worldOrigin) continue;
+      const ox = neighbor.map.worldOrigin.x - ctx.map.worldOrigin.x;
+      const oy = neighbor.map.worldOrigin.y - ctx.map.worldOrigin.y;
+      for (const rt of neighbor.evRTs) {
+        if (rt.erased || !rt.page || rt.charsetIdx < 0) continue;
+        drawables.push({ ...rt, worldOffsetX: ox, worldOffsetY: oy, neighbor: true });
+      }
+    }
   }
   // Phase 5: parked vehicles + party followers (followers hide while riding)
   if (ctx.scene === "map") {
@@ -211,22 +227,32 @@ export async function render(): Promise<void> {
     const ys = loopV ? [] : [-camY];
     if (loopV) for (let y = -(((camY % mph) + mph) % mph); y < viewH; y += mph) ys.push(y);
     const drawBuf = (buf: any) => { for (const by of ys) for (const bx of xs) g.drawImage(buf, bx, by); };
+    const drawWorldBuf = (buf: any, ox: number, oy: number) => g.drawImage(buf, ox * TILE - camX, oy * TILE - camY);
     // A sprite's screen alias nearest the wrapped view (plus the seam twin).
     const charXs = (sx: number) => (loopH ? [((sx % mpw) + mpw) % mpw, (((sx % mpw) + mpw) % mpw) - mpw] : [sx]);
     const charYs = (sy: number) => (loopV ? [((sy % mph) + mph) % mph, (((sy % mph) + mph) % mph) - mph] : [sy]);
     drawBuf(ctx.lowerBuf);
+    if (connected.length && ctx.map.worldOrigin) {
+      for (const neighbor of connected) {
+        if (!neighbor.map.worldOrigin) continue;
+        drawWorldBuf(neighbor.lowerBuf,
+          neighbor.map.worldOrigin.x - ctx.map.worldOrigin.x,
+          neighbor.map.worldOrigin.y - ctx.map.worldOrigin.y);
+      }
+    }
     for (const d of drawables) {
       const idx = d === p ? p.charsetIdx : d.charsetIdx;
       const frame = walkFrame(d);
       // Bush tiles (M4·A): the character's feet fade to half alpha (MZ bush
       // depth 12px). bushAt short-circuits on maps without bush tiles.
-      const bushy = !d.jumping && ctx.scene === "map" && bushAt(d.x, d.y);
+      const bushy = !d.neighbor && !d.jumping && ctx.scene === "map" && bushAt(d.x, d.y);
       // Move-route opacity. 1 for every character until a route changes it, so
       // the save/restore below is the only difference on the classic path.
       const alpha = entityAlpha(d);
       if (alpha < 1) { g.save(); g.globalAlpha = alpha; }
-      for (const sy of charYs(Math.round(ip(d.pry, d.ry) * TILE - 8 - camY))) {
-        for (const sx of charXs(Math.round(ip(d.prx, d.rx) * TILE - camX))) {
+      const ox = d.worldOffsetX || 0, oy = d.worldOffsetY || 0;
+      for (const sy of charYs(Math.round((ip(d.pry, d.ry) + oy) * TILE - 8 - camY))) {
+        for (const sx of charXs(Math.round((ip(d.prx, d.rx) + ox) * TILE - camX))) {
           if (bushy) drawCharBush(g, idx, d.dir, frame, sx, sy);
           else Assets.drawChar(g, idx, d.dir, frame, sx, sy);
         }
@@ -234,6 +260,14 @@ export async function render(): Promise<void> {
       if (alpha < 1) g.restore();
     }
     drawBuf(ctx.upperBuf);
+    if (connected.length && ctx.map.worldOrigin) {
+      for (const neighbor of connected) {
+        if (!neighbor.map.worldOrigin) continue;
+        drawWorldBuf(neighbor.upperBuf,
+          neighbor.map.worldOrigin.x - ctx.map.worldOrigin.x,
+          neighbor.map.worldOrigin.y - ctx.map.worldOrigin.y);
+      }
+    }
     g.restore();
   }
   drawMapCombatOverlay(ctx.g2d, camX, camY, shakeX, shakeY, alpha, pix, piy);

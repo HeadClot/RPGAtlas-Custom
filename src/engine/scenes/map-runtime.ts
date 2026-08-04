@@ -32,6 +32,7 @@ import { mergeCommandBgs } from "../../shared/audio-math.js";
 import { resetZoneState, zonePassAt, mapHasZones } from "./zone-runtime.js";
 import { rebuildTileBehaviors, ladderAt, terrainTagAt, wrapX, wrapY } from "./tile-behavior.js";
 import { resolvePictureSrc } from "./presentation-runtime.js";
+import { deriveConnections } from "../../shared/map-connections.js";
 
 const TILE = Assets.TILE;
 
@@ -175,7 +176,7 @@ function ensureAutotilesReady(): Promise<void> {
   return new Promise((resolve) => syncAutotileRegistry(ctx.proj, resolve));
 }
 
-async function prerenderMap(): Promise<void> {
+async function prerenderMap(useHd = true): Promise<{ lowerBuf: any; upperBuf: any }> {
   await ensureAutotilesReady();
   ctx.lowerBuf = document.createElement("canvas");
   ctx.lowerBuf.width = ctx.map.width * TILE;
@@ -225,11 +226,56 @@ async function prerenderMap(): Promise<void> {
     }
   }
   ctx.hdActive =
-    hdWanted() &&
+    useHd && hdWanted() &&
     typeof Renderer !== "undefined" &&
     (await Renderer.available());
   if (ctx.hdActive) await Renderer.setMap(ctx.lowerBuf, ctx.upperBuf, ctx.map);
   recordAnimatedCells();
+  return { lowerBuf: ctx.lowerBuf, upperBuf: ctx.upperBuf };
+}
+
+interface NeighborBuffer {
+  map: any;
+  lowerBuf: HTMLCanvasElement;
+  upperBuf: HTMLCanvasElement;
+  evRTs: any[];
+}
+const neighborBuffers = new Map<number, NeighborBuffer>();
+
+/** Build 2D buffers for connected maps without disturbing the active map's
+ * runtime state. The active map remains the only simulated map; neighboring
+ * events are rendered at their authored positions until they become active. */
+async function warmConnectedMaps(): Promise<void> {
+  if (!ctx.proj || !ctx.map || !ctx.map.worldOrigin) {
+    neighborBuffers.clear();
+    return;
+  }
+  const ids = new Set<number>();
+  for (const c of deriveConnections(ctx.proj.maps)) {
+    if (c.aMapId === ctx.map.id) ids.add(c.bMapId);
+    if (c.bMapId === ctx.map.id) ids.add(c.aMapId);
+  }
+  for (const id of [...neighborBuffers.keys()]) if (!ids.has(id)) neighborBuffers.delete(id);
+  const saved = { map: ctx.map, lower: ctx.lowerBuf, upper: ctx.upperBuf, hd: ctx.hdActive, anim: ctx.animCells };
+  try {
+    for (const id of ids) {
+      const map = RA.byId(ctx.proj.maps, id);
+      if (!map) continue;
+      const old = neighborBuffers.get(id);
+      if (old && old.map === map) continue;
+      ctx.map = map;
+      const buffers = await prerenderMap(false);
+      neighborBuffers.set(id, { map, lowerBuf: buffers.lowerBuf, upperBuf: buffers.upperBuf, evRTs: map.events.map(makeEvRT) });
+    }
+  } finally {
+    ctx.map = saved.map; ctx.lowerBuf = saved.lower; ctx.upperBuf = saved.upper;
+    ctx.hdActive = saved.hd; ctx.animCells = saved.anim;
+  }
+}
+
+/** Neighbor buffers in render order. Returns an empty list for legacy maps. */
+export function connectedMapBuffers(): NeighborBuffer[] {
+  return [...neighborBuffers.values()];
 }
 
 // ---- animated terrain (Phase 8 Stage C) ----
@@ -369,6 +415,7 @@ export async function loadMap(mapId: any): Promise<void> {
   ctx.evRTs = ctx.map.events.map(makeEvRT);
   ctx.parallels.clear();
   await prerenderMap();
+  await warmConnectedMaps();
   Music.play(ctx.map.music || "none");
   // Ambience layers (Phase 6): diffed against the previous map's, so shared
   // layers keep looping seamlessly across a transfer. A command-owned BGS

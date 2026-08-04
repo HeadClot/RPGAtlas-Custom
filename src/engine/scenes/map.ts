@@ -72,8 +72,10 @@ import {
 } from "./map-runtime.js";
 import { counterAt, damageFloorAt } from "./tile-behavior.js";
 import { autosaveNow } from "../state/save.js";
+import { resolveBoundaryCrossing } from "../../shared/map-connections.js";
 
 let frameWaiters: any[] = [];
+let seamlessCrossing = false;
 export function frameWait(): Promise<void> {
   return new Promise((r) => frameWaiters.push(r));
 }
@@ -204,6 +206,36 @@ export async function transferPlayer(mapId: any, x: any, y: any, dir: any): Prom
   // Autosave (post-1.1): a completed transfer autosaves like MZ. No-op
   // unless system.autosave is on (and never while saves are event-locked).
   autosaveNow();
+}
+
+/** Cross an authored world-space seam without the explicit-transfer fade.
+ * The active map still changes in the normal way, so map-scoped events,
+ * collision, saves, and multiplayer mapId state remain authoritative. */
+async function crossConnectedMap(cross: any, dir: number): Promise<void> {
+  if (seamlessCrossing || !G.player) return;
+  seamlessCrossing = true;
+  const oldMapId = G.mapId, oldX = G.player.x, oldY = G.player.y, oldDir = G.player.dir;
+  try {
+    await loadMap(cross.toMapId);
+    const p = G.player;
+    p.x = p.tx = cross.toX; p.y = p.ty = cross.toY;
+    p.rx = cross.toX; p.ry = cross.toY; p.prx = cross.toX; p.pry = cross.toY;
+    p.moving = false; p.route = null; p.dir = dir;
+    // A seam is still ordinary movement: the destination tile must accept the
+    // player. If it does not, restore the source map without showing a fade.
+    if (!playerStepPassable(cross.toX, cross.toY)) {
+      await loadMap(oldMapId);
+      const back = G.player;
+      back.x = back.tx = oldX; back.y = back.ty = oldY;
+      back.rx = oldX; back.ry = oldY; back.prx = oldX; back.pry = oldY;
+      back.dir = oldDir; back.moving = false; back.route = null;
+      return;
+    }
+    syncFollowers(true);
+    await render();
+  } finally {
+    seamlessCrossing = false;
+  }
 }
 
 // ============================ map scene update ============================
@@ -403,6 +435,7 @@ const NUM_OF_CARDINAL: Record<Dir, GridDir> = { down: 0, left: 1, right: 2, up: 
  *  The §C5 menu-verb intents (useItem/equip/formation) are defined on the wire
  *  but not emitted by the loopback capture yet, so they are ignored here. */
 function applyPlayerIntent(intent: InputIntent): void {
+  if (seamlessCrossing) return;
   const p = G.player;
   if (intent.k === "attack") {
     if (!G.vehicle) startPlayerAttack();
@@ -416,6 +449,10 @@ function applyPlayerIntent(intent: InputIntent): void {
     const [dx, dy] = DIRD[d];
     const nx = p.x + dx,
       ny = p.y + dy;
+    if ((nx < 0 || ny < 0 || nx >= ctx.map.width || ny >= ctx.map.height) && ctx.proj.maps) {
+      const cross = resolveBoundaryCrossing(ctx.proj.maps, G.mapId, p.x, p.y, dx, dy);
+      if (cross) { void crossConnectedMap(cross, d); return; }
+    }
     const cornerClear = diagonalStepClear(p.x, p.y, d, playerStepPassable);
     const developerThrough = developerThroughActive();
     if (cornerClear) {
