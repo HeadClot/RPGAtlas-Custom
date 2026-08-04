@@ -73,7 +73,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
+    // Invoke Vite directly so Playwright can cleanly reap the preview process
+    // on Windows instead of leaving a nested npm child alive after the tests.
+    command: `node node_modules/vite/bin/vite.js build && node node_modules/vite/bin/vite.js preview --port ${PORT} --strictPort`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

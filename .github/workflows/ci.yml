@@ -15,6 +15,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Install Playwright's Chromium (+ OS deps)
+        run: npx playwright install --with-deps chromium
       - name: Engine test suites (node --test)
         run: npm test
       - name: Unit tests (vitest)
@@ -46,6 +48,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Build Beacon server bundle for relay E2E tests
+        run: node server/build.mjs
       - name: Install Playwright's Chromium (+ OS deps)
         run: npx playwright install --with-deps chromium
       - name: E2E + golden-image tests (builds first — see playwright.config.mjs webServer)
@@ -57,22 +61,3 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
-      # Golden-image baselines are resolved per-platform (see
-      # playwright.config.mjs snapshotPathTemplate, which keys on {platform}).
-      # Only a Windows ("win32") baseline is committed so far — this repo's
-      # dev machine. On ubuntu-latest, Playwright's default
-      # `updateSnapshots: "missing"` behavior means the FIRST run here writes
-      # a fresh tests-e2e/__snapshots__/linux/... baseline from whatever this
-      # runner produces and the test still PASSES (there's nothing to diff
-      # against yet) — it does not fail the build, but it also doesn't
-      # protect anything until that baseline is reviewed and committed.
-      # Upload it here so a maintainer can eyeball it and check it in; after
-      # that, subsequent runs diff against the real thing.
-      - name: Upload freshly-written golden baselines (review before committing)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-golden-snapshots-linux
-          path: tests-e2e/__snapshots__/linux/
-          retention-days: 14
-          if-no-files-found: ignore

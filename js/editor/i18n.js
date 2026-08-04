@@ -33,7 +33,7 @@ const SHARED = {
       "Export Standalone Game…": "Exportar juego independiente…", "Playtest": "Probar juego",
       // Game / map
       "Map Properties…": "Propiedades del mapa…", "HD-2D Viewport": "Visor HD-2D",
-      "World View": "Vista del mundo", "Set Start Position…": "Definir posición inicial…",
+      "World View": "Vista del mundo", "Map Connections": "Conexiones de mapas", "Connections": "Conexiones", "Set Start Position…": "Definir posición inicial…",
       // Edit
       "Undo": "Deshacer", "Redo": "Rehacer", "Cut": "Cortar", "Copy": "Copiar", "Paste": "Pegar",
       "Clear Selection": "Limpiar selección",
@@ -119,7 +119,7 @@ const SHARED = {
       "Export Standalone Game…": "Exporter le jeu autonome…", "Playtest": "Tester",
       // Game / map
       "Map Properties…": "Propriétés de la carte…", "HD-2D Viewport": "Fenêtre HD-2D",
-      "World View": "Vue du monde", "Set Start Position…": "Définir la position initiale…",
+      "World View": "Vue du monde", "Map Connections": "Connexions de cartes", "Connections": "Connexions", "Set Start Position…": "Définir la position initiale…",
       // Edit
       "Undo": "Annuler", "Redo": "Rétablir", "Cut": "Couper", "Copy": "Copier", "Paste": "Coller",
       "Clear Selection": "Effacer la sélection",
@@ -205,7 +205,7 @@ const SHARED = {
       "Export Standalone Game…": "Eigenständiges Spiel exportieren…", "Playtest": "Testspielen",
       // Game / map
       "Map Properties…": "Karteneigenschaften…", "HD-2D Viewport": "HD-2D-Ansichtsfenster",
-      "World View": "Weltansicht", "Set Start Position…": "Startposition festlegen…",
+      "World View": "Weltansicht", "Map Connections": "Kartenverbindungen", "Connections": "Verbindungen", "Set Start Position…": "Startposition festlegen…",
       // Edit
       "Undo": "Rückgängig", "Redo": "Wiederholen", "Cut": "Ausschneiden", "Copy": "Kopieren", "Paste": "Einfügen",
       "Clear Selection": "Auswahl aufheben",
@@ -291,7 +291,7 @@ const SHARED = {
       "Export Standalone Game…": "スタンドアロンゲームを書き出す…", "Playtest": "テストプレイ",
       // Game / map
       "Map Properties…": "マップの設定…", "HD-2D Viewport": "HD-2Dビューポート",
-      "World View": "ワールドビュー", "Set Start Position…": "開始位置を設定…",
+      "World View": "ワールドビュー", "Map Connections": "マップ接続", "Connections": "接続", "Set Start Position…": "開始位置を設定…",
       // Edit
       "Undo": "元に戻す", "Redo": "やり直す", "Cut": "切り取り", "Copy": "コピー", "Paste": "貼り付け",
       "Clear Selection": "選択を解除",
@@ -377,7 +377,7 @@ const SHARED = {
       "Export Standalone Game…": "匯出獨立遊戲…", "Playtest": "試玩",
       // Game / map
       "Map Properties…": "地圖屬性…", "HD-2D Viewport": "HD-2D 檢視區",
-      "World View": "世界檢視", "Set Start Position…": "設定起始位置…",
+      "World View": "世界檢視", "Map Connections": "地圖連接", "Connections": "連接", "Set Start Position…": "設定起始位置…",
       // Edit
       "Undo": "復原", "Redo": "重做", "Cut": "剪下", "Copy": "複製", "Paste": "貼上",
       "Clear Selection": "清除選取範圍",
@@ -463,7 +463,7 @@ const SHARED = {
       "Export Standalone Game…": "导出独立游戏…", "Playtest": "试玩",
       // Game / map
       "Map Properties…": "地图属性…", "HD-2D Viewport": "HD-2D 视口",
-      "World View": "世界视图", "Set Start Position…": "设置起始位置…",
+      "World View": "世界视图", "Map Connections": "地图连接", "Connections": "连接", "Set Start Position…": "设置起始位置…",
       // Edit
       "Undo": "撤销", "Redo": "重做", "Cut": "剪切", "Copy": "复制", "Paste": "粘贴",
       "Clear Selection": "清除选区",
@@ -549,7 +549,7 @@ const SHARED = {
       "Export Standalone Game…": "Exportar jogo independente…", "Playtest": "Testar jogo",
       // Game / map
       "Map Properties…": "Propriedades do mapa…", "HD-2D Viewport": "Janela HD-2D",
-      "World View": "Vista do mundo", "Set Start Position…": "Definir posição inicial…",
+      "World View": "Vista do mundo", "Map Connections": "Conexões de mapas", "Connections": "Conexões", "Set Start Position…": "Definir posição inicial…",
       // Edit
       "Undo": "Desfazer", "Redo": "Refazer", "Cut": "Recortar", "Copy": "Copiar", "Paste": "Colar",
       "Clear Selection": "Limpar seleção",
@@ -635,7 +635,7 @@ const SHARED = {
       "Export Standalone Game…": "독립 실행형 게임 내보내기…", "Playtest": "테스트 플레이",
       // Game / map
       "Map Properties…": "맵 속성…", "HD-2D Viewport": "HD-2D 뷰포트",
-      "World View": "월드 뷰", "Set Start Position…": "시작 위치 설정…",
+      "World View": "월드 뷰", "Map Connections": "맵 연결", "Connections": "연결", "Set Start Position…": "시작 위치 설정…",
       // Edit
       "Undo": "실행 취소", "Redo": "다시 실행", "Cut": "잘라내기", "Copy": "복사", "Paste": "붙여넣기",
       "Clear Selection": "선택 해제",
@@ -721,7 +721,7 @@ const SHARED = {
       "Export Standalone Game…": "Esporta gioco autonomo…", "Playtest": "Prova di gioco",
       // Game / map
       "Map Properties…": "Proprietà della mappa…", "HD-2D Viewport": "Vista HD-2D",
-      "World View": "Vista del mondo", "Set Start Position…": "Imposta posizione iniziale…",
+      "World View": "Vista del mondo", "Map Connections": "Connessioni mappe", "Connections": "Connessioni", "Set Start Position…": "Imposta posizione iniziale…",
       // Edit
       "Undo": "Annulla", "Redo": "Ripristina", "Cut": "Taglia", "Copy": "Copia", "Paste": "Incolla",
       "Clear Selection": "Cancella selezione",
@@ -807,7 +807,7 @@ const SHARED = {
       "Export Standalone Game…": "Экспортировать автономную игру…", "Playtest": "Тестовая игра",
       // Game / map
       "Map Properties…": "Свойства карты…", "HD-2D Viewport": "Окно HD-2D",
-      "World View": "Вид мира", "Set Start Position…": "Задать стартовую позицию…",
+      "World View": "Вид мира", "Map Connections": "Соединения карт", "Connections": "Соединения", "Set Start Position…": "Задать стартовую позицию…",
       // Edit
       "Undo": "Отменить", "Redo": "Повторить", "Cut": "Вырезать", "Copy": "Копировать", "Paste": "Вставить",
       "Clear Selection": "Снять выделение",

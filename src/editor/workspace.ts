@@ -28,6 +28,7 @@ import { setStatus, flashStatus } from "./map-editor/status";
 import { openMapProps } from "./map-editor/map-list";
 import { toggleViewport, isViewportVisible } from "./map-editor/hd-viewport";
 import { toggleWorld, isWorldVisible } from "./map-editor/world-view";
+import { toggleConnections, isConnectionsVisible } from "./map-editor/connections-view";
 import { importAutotile } from "./map-editor/autotile-ui";
 import { ICONS } from "./icons";
 import { openDatabase } from "./database";
@@ -47,6 +48,7 @@ import {
 import { openTutorials } from "./tutorials";
 import { openCommandPalette } from "./command-palette";
 import { managerActive } from "./project-manager/manager-host";
+import { VIEW_MENU_ITEMS } from "./menu-registry";
 
 const t = editorI18n.t;
 // The dialogue workspace's dense authoring body is English-first like the
@@ -175,6 +177,7 @@ function showDesktopFoldersNote() {
 act("mapprops", { label: "Map Properties…", run: openMapProps });
 act("hdpreview", { label: "HD-2D Viewport", icon: "hd2d", key: "F2", tip: "Show the live HD-2D viewport panel (renders this map with its HD-2D settings; drag light gizmos)", active: () => isViewportVisible(), run: toggleViewport });
 act("worldview", { label: "World View", icon: "map", key: "F3", tip: "Show the World View — a bird's-eye map-connection graph (drag maps to arrange, drag arrows to re-link)", active: () => isWorldVisible(), run: toggleWorld });
+act("connections", { label: "Map Connections", icon: "map", tip: "Arrange maps in absolute tile-space and make touching borders walkable", active: () => isConnectionsVisible(), run: toggleConnections });
 
 // Unified undo (Stage F): the menu/palette rows and toolbar tooltips name what
 // the next step applies ("Undo — Database edit"), read from the tagged stack.
@@ -298,7 +301,7 @@ const MENUS = [
   { label: "Layer", items: ["layer-auto", "layer-ground", "layer-decor", "layer-decor2", "layer-over"] },
   { label: "Advanced", items: ["panel-advanced", "terrain-studio", "-", "adv-automap", "adv-automap-preview", "adv-automap-apply", "-", "adv-flip-h", "adv-flip-v", "adv-rotate", "-", "adv-capture-stamp", "adv-stamp-random"] },
   { label: "Scale", items: ["zoomin", "zoomout", "zoom1", "zoomfit"] },
-  { label: "View", items: ["panel-maps", "panel-tiles", "panel-map", "panel-advanced", "panel-console", "hdpreview", "worldview", "-", "focus-next-panel", "-", "dock-reset", "dock-save", "dock-load"] },
+  { label: "View", items: VIEW_MENU_ITEMS },
   { label: "Tools", items: ["db", "dialogue", "plugins", "audio", "search", "resources", "assetbrowser", "chargen", "-", "autotile-import", "-", "cmdpal"] },
   { label: "Generators", items: ["generators", "-", ...QUICK_GENERATOR_IDS.map((id) => "generator-" + id)] },
   { label: "Game", items: ["play", "build", "-", "mapprops", "hdpreview", "mode-start"] },

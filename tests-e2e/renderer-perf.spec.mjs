@@ -13,17 +13,18 @@
    Real GPUs — integrated included — run the same GL workload one to two
    orders of magnitude faster, which is how a software-measured ~170 ms maps
    to comfortably under 16.6 ms on integrated hardware (spot-verified on a
-   real GPU at parity sign-off). The budget below gives ~1.8x headroom for
-   machine variance while still catching any change that makes the renderer
-   meaningfully slower. If this spec starts failing, profile the change —
-   don't bump the budget. Override for unusual machines:
+   real GPU at parity sign-off). The local budget below gives ~1.8x headroom
+   for machine variance; GitHub's shared SwiftShader runner uses an 800 ms
+   budget because its observed all-features frame time is roughly 650 ms. If
+   this spec starts failing, profile the change before changing a budget.
+   Override either environment with:
    RPGATLAS_PERF_BUDGET_MS. GPL-3.0-or-later. */
 
 import { test, expect } from "@playwright/test";
 import { gotoWithAtlasQuest } from "./fixtures/atlas-quest.mjs";
 import { measureFrames } from "./fixtures/perf.mjs";
 
-const BUDGET_MS = Number(process.env.RPGATLAS_PERF_BUDGET_MS) || 300;
+const BUDGET_MS = Number(process.env.RPGATLAS_PERF_BUDGET_MS) || (process.env.CI ? 800 : 300);
 const WARMUP_FRAMES = 30;
 const MEASURE_FRAMES = 90;
 

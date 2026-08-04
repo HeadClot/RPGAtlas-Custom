@@ -83,7 +83,7 @@ const withStaticTerrain = (project) => paintTerrain(project, {
   terrain: true, pass: true, // absent kind ⇒ blob47
 });
 
-async function bootTo(page, hdParam, transform, extraMs = 0) {
+async function bootToMap(page, hdParam, transform) {
   await gotoWithAtlasQuest(page, `/play.html?hd2d=${hdParam}`, {
     installClock: true,
     transformProject: (project) =>
@@ -94,6 +94,10 @@ async function bootTo(page, hdParam, transform, extraMs = 0) {
   await page.getByText("New Game", { exact: true }).click();
   await page.clock.runFor(700);
   await expect(page.locator(".titlewin")).toHaveCount(0);
+}
+
+async function bootTo(page, hdParam, transform, extraMs = 0) {
+  await bootToMap(page, hdParam, transform);
   await page.clock.runFor(500 + extraMs);
   return page.locator("#stage").screenshot();
 }
@@ -119,6 +123,19 @@ async function pixelDiff(page, a, b) {
   }, [a.toString("base64"), b.toString("base64")]);
 }
 
+/** WebGL texture uploads can finish just after page.clock.runFor() returns.
+ * Wait for two identical stage captures so the comparison starts after that
+ * asynchronous upload, without advancing the virtual animation clock. */
+async function stableStageScreenshot(page) {
+  let previous = await page.locator("#stage").screenshot();
+  for (let i = 0; i < 6; i++) {
+    const current = await page.locator("#stage").screenshot();
+    if (await pixelDiff(page, previous, current) === 0) return current;
+    previous = current;
+  }
+  return previous;
+}
+
 test.describe("animated terrain (Phase 8 Stage C)", () => {
   test("classic 2D: animated water changes frame over time, deterministically", async ({ page }) => {
     // Two captures at the SAME virtual time must be byte-identical…
@@ -132,13 +149,23 @@ test.describe("animated terrain (Phase 8 Stage C)", () => {
   });
 
   test("HD-2D: animated water animates without diverging on a static frame", async ({ page }) => {
-    // Same clock time ⇒ stable (within the WebGL boot noise floor); a later time
-    // ⇒ the water frame changed and re-textured the lower buffer.
-    const a = await bootTo(page, 1, withAnimatedWater, 0);
-    const b = await bootTo(page, 1, withAnimatedWater, 0);
-    const later = await bootTo(page, 1, withAnimatedWater, 500);
-    const noise = await pixelDiff(page, a, b);
-    expect(await pixelDiff(page, a, later)).toBeGreaterThan(noise);
+    // Capture all frames from one boot. Rebooting WebGL for each screenshot
+    // introduces texture-upload noise that can be larger than the terrain
+    // delta on a busy CI SwiftShader runner.
+    await bootToMap(page, 1, withAnimatedWater);
+    await page.clock.runFor(500);
+    const a = await stableStageScreenshot(page);
+
+    let later = a;
+    let animatedDiff = 0;
+    // Advance in frame-sized increments until a different terrain frame is
+    // observed. This avoids relying on an exact rAF/upload ordering at 500ms.
+    for (let i = 0; i < 6 && animatedDiff === 0; i++) {
+      await page.clock.runFor(250);
+      later = await stableStageScreenshot(page);
+      animatedDiff = await pixelDiff(page, a, later);
+    }
+    expect(animatedDiff).toBeGreaterThan(0);
   });
 });
 

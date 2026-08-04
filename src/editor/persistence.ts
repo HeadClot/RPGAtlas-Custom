@@ -41,6 +41,7 @@ import {
 } from "../shared/folder-sync";
 import { viewportDirty } from "./map-editor/hd-viewport";
 import { worldDirty } from "./map-editor/world-view";
+import { connectionsDirty } from "./map-editor/connections-view";
 import { advDirty } from "./advanced/adv-panel";
 import { noteEdit } from "./edit-scope";
 
@@ -139,6 +140,7 @@ const projectRepo = new BrowserProjectRepository(
     saveTimer = setTimeout(saveNow, 700);
     viewportDirty(); // keep the live HD-2D viewport in sync with edits
     worldDirty();    // and the World View map-connection graph
+    connectionsDirty(); // spatial map-connection editor
     advDirty();      // and the Advanced Map Editor (Phase 8)
     noteEdit();      // unified undo: extend an active scoped-edit window (Stage F)
   }

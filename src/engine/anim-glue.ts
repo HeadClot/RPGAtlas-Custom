@@ -16,6 +16,8 @@ import { G } from "./state/game-state.js";
 import { createBattleFx } from "../shared/battle-fx.js";
 import { playAnimation } from "../shared/anim-player.js";
 import { resolvePlaybackSheet } from "../shared/asset-library.js";
+import { clampCameraAxis, connectedCameraBounds } from "../shared/map-connections.js";
+import { connectedMapBuffers } from "./scenes/map-runtime.js";
 
 let fxBundle: any = null;
 let fxLayer: any = null;
@@ -36,8 +38,13 @@ export function entityScreenPoint(entity: any): { x: number; y: number } {
   const p = G.player;
   const viewW = ctx.SCREEN_W / ctx.cameraZoom;
   const viewH = ctx.SCREEN_H / ctx.cameraZoom;
-  const camX = clamp(p.rx * TILE + TILE / 2 - viewW / 2, 0, Math.max(0, ctx.map.width * TILE - viewW));
-  const camY = clamp(p.ry * TILE + TILE / 2 - viewH / 2, 0, Math.max(0, ctx.map.height * TILE - viewH));
+  const bounds = connectedCameraBounds(ctx.map, connectedMapBuffers().map((neighbor) => neighbor.map));
+  const camX = clampCameraAxis(
+    p.rx * TILE + TILE / 2 - viewW / 2, viewW, bounds.minX * TILE, bounds.maxX * TILE,
+  );
+  const camY = clampCameraAxis(
+    p.ry * TILE + TILE / 2 - viewH / 2, viewH, bounds.minY * TILE, bounds.maxY * TILE,
+  );
   return {
     x: (entity.rx * TILE + TILE / 2 - camX) * ctx.cameraZoom,
     y: (entity.ry * TILE + TILE * 0.3 - camY) * ctx.cameraZoom,

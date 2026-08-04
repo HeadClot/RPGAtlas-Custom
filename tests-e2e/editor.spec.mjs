@@ -289,6 +289,89 @@ test.describe("world view", () => {
   });
 });
 
+test.describe("map connections view", () => {
+  test("opens with map cards, SVG seam layer, and placement HUD", async ({ page }) => {
+    await page.goto("/index.html");
+    const saveIndicator = page.locator("#save-ind");
+    await expect(saveIndicator).toBeVisible();
+    await expect(saveIndicator).toHaveText(/^✓ /);
+
+    const mapCount = await page.evaluate(() => JSON.parse(localStorage.getItem("rpgatlas_project")).maps.length);
+    await page.locator("#menus .menu-label", { hasText: "View" }).dispatchEvent("mousedown");
+    await page.locator(".menu-drop .menu-item", { hasText: "Map Connections" }).click();
+
+    await expect(page.locator(".dock-tab", { hasText: "Connections" })).toBeVisible();
+    await expect(page.locator("#dock-root .cv-map")).toHaveCount(mapCount);
+    const previews = page.locator("#dock-root .cv-map-preview");
+    await expect(previews).toHaveCount(mapCount);
+    for (let i = 0; i < mapCount; i++) {
+      await expect.poll(() => previews.nth(i).evaluate((canvas) => canvas.width > 0 && canvas.height > 0)).toBe(true);
+      await expect.poll(() => previews.nth(i).evaluate((canvas) => {
+        const card = canvas.parentElement;
+        if (!card) return false;
+        const canvasRect = canvas.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        return Math.abs(canvasRect.width - cardRect.width) <= 2
+          && Math.abs(canvasRect.height - cardRect.height) <= 2;
+      })).toBe(true);
+    }
+    await expect(page.locator("#dock-root .cv-edges")).toBeAttached();
+    await expect(page.locator("#dock-root .cv-hud")).toBeVisible();
+    await expect(page.locator("#dock-root .cv-hud-row")).toBeVisible();
+  });
+
+  test("nudges the selected card one tile with each arrow key and persists the origin", async ({ page }) => {
+    await page.goto("/index.html");
+    const saveIndicator = page.locator("#save-ind");
+    await expect(saveIndicator).toBeVisible();
+    await expect(saveIndicator).toHaveText(/^✓ /);
+
+    await page.locator("#menus .menu-label", { hasText: "View" }).dispatchEvent("mousedown");
+    await page.locator(".menu-drop .menu-item", { hasText: "Map Connections" }).click();
+
+    const card = page.locator("#dock-root .cv-map").first();
+    await expect(card).toBeVisible();
+    await card.click();
+    const originX = page.locator("#dock-root .cv-origin").first();
+    const originY = page.locator("#dock-root .cv-origin").nth(1);
+    await expect(originX).toHaveValue("0");
+    await expect(originY).toHaveValue("0");
+
+    await page.keyboard.press("ArrowRight");
+    await expect(originX).toHaveValue("1");
+    await expect(originY).toHaveValue("0");
+    await page.keyboard.press("ArrowDown");
+    await expect(originX).toHaveValue("1");
+    await expect(originY).toHaveValue("1");
+    await page.keyboard.press("ArrowLeft");
+    await expect(originX).toHaveValue("0");
+    await expect(originY).toHaveValue("1");
+    await page.keyboard.press("ArrowUp");
+    await expect(originX).toHaveValue("0");
+    await expect(originY).toHaveValue("0");
+
+    await expect(saveIndicator).toHaveText(/^● /);
+    await expect(saveIndicator).toHaveText(/^✓ /, { timeout: 5000 });
+    const project = await page.evaluate(() => JSON.parse(localStorage.getItem("rpgatlas_project")));
+    const map = project.maps[0];
+    expect(map.worldOrigin).toEqual({ x: 0, y: 0 });
+  });
+
+  test("leaves arrow keys available for the numeric origin inputs", async ({ page }) => {
+    await page.goto("/index.html");
+    await expect(page.locator("#save-ind")).toBeVisible();
+
+    await page.locator("#menus .menu-label", { hasText: "View" }).dispatchEvent("mousedown");
+    await page.locator(".menu-drop .menu-item", { hasText: "Map Connections" }).click();
+    await page.locator("#dock-root .cv-map").first().click();
+
+    const originX = page.locator("#dock-root .cv-origin").first();
+    await originX.focus();
+    await page.keyboard.press("ArrowUp");
+    await expect(originX).toHaveValue("1");
+  });
+});
+
 test.describe("database list upgrades", () => {
   test("search filters the list and checking a row reveals the bulk bar", async ({ page }) => {
     await page.goto("/index.html");

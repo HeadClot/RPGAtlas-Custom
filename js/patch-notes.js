@@ -4,6 +4,164 @@
 
 export const PATCH_NOTES = [
   {
+    date: "August 4, 2026",
+    title: "Connected-map camera visibility",
+    summary:
+      "The camera now pans into touching neighboring maps instead of stopping at the active map's edge and revealing the black background.",
+    items: [
+      "Extend follow-camera and scripted Scroll Map bounds across maps placed edge-to-edge in Map Connections.",
+      "Keep ordinary Transfer Player destinations isolated and preserve existing seamless border movement.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.3.1",
+    title: "Stable animated-terrain E2E timing",
+    summary:
+      "The HD-2D terrain animation regression test now isolates frame changes from WebGL startup noise on CI runners.",
+    items: [
+      "Capture static and later water frames within one browser boot instead of comparing separately initialized WebGL textures.",
+      "Keep the deterministic frozen-clock assertion for both unchanged and advanced terrain frames.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.3.0",
+    title: "Linux E2E gates match CI capabilities",
+    summary:
+      "GitHub Actions now handles platform-specific renderer baselines and SwiftShader capacity without masking the editor and relay smoke tests.",
+    items: [
+      "Skip renderer goldens only when the complete platform baseline set is unavailable; committed baselines remain enforced.",
+      "Use an 800ms CI SwiftShader budget while retaining the 300ms local performance target and environment override.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.9",
+    title: "CI relay and map-card stability",
+    summary:
+      "Relay E2E coverage now starts its Beacon bundle in CI, and unplaced Map Connections cards no longer overlap during initial layout.",
+    items: [
+      "Build server/dist/beacon.mjs before browser relay tests launch their local server.",
+      "Lay out unplaced map cards using each map's width so card clicks reach the selected map reliably.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.8",
+    title: "Map connection seams render cleanly",
+    summary:
+      "Fixed Map Connections showing isolated green dots where touching map borders should be indicated.",
+    items: [
+      "Render full green seam segments across shared map borders instead of zero-length point markers.",
+      "Keep seam indicators visible above map previews without changing map connectivity or movement.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.7",
+    title: "Relay emote CI synchronization",
+    summary:
+      "The live WebSocket emote regression test now synchronizes on the guest join before sending its first social frame.",
+    items: [
+      "Prevent CI load from racing guest welcome delivery against host join presence delivery.",
+      "Wait for the authoritative roster delta before checking the emote state on the remote player.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.6",
+    title: "GitHub Actions test environment repaired",
+    summary:
+      "The CI engine-test job now provisions its required Playwright browser and accepts the editor's preview-aware event-pin guard.",
+    items: [
+      "Install Chromium and its Linux dependencies before the Node test suite runs.",
+      "Keep the editor playtest synchronization contract aligned with preview rendering behavior.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.5",
+    title: "Playwright uses one canonical configuration",
+    summary:
+      "Playwright now discovers the RPGAtlas end-to-end suite consistently from both the npm script and direct CLI commands.",
+    items: [
+      "Removed the conflicting generated TypeScript configuration that selected network-dependent scaffold tests instead of the built app suite.",
+      "Removed the stale Playwright example spec so direct `npx playwright test` runs the 137 Chromium RPGAtlas tests against the Vite preview server.",
+      "The preview server now starts through Vite's CLI entry directly so Playwright shuts it down cleanly on Windows.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.4",
+    title: "Keyboard nudging for Map Connections",
+    summary:
+      "Selected map cards in the Map Connections editor can now be aligned precisely with the arrow keys.",
+    items: [
+      "Press an arrow key to move the selected card one world-space tile at a time.",
+      "Keyboard nudges persist the card's world origin just like drag placement, while origin number fields keep their normal arrow-key editing behavior.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.3",
+    title: "Map Connections cards fit previews",
+    summary:
+      "Map snapshots now fill their full world-space cards instead of leaving the capped thumbnail at its intrinsic size.",
+    items: [
+      "Preview canvases retain capped backing resolution for performance while scaling across the complete map footprint.",
+      "Map card borders, dragging, snapping, seams, and placement dimensions remain unchanged.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.2",
+    title: "Map Connections previews",
+    summary:
+      "The Map Connections editor now shows a tile-only snapshot of every level inside its world-space card.",
+    items: [
+      "Map cards display scaled terrain, layers, autotiles, shadows, and heights behind their labels.",
+      "Previews remain visual-only, so dragging, snapping, origins, seams, and map opening behave as before.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.1",
+    title: "Playwright uses the built Chromium harness",
+    summary:
+      "End-to-end tests now run through one explicit configuration against the built app with the intended Chromium-only coverage.",
+    items: [
+      "The test:e2e command explicitly selects playwright.config.mjs, including its Vite preview server and software-rendering settings.",
+      "Removed the stale generated multi-browser configuration and network-dependent example tests.",
+      "Documented the canonical Chromium installation and test command.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.1",
+    title: "Map Connections panel renders correctly",
+    summary:
+      "Fixed the Map Connections editor opening as an empty canvas instead of showing maps and placement controls.",
+    items: [
+      "The Connections panel now initializes its SVG seam layer before the first refresh.",
+      "Map cards, diagnostics, numeric origins, and the placement HUD appear immediately when the panel opens.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    version: "2.2.0",
+    title: "Seamless map connections",
+    summary:
+      "Place maps in absolute tile-space and walk across touching borders without a fade, in solo play and multiplayer.",
+    items: [
+      "Map Connections opens a spatial editor with real map dimensions, drag-and-snap placement, numeric origins, seam lines, overlap/gap warnings, and one-click edge-to-edge placement.",
+      "Maps with touching non-overlapping borders now connect automatically; the runtime composes neighboring map art and authored events around the player.",
+      "Players can cross connected borders without a fade, while explicit Transfer Player commands keep their existing transfer behavior.",
+      "Beacon and local co-op movement validate connected-map crossings on the authoritative side before changing mapId and position.",
+      "Existing maps remain isolated until they receive a world origin; the previous World View transfer graph remains available.",
+    ],
+  },
+  {
     date: "August 2, 2026",
     version: "2.1.0",
     title: "Move routes, dice damage, and a condition builder you can read",

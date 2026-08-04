@@ -13,6 +13,15 @@ npm run test:e2e          # headless, builds first (webServer does this for you)
 npx playwright show-report  # after a run, opens the HTML report
 ```
 
+The repository uses one Playwright configuration, `playwright.config.mjs`, and
+one browser project: Chromium. The Chromium-only project is intentional because
+the renderer golden tests use software WebGL rendering and committed baselines
+are maintained for that harness. Install the matching browser locally with:
+
+```
+npx playwright install chromium
+```
+
 The dev server is NOT used here (no `npm run dev`). `playwright.config.mjs`'s
 `webServer` block runs `npm run build && npm run preview -- --port 4173
 --strictPort` and waits for `http://localhost:4173` to answer before tests
@@ -176,19 +185,11 @@ SwiftShader forcing the same rasterizer.
 
 **Current state:** only the `win32` baseline (captured on this dev machine)
 is committed. The CI workflow (`.github/workflows/ci.yml`, `e2e` job) runs
-on `ubuntu-latest`, where no `linux` baseline exists yet. Playwright's
-default `updateSnapshots: "missing"` behavior means that first CI run will
-*write* a fresh `linux` baseline from whatever the runner produces and the
-test will **pass** (there's nothing to diff against yet) — it does not fail
-the build, but it also isn't actually protecting anything until that
-baseline is reviewed and checked in. The CI job uploads
-`tests-e2e/__snapshots__/linux/` as a build artifact
-(`e2e-golden-snapshots-linux`) specifically so a maintainer can eyeball that
-first-run output and commit it; every run after that is a real diff.
+on `ubuntu-latest`, where no `linux` baseline exists yet. The golden spec
+skips itself in CI until the complete platform baseline set is committed;
+once `tests-e2e/__snapshots__/linux/` is checked in, every Linux golden is a
+real diff gate. This avoids treating Playwright's missing-baseline soft error
+as a passing test while still keeping the renderer goldens active locally.
 
-If Linux rendering ever turns out to be too unstable to pin down this way
-(e.g. font/driver variance inside SwiftShader itself), the fallback is to
-mark the golden assertions CI-skipped there with a comment explaining why,
-and keep them as a local-only (Windows dev machine) regression check. That
-hasn't been necessary yet — this is a documented escape hatch, not something
-currently in effect.
+If Linux rendering proves too unstable to pin down, keep the CI skip and
+retain the local Windows goldens as the renderer regression check.
