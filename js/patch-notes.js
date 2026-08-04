@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Node 24 CI runtime",
+    summary:
+      "GitHub Actions now uses the supported Node 24 runtime for checkout, setup, and project verification jobs.",
+    items: [
+      "Upgrade actions/checkout and actions/setup-node to v6 in both CI jobs.",
+      "Run the test, lint, typecheck, build, and E2E gates on Node 24.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Connected-map camera visibility",
     summary:
       "The camera now pans into touching neighboring maps instead of stopping at the active map's edge and revealing the black background.",
