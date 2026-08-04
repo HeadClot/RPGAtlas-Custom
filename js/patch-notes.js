@@ -11,6 +11,12 @@ export const PATCH_NOTES = [
     items: [
       "Recalculate seam geometry from each card's live provisional position during dragging.",
       "Keep saved map origins, drag snapping, and runtime seamless movement unchanged.",
+    title: "Node 24 CI runtime",
+    summary:
+      "GitHub Actions now uses the supported Node 24 runtime for checkout, setup, and project verification jobs.",
+    items: [
+      "Upgrade actions/checkout and actions/setup-node to v6 in both CI jobs.",
+      "Run the test, lint, typecheck, build, and E2E gates on Node 24.",
     ],
   },
   {
