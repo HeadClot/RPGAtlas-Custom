@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Map Connections clears stale seams",
+    summary:
+      "Map Connections now removes old green seam lines when map cards are moved apart.",
+    items: [
+      "Redraw only the seams for maps that are currently touching.",
+      "Moving cards apart and reconnecting them no longer leaves duplicate or obsolete lines.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Node 24 CI runtime",
     summary:
       "GitHub Actions now uses the supported Node 24 runtime for checkout, setup, and project verification jobs.",

@@ -121,6 +121,7 @@ function rebuild() {
 
 function drawConnections() {
   if (!svg) return;
+  svg.replaceChildren();
   const items = allMaps();
   const byId = new Map(items.map(({ m, o }) => [m.id, { m, o }]));
   for (const c of deriveConnections(S.proj.maps)) {
