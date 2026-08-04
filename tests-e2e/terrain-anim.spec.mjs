@@ -123,28 +123,31 @@ async function pixelDiff(page, a, b) {
   }, [a.toString("base64"), b.toString("base64")]);
 }
 
-/** WebGL texture uploads can finish just after page.clock.runFor() returns.
- * Wait for two identical stage captures so the comparison starts after that
- * asynchronous upload, without advancing the virtual animation clock. */
+/** Texture uploads and the final async render can finish just after
+ * page.clock.runFor() returns. Give those real-time tasks a chance to settle
+ * while the virtual clock remains paused, then capture one stable frame. */
 async function stableStageScreenshot(page) {
-  let previous = await page.locator("#stage").screenshot();
-  for (let i = 0; i < 6; i++) {
-    const current = await page.locator("#stage").screenshot();
-    if (await pixelDiff(page, previous, current) === 0) return current;
-    previous = current;
-  }
-  return previous;
+  await page.clock.runFor(0);
+  await page.waitForTimeout(100);
+  return page.locator("#stage").screenshot();
 }
 
 test.describe("animated terrain (Phase 8 Stage C)", () => {
   test("classic 2D: animated water changes frame over time, deterministically", async ({ page }) => {
-    // Two captures at the SAME virtual time must be byte-identical…
-    const t0a = await bootTo(page, 0, withAnimatedWater, 0);
-    const t0b = await bootTo(page, 0, withAnimatedWater, 0);
+    // Keep both captures in one boot. Rebooting the renderer can leave an
+    // asynchronous texture upload at a different completion point even when
+    // the virtual clock is reset to the same time.
+    await bootToMap(page, 0, withAnimatedWater);
+    await page.clock.runFor(500);
+    const captureTime = await page.evaluate(() => Date.now() + 1000);
+    await page.clock.pauseAt(captureTime);
+    const t0a = await stableStageScreenshot(page);
+    const t0b = await stableStageScreenshot(page);
     expect(await pixelDiff(page, t0a, t0b)).toBe(0);
     // …and a capture ~half a second later (past the 4fps frame boundary) must
     // differ — the water advanced to the next, differently-coloured frame.
-    const t1 = await bootTo(page, 0, withAnimatedWater, 500);
+    await page.clock.runFor(500);
+    const t1 = await stableStageScreenshot(page);
     expect(await pixelDiff(page, t0a, t1)).toBeGreaterThan(0);
   });
 
