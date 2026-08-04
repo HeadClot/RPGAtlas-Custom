@@ -9,6 +9,7 @@ src-tauri/game.conf.json
 
 # Build artifacts
 *.log
+*.exe
 
 # Project Beacon (server/): the bundled Node server + any DO build output are
 # reproducible via `npm run build` in server/ — source is checked in, not dist.
@@ -37,4 +38,3 @@ dist/
 # Playwright
 /playwright/.cache/
 /playwright/.auth/
-/bin
