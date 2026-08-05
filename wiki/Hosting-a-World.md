@@ -90,16 +90,30 @@ folder:
 
 ```
 cd server
+npm install
+npx wrangler kv namespace create GAME
+# Put the returned namespace id in server/wrangler.jsonc.
+npx wrangler kv key put --binding=GAME project --path ../MyGame.rpgatlas --remote
 npx wrangler deploy
 ```
 
 The live deploy runs in **your** Cloudflare account (Driftwood never sees it). Your game
 connects to your `wss://…workers.dev` address.
 
-> **Co-op battles need the Node server for now.** Cloudflare rooms run the walk-and-chat layer;
-> the engine rooms above — parties and shared battles — run on the Node target today. If your
-> game leans on co-op battles, host the Node server; bringing engine rooms to Cloudflare is a
-> post-2.0 step.
+The project is loaded from the `GAME` KV binding. Keep `--remote` on the KV upload: without it,
+Wrangler writes only to local development storage and the deployed Worker cannot load the game.
+Cloudflare Durable Objects use the shared authoritative room/world and action-combat runtime.
+
+The Worker routes are:
+
+- `GET /new` — mint a friend-room code.
+- `GET /rt?code=…` — upgrade a friend-room connection to WebSocket.
+- `GET /health` — return a health response.
+- `GET /wrt?world=main` — connect to a persistent world Durable Object.
+
+Use Node when you need a local project path, file-backed world snapshots, worker-thread controls,
+or the interactive operator console. Cloudflare world state persists in Durable Object storage;
+Node world state persists with `--data`.
 
 > The server shares the exact same world code the game uses — the same movement, collision,
 > and rules — so what runs on your server behaves like what runs in the editor.

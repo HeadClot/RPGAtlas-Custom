@@ -37,7 +37,7 @@ Audio imported in the Asset Browser gets a role (guessed from the file name, edi
 | **Ambience layers** | **Map Properties** — stack looping BGS layers with per-layer volume; shared layers keep playing seamlessly across transfers |
 | **System / UI sounds** | **Database ▸ System** — remap cursor, confirm, cancel, etc. (imported SEs allowed) |
 | **Default music themes** | **Database ▸ System** — the title/battle themes |
-| **In an event** | **Play Sound** plays an SFX (check **Positional** to pan/fade an imported sound by the event's distance from the player); **Change Music** switches the track (set the crossfade ms for imported music). See [Events](Events#battle-shops--audio) |
+| **In an event** | **Play Sound** plays an SFX (check **Positional** to pan/fade an imported sound by the event's distance from the player); **Change Music** switches the track (set the crossfade ms for imported music). See [Events](Events#battle-shops-audio) |
 
 Players get a matching **Ambience Volume** slider in the in-game Options menu beside Master, Music,
 and SFX.

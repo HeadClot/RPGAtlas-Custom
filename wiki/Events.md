@@ -119,15 +119,20 @@ Event pages can also act as real-time map enemies. In the page's **Action Combat
 - Pick an **Enemy** from the Database. HP 0 uses that enemy's database HP.
 - Pick an **AI** behavior. **None** keeps the normal event movement; **Chase player** makes the
   enemy close distance when the player is nearby.
-- Set optional **Touch damage**, **Knockback**, and **Invuln frames**.
+- Choose an **Attack Profile** or inherit the enemy's default profile. Profiles control wind-up,
+  active and recovery frames, cooldown, range, hitbox shape, damage, stagger, knockback, and
+  presentation effects.
+- Set optional **Touch damage**, **Knockback**, **Stagger**, **Invuln frames**, **Respawn**, and
+  **Persistent defeat** behavior.
 - Choose a **Defeat switch** if you want the event to change pages when defeated; otherwise it erases
   for the current play session.
 
 During play, use the remappable **Attack** action on the map to swing the sword. A swing checks the
 tile in front of the player plus its short-lived visual collider, damages each enemy once, flashes
-the target, and applies knockback when the next tile is open. Enemies with **Touch damage** can
-strike from the adjacent tile; assign **Chase player** AI when you want them to actively pursue the
-player.
+the target, and applies knockback when the next tile is open. The enemy's telegraph, hit, hurt,
+defeat, and revive effects come from its resolved Action Combat settings. Enemies with **Touch
+damage** can strike from the adjacent tile; assign **Chase player** AI when you want them to actively
+pursue the player.
 Defeated action-combat enemies also count for Kill quest objectives that target the same enemy.
 
 For player-facing instructions, write text such as `Press \input[attack] to swing.` The prompt shows
@@ -182,7 +187,7 @@ the button to edit or delete it.
 | **Call Common Event** | Run a reusable command sequence from Database ▸ Common Events. |
 | **Play Dialogue** | Run a reusable conversation or cutscene from Tools ▸ Dialogue & Cutscenes. |
 | **Show Choices** | Offer the player options, each branching to its own sub-list of commands. Any choice can carry its own **Only if…** condition — it's hidden unless the condition is met (if every choice is hidden the command is skipped) — and **Player can cancel** lets Esc close the window with no branch run. |
-| **Conditional Branch** | Run commands only **if** a condition is true (switch, self-switch, variable — against a number **or another variable**, quest, item — owned at all **or a counted amount**, gold, actor, [player region](Maps-and-Tiles#regions--numbered-zone-tags), time-of-day clock window…), with an optional **else**. Add a second condition to combine them — see [Combining conditions](#combining-conditions). |
+| **Conditional Branch** | Run commands only **if** a condition is true (switch, self-switch, variable — against a number **or another variable**, quest, item — owned at all **or a counted amount**, gold, actor, [player region](Maps-and-Tiles#regions-numbered-zone-tags), time-of-day clock window…), with an optional **else**. Add a second condition to combine them — see [Combining conditions](#combining-conditions). |
 | **Loop** | Repeat its body until a **Break Loop** command runs inside it. |
 | **Break Loop** | Exit the innermost enclosing Loop and continue after it. |
 | **Label** | Mark a named spot in this command list. |

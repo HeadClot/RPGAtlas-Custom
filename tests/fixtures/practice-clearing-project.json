@@ -1,0 +1,93 @@
+{
+  "meta": { "engine": "rpgatlas", "version": 3 },
+  "system": {
+    "startMapId": 1,
+    "startX": 2,
+    "startY": 2,
+    "startDir": "right",
+    "sounds": {
+      "combatAttack": {},
+      "combatTelegraph": {},
+      "combatHit": {},
+      "combatHurt": {},
+      "combatDefeat": {},
+      "combatRevive": {}
+    },
+    "multiplayer": { "enabled": true, "maxPlayers": 2 }
+  },
+  "attackProfiles": [
+    {
+      "id": 1,
+      "name": "Practice Sword",
+      "damage": 4,
+      "damageScale": 1,
+      "windupFrames": 3,
+      "activeFrames": 5,
+      "recoveryFrames": 6,
+      "cooldown": 8,
+      "range": 1,
+      "knockbackTiles": 1,
+      "staggerFrames": 12,
+      "hitbox": "directional",
+      "attackSound": "combatAttack",
+      "telegraphSound": "combatTelegraph",
+      "hitSound": "combatHit",
+      "hurtSound": "combatHurt",
+      "defeatSound": "combatDefeat",
+      "reviveSound": "combatRevive"
+    }
+  ],
+  "animations": [],
+  "classes": [{ "id": 1, "name": "Adventurer", "base": { "mhp": 30, "atk": 3 }, "growth": {}, "traits": [] }],
+  "actors": [{ "id": 1, "name": "Hero", "classId": 1, "level": 1, "combat": { "profileId": 1, "maxHp": 30, "reviveFrames": 120, "reviveHp": 15 } }],
+  "weapons": [{ "id": 1, "name": "Practice Sword", "params": { "atk": 2 }, "combat": { "profileId": 1 } }],
+  "armors": [],
+  "enemies": [{
+    "id": 1,
+    "name": "Practice Slime",
+    "stats": { "mhp": 12, "atk": 2, "def": 0 },
+    "actionCombat": {
+      "profileId": 1,
+      "hp": 12,
+      "touchDamage": 3,
+      "attackCooldown": 45,
+      "attackWindupFrames": 18,
+      "attackActiveFrames": 4,
+      "attackRecoveryFrames": 18,
+      "attackRange": 1,
+      "staggerFrames": 12,
+      "persistentDefeat": false,
+      "defeatSelfSwitch": "",
+      "respawnFrames": 90,
+      "ai": "chase"
+    }
+  }],
+  "maps": [{
+    "id": 1,
+    "name": "Practice Clearing",
+    "worldOrigin": { "x": 0, "y": 0 },
+    "width": 8,
+    "height": 8,
+    "layers": { "ground": [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] },
+    "events": [
+      { "id": 1, "name": "Slime A", "x": 4, "y": 2, "pages": [{ "trigger": "action", "moveType": "fixed", "priority": "same", "through": false, "dir": 1, "cond": {}, "commands": [], "combat": { "enabled": true, "enemyId": 1, "inheritDefaults": true, "ai": "chase", "hp": 0, "touchDamage": 0, "knockbackTiles": 2, "invulnFrames": 24, "defeatSelfSwitch": "", "attackCooldown": 45, "attackWindupFrames": 18, "attackActiveFrames": 4, "attackRecoveryFrames": 18, "attackRange": 1, "staggerFrames": 10, "respawnFrames": 90 } }] },
+      { "id": 2, "name": "Slime B", "x": 6, "y": 5, "pages": [{ "trigger": "action", "moveType": "fixed", "priority": "same", "through": false, "dir": 1, "cond": {}, "commands": [], "combat": { "enabled": true, "enemyId": 1, "inheritDefaults": true, "ai": "chase", "hp": 0, "touchDamage": 0, "knockbackTiles": 2, "invulnFrames": 24, "defeatSelfSwitch": "", "attackCooldown": 45, "attackWindupFrames": 18, "attackActiveFrames": 4, "attackRecoveryFrames": 18, "attackRange": 1, "staggerFrames": 10, "respawnFrames": 90 } }] }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Practice Exit",
+    "worldOrigin": { "x": 8, "y": 0 },
+    "width": 8,
+    "height": 8,
+    "layers": { "ground": [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] },
+    "events": []
+  }],
+  "assets": { "tiles": {} },
+  "autotiles": [],
+  "commonEvents": [],
+  "items": [],
+  "skills": [],
+  "states": [],
+  "troops": []
+}

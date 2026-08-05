@@ -13,12 +13,14 @@ not a replacement.
 - That step also writes `img/assets.json`, the manifest `js/assets.js` already
   prefers over HTTP directory-listing discovery — so custom art works inside the
   app, which has no directory listings.
-- `src-tauri/src/lib.rs` adds three native commands: `save_project` /
-  `open_project` (native file dialogs) and `open_playtest` (dedicated window).
-  The frontend reaches them through `js/editor/host.js`; on the plain web build
-  `host.isTauri` is false and callers fall back to browser behavior.
-- Autosave keeps using `localStorage`, which works normally because Tauri serves
-  the app from a real origin (unlike `file://`).
+- `src-tauri/src/lib.rs` exposes the native project-folder and playtest commands.
+  The frontend reaches them through the typed host adapter in
+  `src/platform/tauri/project-host.ts`; on the plain web build the browser
+  repository is selected instead.
+- Desktop projects autosave atomically to `game.rpgatlas` in the active project
+  folder. The `.atlas/` directory holds the asset index, generated caches, and
+  rolling backups; `saves/` holds playtest slots. Browser mode still uses
+  browser storage.
 
 ## Prerequisites
 
@@ -40,6 +42,11 @@ npm run dev          # live desktop app (stages frontend, then tauri dev)
 npm run build        # produces an installer in src-tauri/target/release/bundle
 npm run package:exe  # rebuilds the standalone RPGAtlas-Desktop.exe at the repo root
 ```
+
+`npm run stage` only stages the frontend. Use it when inspecting the embedded
+files without building the native shell. The staging step copies the
+editor/player assets and generates the asset manifest needed because a desktop
+webview has no HTTP directory listings.
 
 To refresh the desktop app after adding features, run `npm run package:exe`
 (vite build → `cargo build --release` → copy the exe to the project root). On

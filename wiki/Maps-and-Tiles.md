@@ -8,7 +8,7 @@ passability, shadows, map properties, encounters, and the optional HD-2D height 
 ## Creating and managing maps
 
 - **Add a map** from the map list. A project can have as many maps as you like, connected by
-  [Transfer Player](Events#movement--the-world) events.
+  [Transfer Player](Events#movement-the-world) events.
 - **Map Properties** (the **Map** menu, or right-click a map in the list) lets you:
   - Rename and **resize** the map.
   - Set the map's **music**.
@@ -17,6 +17,25 @@ passability, shadows, map properties, encounters, and the optional HD-2D height 
 
 > Resizing keeps the tiles you've already painted where possible. It's safe to grow a map as your
 > ideas grow.
+
+## Step-by-step: build a connected overworld
+
+1. Create a map for each area: for example, **Town**, **Road**, and **Cave**. Set each map's size
+   and starting tiles before connecting them.
+2. Use **World View** (`F3`) to arrange the story flow. Drag map nodes into a readable layout and
+   double-click a node to edit it. Its arrows come from **Transfer Player** commands in events.
+3. Add a doorway, sign, or edge event to each intended route. Use **Transfer Player** to send the
+   player to the destination map and landing coordinates.
+4. Open **View ▸ Map Connections** and place maps in absolute tile-space. Align shared borders so
+   they touch; the panel reports gaps, overlaps, and unplaced maps.
+5. Drag or keyboard-nudge cards until the border coordinates line up. Test walking off each edge in
+   Playtest, then return to World View to confirm the authored transfers still make sense.
+6. Add map notes and music in **Map Properties**, then use **F2** to check HD-2D lighting and
+   elevation on each area.
+
+World View documents authored narrative links. Map Connections documents spatial adjacency. A
+project can use both: a player may walk across connected borders and still use explicit transfers
+for doors, cutscenes, or fast travel.
 
 ---
 

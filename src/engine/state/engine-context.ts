@@ -60,6 +60,14 @@ export const ctx: any = {
   pendingGameOver: null as any,
   // map runtime
   map: null,
+  mapLoadDiagnostics: {
+    mapId: null,
+    phase: "idle",
+    loading: false,
+    ready: false,
+    elapsedMs: 0,
+    error: null,
+  },
   lowerBuf: null,
   upperBuf: null,
   hdActive: false, // current map renders through the WebGL HD-2D path

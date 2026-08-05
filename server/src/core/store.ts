@@ -24,7 +24,14 @@
    reads one file; the DO store lists one key prefix (transactional). Pure +
    DOM-free; runs on Node ≥ 20 and workerd. GPL-3.0-or-later (see LICENSE). */
 
-import type { JsonValue } from "../../../src/shared/net/protocol.js";
+import type { JsonValue, PlayerLoadout } from "../../../src/shared/net/protocol.js";
+import {
+  COMBAT_LEDGER_LIMIT,
+  type CombatEvent,
+  type CombatPersistence,
+  type CombatZoneSnapshot,
+  type PlayerCombatSnapshot,
+} from "../../../src/shared/sim/combat-persistence.js";
 
 /** A passport-keyed player record — the per-player persistence unit. Keyed by
  *  the SHA-256 fingerprint of the passport public key (never PII, never an IP —
@@ -38,6 +45,12 @@ export interface PlayerRecord {
   y: number;
   dir: number;
   data: Record<string, JsonValue>;
+  /** Persisted field-combat state; optional for pre-action-combat records. */
+  combat?: PlayerCombatSnapshot;
+  /** Recent player combat outcomes, capped by the shared ledger contract. */
+  combatHistory?: CombatEvent[];
+  /** Last server-validated field-combat loadout. */
+  loadout?: PlayerLoadout;
   lastSeen: number;
 }
 
@@ -74,6 +87,45 @@ export interface WorldStore {
   /** Map ids that have a stored ZoneSnapshot (so a restart can restore them
    *  before any player arrives). */
   zoneIds(): Promise<number[]>;
+}
+
+/** Adapts the established Node/DO WorldStore files/keys to the shared combat
+ * persistence contract, without introducing a second database. */
+export class WorldStoreCombatPersistence implements CombatPersistence {
+  constructor(private readonly store: WorldStore) {}
+
+  async loadPlayer(key: string): Promise<PlayerCombatSnapshot | null> {
+    const row = (await this.store.loadRecords()).find(([id]) => id === key)?.[1];
+    return row?.combat || null;
+  }
+
+  async savePlayer(key: string, value: PlayerCombatSnapshot): Promise<void> {
+    const rows = await this.store.loadRecords();
+    const existing = rows.find(([id]) => id === key)?.[1];
+    const record: PlayerRecord = existing || {
+      name: "", mapId: 0, x: 0, y: 0, dir: 0, data: {}, lastSeen: Date.now(),
+    };
+    await this.store.saveRecords([[key, { ...record, combat: value }]]);
+  }
+
+  async loadZone(mapId: number): Promise<CombatZoneSnapshot | null> {
+    const zone = await this.store.loadZone(mapId);
+    const data = zone?.data;
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+    const combat = (data as Record<string, JsonValue>).combat;
+    return combat && typeof combat === "object" && !Array.isArray(combat)
+      ? combat as unknown as CombatZoneSnapshot
+      : null;
+  }
+
+  async saveZone(mapId: number, value: CombatZoneSnapshot): Promise<void> {
+    const existing = await this.store.loadZone(mapId);
+    const data = existing?.data && typeof existing.data === "object" && !Array.isArray(existing.data)
+      ? { ...(existing.data as Record<string, JsonValue>) }
+      : {};
+    data.combat = { ...value, ledger: value.ledger.slice(-COMBAT_LEDGER_LIMIT) } as unknown as JsonValue;
+    await this.store.saveZone(mapId, { selfSw: existing?.selfSw || {}, data });
+  }
 }
 
 /** A minimal async key/value surface — exactly the slice of Cloudflare DO
@@ -177,6 +229,8 @@ export function normalizeRecord(v: unknown): PlayerRecord {
     y: num(r.y),
     dir: num(r.dir),
     data,
+    combat: r.combat && typeof r.combat === "object" ? r.combat as PlayerCombatSnapshot : undefined,
+    combatHistory: Array.isArray(r.combatHistory) ? r.combatHistory.slice(-COMBAT_LEDGER_LIMIT) as CombatEvent[] : undefined,
     lastSeen: num(r.lastSeen),
   };
 }

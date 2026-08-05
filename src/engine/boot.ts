@@ -305,6 +305,9 @@ async function boot(): Promise<void> {
   });
 
   ctx.proj = loadProject();
+  // Test-only map readiness diagnostics. The object identity stays stable so
+  // e2e probes see each phase update while the map load is in progress.
+  (window as any).RPGATLAS_MAP_DIAGNOSTICS = ctx.mapLoadDiagnostics;
   // Apply author-default bindings, with the player's saved per-device overrides merged
   // on top, and restore the persisted music preference (before any Music.play()).
   ctx.playerOptions = loadOptions();

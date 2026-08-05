@@ -5,6 +5,81 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Documentation synchronization pass",
+    summary:
+      "Refreshed creator, contributor, multiplayer, action-combat, and deployment documentation for RPGAtlas 2.1.0 and added generated-doc consistency checks.",
+    items: [
+      "Added the Action Combat guide plus step-by-step connected-world, hosting, asset, migration, and publishing guidance across the wiki and in-app Detailed Tutorials.",
+      "Synchronized Beacon, Cloudflare, Tauri, plugin/script API, architecture, and development references with the current TypeScript and server implementations.",
+      "Added npm run docs:build and npm run docs:check so the committed docs-site mirror and internal wiki links stay aligned.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "Action-combat sprint bug fixes",
+    summary:
+      "Closed multiplayer authority, persistence handoff, client ordering, Cloudflare restore, and equipment-stat regressions found during the action-combat sprint.",
+    items: [
+      "Friend-room enemies now target and damage remote players with their own validated loadouts, including death, revive, telegraph, and presentation events.",
+      "Preserved live HP, revive state, combat state, and loadouts across map transfers and durable reconnect records.",
+      "Ignored stale client frames, applied input acknowledgements, blocked Cloudflare input during restore, and fixed level-growth, zero-knockback, and chase-range parity.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "Unified authoritative action combat",
+    summary:
+      "Solo, friend-room, Node, and Cloudflare combat now share equipment-aware authority, ordered outcomes, recovery state, and a playable Practice Clearing slice.",
+    items: [
+      "Added validated multiplayer lead-actor loadouts, deterministic chase/target selection, telegraphs, collision-tested knockback, automatic death/respawn, and map-transfer state preservation.",
+      "Replicated combat events through snapshots/deltas for HUD HP, damage text, sounds, telegraphs, defeat effects, and client reconciliation.",
+      "Added the two-map Practice Clearing demo and its reproducible build command: node scripts/build-practice-clearing-demo.mjs.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "Advanced-map startup diagnostics",
+    summary:
+      "Large generalized maps now composite sparse layers more efficiently and expose phase timing when map readiness is delayed.",
+    items: [
+      "Tinted sparse layers reuse a tile-sized scratch canvas instead of allocating a full map-sized intermediate.",
+      "Advanced-map CI diagnostics report the map-load phase, elapsed time, readiness state, and errors.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "Stable renderer golden captures",
+    summary:
+      "Renderer golden tests now wait for the completed map frame before comparing HD-2D and generalized-layer output.",
+    items: [
+      "Prevented screenshots from capturing the title backdrop after the title UI has already been removed.",
+      "Kept generalized-layer pixel comparisons focused on rendered map frames instead of startup timing noise.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "Action combat authoring and persistence",
+    summary:
+      "Expanded reusable field-combat authoring and enabled persistent, server-authoritative combat recovery across Node and Cloudflare hosts.",
+    items: [
+      "Added the Attack Profiles database tab, actor/weapon/armor/enemy/page combat settings, VFX/SFX selectors, and timeline previews.",
+      "Persist player HP/death/revive state, enemy defeat/respawn state, and a bounded 1,024-entry combat ledger through saves, worlds, and friend-room snapshots.",
+      "Enabled the shared Cloudflare world and friend-room action-combat adapter with cold-start snapshot recovery and validation coverage.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "Authoritative action combat",
+    summary:
+      "Added a shared Minish Cap–style real-time PvE combat layer for solo play and supported multiplayer rooms.",
+    items: [
+      "Directional sword attacks now use shared wind-up, active, recovery, stagger, knockback, and defeat state.",
+      "Friend-room and Node-authoritative sessions route remote attacks and replicate player/enemy combat state.",
+      "Action Combat event pages now expose enemy telegraph, range, cooldown, stagger, recovery, and respawn settings.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Advanced-map CI readiness",
     summary:
       "Large advanced maps now prerender more efficiently and report useful browser diagnostics when CI cannot finish loading them.",

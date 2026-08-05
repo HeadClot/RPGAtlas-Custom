@@ -18,7 +18,8 @@ can publish it as the project's **GitHub Wiki** (or any Markdown site).
 | `Events.md` | Pages, triggers, full command reference, recipes |
 | `Dialogue-and-Cutscenes.md` | Reusable conversation trees, voice cues, conditions, localization, preview |
 | `The-Database.md` | Every database tab explained |
-| `Battles-and-States.md` | Combat, enemies, troops, states |
+| `Battles-and-States.md` | Turn-based combat, enemies, troops, formulas, and states |
+| `Action-Combat.md` | Real-time attack profiles, field enemies, and multiplayer combat |
 | `Characters-and-Custom-Assets.md` | Character Generator, custom art |
 | `Audio.md` | Procedural music & SFX |
 | `Message-Text-Codes.md` | Icons, colors, variables in dialogue |
@@ -28,7 +29,8 @@ can publish it as the project's **GitHub Wiki** (or any Markdown site).
 | `Resources-and-Glossary.md` | Glossary, primers, licensing, links |
 
 Links between pages use the page name without `.md` (e.g. `[Events](Events)`), which is what GitHub
-Wiki expects.
+Wiki expects. The committed `docs-site/` mirror is generated from these Markdown files with
+`npm run docs:build`; do not edit its HTML by hand.
 
 ## Publishing to the GitHub Wiki
 

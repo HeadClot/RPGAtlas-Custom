@@ -35,7 +35,7 @@ RPGAtlas.exe --no-browser
 The editor's *source* is TypeScript, which browsers can't run directly — it needs the Vite dev
 server. That means two one-time steps before the double-click works:
 
-1. **Install [Node.js](https://nodejs.org/)** (version 18 or newer) — take the big green "LTS"
+1. **Install [Node.js](https://nodejs.org/)** (version 20 or newer) — take the big green "LTS"
    download and click through the installer.
 2. Open a terminal in the RPGAtlas folder (in File Explorer, click the address bar, type `cmd`,
    press Enter) and run:
@@ -77,7 +77,7 @@ If you're on macOS or Linux, or you'd rather not use the `.exe`:
   python -m http.server 8080
   ```
 
-- **Source checkout** — you need [Node.js](https://nodejs.org/) 18 or newer:
+- **Source checkout** — you need [Node.js](https://nodejs.org/) 20 or newer:
 
   ```
   cd RPGAtlas

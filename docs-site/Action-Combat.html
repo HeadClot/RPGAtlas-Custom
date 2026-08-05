@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Action Combat — RPGAtlas Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+<nav>
+<a class="brand" href="index.html">RPG<span>Atlas</span></a>
+<div class="tag">Chart your world. Tell your story.</div>
+<h3 id="rpgatlas-wiki">RPGAtlas Wiki</h3>
+<p><strong>Getting started</strong></p>
+<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
+<p><strong>Building your world</strong></p>
+<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a class="active" href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
+<p><strong>Play together (online)</strong></p>
+<ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
+<p><strong>Polish & ship</strong></p>
+<ul><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
+<p><strong>Reference</strong></p>
+<ul><li><a href="Plugin-and-Script-API.html">Plugin & Script API</a></li><li><a href="Migration-Guide.html">Migration Guide</a></li><li><a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a></li><li><a href="Resources-and-Glossary.html">Resources & Glossary</a></li></ul>
+</nav>
+<main>
+<h1 id="action-combat">Action Combat</h1>
+<p>Action Combat adds real-time, map-based encounters to the normal turn-based battle system. Players face a direction, press the remappable <strong>Attack</strong> action, and resolve short attack phases with telegraphs, active hit frames, recovery, hitboxes, damage, stagger, and knockback. It works in solo play and in server-authoritative Beacon rooms/worlds.</p>
+<p>The quickest path is to create one profile, configure one enemy, place one event, and playtest it before building a larger encounter.</p>
+<h2 id="build-a-first-encounter">Build a first encounter</h2>
+<ol><li>Open <strong>Tools ▸ Database…</strong> (<code>F1</code>) and choose <strong>Attack Profiles</strong>.</li><li>Add a profile named <code>Sword slash</code>. Start with the defaults: a short wind-up, active frames, recovery, range 1, one tile of knockback, and a small stagger duration.</li><li>Choose optional Attack, Hit, Hurt, Defeat, and Revive VFX and SFX. The timeline preview shows the profile at 60 frames per second; the directional preview shows the four cardinal hitboxes.</li><li>Open <strong>Enemies</strong>, select an enemy, and open its <strong>Action Combat</strong> tab. Set its HP, AI, touch damage, attack timing, range, knockback, stagger, invulnerability, respawn, and defeat behavior.</li><li>Open a map, switch to <strong>Event Mode</strong>, and create an event on a walkable tile.</li><li>On the event page, expand <strong>Action Combat</strong>, turn <strong>Enabled</strong> on, choose the enemy, and decide whether the page inherits the enemy defaults. Page values override the database defaults.</li><li>Choose a <strong>Defeat Self-Switch</strong> if the event should reveal a chest, open a path, or switch to a defeated page. Use <strong>Persistent Defeat</strong> when it should remain defeated after map reloads.</li><li>Press <strong>Playtest</strong> (<code>F5</code>). Face the enemy and press the configured Attack action. Confirm that the telegraph, hit, knockback, stagger, defeat, and respawn behavior feel fair.</li></ol>
+<h2 id="attack-profiles">Attack Profiles</h2>
+<p>An Attack Profile is reusable timing and presentation data. Its main values are:</p>
+<table><thead><tr><th>Setting</th><th>Meaning</th></tr></thead><tbody><tr><td><strong>Damage / Damage scale</strong></td><td>Base damage and the attacker's resolved stat multiplier.</td></tr><tr><td><strong>Wind-up / telegraph</strong></td><td>Frames before the hit becomes active.</td></tr><tr><td><strong>Active frames</strong></td><td>Frames during which the hitbox can damage targets.</td></tr><tr><td><strong>Recovery</strong></td><td>Frames before the attacker can act normally again.</td></tr><tr><td><strong>Cooldown</strong></td><td>Minimum time between attacks.</td></tr><tr><td><strong>Range</strong></td><td>Maximum attack distance in tiles.</td></tr><tr><td><strong>Hitbox</strong></td><td>Directional, adjacent, or radius geometry.</td></tr><tr><td><strong>Knockback tiles</strong></td><td>Distance a valid target is pushed when the landing tile is open.</td></tr><tr><td><strong>Stagger frames</strong></td><td>How long the target is interrupted after being hit.</td></tr><tr><td><strong>VFX/SFX</strong></td><td>Presentation references for attack, telegraph, hit, hurt, defeat, and revive.</td></tr></tbody></table>
+<p>Actors, weapons, armor, enemies, and event pages can reference a profile. This lets a project reuse the same sword behavior while giving a particular actor or enemy different stats and presentation.</p>
+<h2 id="enemy-behavior">Enemy behavior</h2>
+<p>An enemy's <strong>Action Combat</strong> defaults can be inherited by event pages or overridden per page.</p>
+<ul><li><strong>None</strong> leaves the event's normal movement in charge.</li><li><strong>Chase player</strong> closes distance while the target is within the event's configured leash.</li><li><strong>Touch damage</strong> lets contact hurt the player without a separate attack animation.</li><li><strong>Invulnerability</strong> prevents repeated hits from dealing damage every frame.</li><li><strong>Respawn</strong> sets a delay in frames; zero means no automatic respawn.</li><li><strong>Player defeat behavior</strong> can return the player to a checkpoint, respawn in place, or trigger game over according to the actor/player combat settings.</li><li>A defeat self-switch or persistent defeat flag can turn a defeated event into a permanent world change.</li></ul>
+<p>Keep the first enemy readable: use a visible telegraph, modest chase range, and enough recovery time for the player to dodge or counterattack.</p>
+<h2 id="multiplayer-and-persistence">Multiplayer and persistence</h2>
+<p>Beacon is authoritative for online action combat. Clients send input intents; the server validates the attack profile, loadout, collision, timing, damage, stagger, knockback, defeat, revive, and respawn outcomes. Snapshots and combat events update remote HP, damage text, telegraphs, sounds, and defeat effects.</p>
+<p>Node Beacon friend rooms run the full engine by default, so parties and shared battles work without extra flags. Use <code>--no-engine-rooms</code> only when you specifically want lighter walk/emote/chat rooms. Persistent worlds use <code>--engine-events</code> for authored server-side NPCs, events, and cutscenes. Cloudflare Durable Object rooms/worlds use the same shared combat runtime.</p>
+<p>Action-combat state is included in supported saves and server snapshots: live HP, defeat/revive state, enemy defeat/respawn state, equipment-derived loadouts, and the bounded combat ledger.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<ul><li><strong>The attack does nothing:</strong> check the project's remappable Attack action under <strong>Database ▸ Controls</strong>, confirm the actor has a combat profile/loadout, and make sure the enemy event page is enabled.</li><li><strong>The enemy is too hard to read:</strong> increase wind-up frames, add a telegraph VFX/SFX, reduce chase range, and give the player more recovery time after a hit.</li><li><strong>Knockback stops early:</strong> the destination tile must be open; collision prevents pushing through walls, blocked tiles, or other invalid destinations.</li><li><strong>A defeated enemy returns:</strong> set a defeat self-switch or <strong>Persistent Defeat</strong>, or set a respawn delay of zero if the event should not respawn.</li><li><strong>Online combat differs from local play:</strong> host the same project file the exported game uses and restart Beacon after editing. The server reads the project at startup.</li></ul>
+<p>For turn-based battles, states, formulas, and troops, see <a href="Battles-and-States.html">Battles & States</a>. For the underlying plugin/script hooks, see <a href="Plugin-and-Script-API.html">Plugin & Script API</a>.</p>
+<footer><p>RPGAtlas is free software under the <strong>GNU GPL v3.0 or later</strong>. Your games are yours. · <a href="index.html">Home</a> · <a href="Troubleshooting-and-FAQ.html">Troubleshooting</a> · <a href="Resources-and-Glossary.html">Glossary</a></p>
+<p>Generated from the <a href="https://github.com/DriftwoodGaming/RPGAtlas/tree/main/wiki">project wiki</a> by <code>scripts/build-docs-site.mjs</code>.</p></footer>
+</main>
+</div>
+</body>
+</html>

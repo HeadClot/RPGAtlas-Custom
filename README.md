@@ -13,7 +13,7 @@
   <img alt="Self-contained exports" src="https://img.shields.io/badge/exports-self--contained-brightgreen.svg">
 </p>
 
-**RPGAtlas 2.0** is a complete, original, **free and open source** RPG making engine in the spirit of
+**RPGAtlas 2.1** is a complete, original, **free and open source** RPG making engine in the spirit of
 classic 2D RPG makers — with a modern **HD-2D renderer** (tilted perspective, dynamic lights and
 shadows, animated water, day/night, weather, full post-processing) layered on top. No copyrighted
 assets, nothing to install for creators or players — everything (code, tiles, sprites, monsters,
@@ -21,7 +21,7 @@ sound effects, even the music) is generated procedurally, imports are welcome wh
 and exported games are single self-contained files. (Only working from a *source checkout* needs
 free [Node.js](https://nodejs.org/); downloaded copies ship the editor pre-built.)
 
-🕹️ **New in 2.0 — Play Together (online multiplayer).** Tick one checkbox and friends join your game
+🕹️ **Play Together and authoritative action combat.** Tick one checkbox and friends join your game
 online with a short **room code**: they walk the same maps, wave and chat, party up, and fight
 battles side by side. It's kid-safe by construction — **no accounts, no email, no personal
 information**, players connect only to a server (never to each other, so no one's location is ever
@@ -52,7 +52,7 @@ install, no admin rights. Keep the little black window open while you work; clos
 *More info → Run anyway*.)
 
 Working from a **source checkout** (git clone) instead? The editor source is TypeScript, which needs
-the Vite dev server: install [Node.js](https://nodejs.org/) 18 or newer, run `npm install` once in
+the Vite dev server: install [Node.js](https://nodejs.org/) 20 or newer, run `npm install` once in
 the RPGAtlas folder, and the same double-click then works — the launcher detects the tooling and
 boots Vite automatically.
 
@@ -250,23 +250,29 @@ npm run test:e2e   # Playwright smoke + golden-image render tests
 npm run build      # production build in dist/ (verbatim runtime passthrough)
 npm run typecheck  # TypeScript (new code is TS; legacy JS migrates per phase)
 npm run lint
+npm run docs:build # regenerate docs-site from wiki/*.md
+npm run docs:check # check wiki links and generated-page parity
 ```
 
-The eight-phase "Atlas HD" overhaul that produced 1.0 is documented in
-[`docs/PRODUCTION_ROADMAP.md`](docs/PRODUCTION_ROADMAP.md) (with per-phase specs beside it) —
-see [`docs/architectural_overview.md`](docs/architectural_overview.md) for how the codebase
+The historical Atlas HD, migration, multiplayer, and project-folder phase specifications are
+kept under [`docs/`](docs/). Start with the current
+[`docs/README.md`](docs/README.md) for contributor workflows and
+[`docs/architectural_overview.md`](docs/architectural_overview.md) for how the current codebase
 fits together.
 
 ## Code structure
 
-TypeScript modules under `src/` hold the engine (`src/engine/` — scenes, interpreter, state),
+TypeScript modules under `src/` hold the engine (`src/engine/` — scenes, interpreter, state,
+network sessions, and the shared action-combat client),
 the editor (`src/editor/` — map editor, database, dock workspace, tools, importers), the
 three.js HD-2D renderer (`src/renderer/`), shared services (`src/shared/`), and the storage
 platform adapters (`src/platform/` — browser and Tauri). The procedural asset/audio/data
 generators remain classic scripts under `js/` (`assets.js`, `sfx.js`, `data.js`) alongside
 `js/editor/project-io.js` (persistence/export) and `js/standalone-template.mjs` +
 `js/build-manifest.mjs` (the shared export/packaging pipeline). Shared engine services such
-as `Assets`, `RA`, and the plugin bridge remain stable globals for plugin compatibility.
+as `Assets`, `RA`, and the plugin bridge remain stable globals for plugin compatibility. The
+multiplayer server lives in `server/src/`: its shared simulation uses the same `src/shared/`
+rules for Node and Cloudflare Durable Objects.
 
 ## Publishing a game
 
@@ -302,9 +308,10 @@ actors      – name, class, level, sprite, starting equipment
 classes     – base stats, per-level growth, traits, equipment permissions + skill learnings
 skills      – icon, physical / magical / heal, power, MP cost, scope
 items / weapons / armors – icon, effects, prices and parameters
-enemies     – stats, rewards, weighted action list, procedural sprite + tint
+enemies     – stats, rewards, weighted action list, procedural sprite + tint, action-combat defaults
 troops      – enemy groups for battles
-maps        – 4 tile layers, shadow + passability-override grids, events
+attackProfiles – reusable real-time attack timing, hitbox, damage, VFX/SFX, stagger and knockback data
+maps        – classic tile layers plus optional advanced layers, zones, connections, heights, and events
 plugins     – name + JS code + enabled flag, run in order at game boot
 customChars – sprites built in the Character Generator
 ```

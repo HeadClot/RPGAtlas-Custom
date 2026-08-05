@@ -15,7 +15,7 @@
 <p><strong>Getting started</strong></p>
 <ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
 <p><strong>Building your world</strong></p>
-<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a class="active" href="Battles-and-States.html">Battles & States</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
+<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a class="active" href="Battles-and-States.html">Battles & States</a></li><li><a href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
 <p><strong>Play together (online)</strong></p>
 <ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
 <p><strong>Polish & ship</strong></p>
@@ -29,7 +29,7 @@
 <hr>
 <h2 id="how-a-battle-happens">How a battle happens</h2>
 <p>A battle always pits the party against a <strong>troop</strong> (a group of enemies defined in the <a href="The-Database.html#troops">Database</a>). You start one in two ways:</p>
-<ul><li><strong>A fixed battle:</strong> a <strong>Start Battle</strong> <a href="Events.html#battle-shops--audio">event command</a> — for bosses and scripted fights.</li><li><strong>Random encounters:</strong> turn them on in <strong>Map Properties</strong> with a list of troops and a rate. See <a href="Maps-and-Tiles.html#random-encounters">Maps & Tiles</a>.</li></ul>
+<ul><li><strong>A fixed battle:</strong> a <strong>Start Battle</strong> <a href="Events.html#battle-shops-audio">event command</a> — for bosses and scripted fights.</li><li><strong>Random encounters:</strong> turn them on in <strong>Map Properties</strong> with a list of troops and a rate. See <a href="Maps-and-Tiles.html#random-encounters">Maps & Tiles</a>.</li></ul>
 <p>When the player wins they gain <strong>EXP, levels, learned skills, and gold drops</strong>. You decide per-battle whether the party <strong>can escape</strong> and whether <strong>losing</strong> ends the game or lets the story continue.</p>
 <hr>
 <h2 id="the-two-battle-views">The two battle views</h2>
@@ -65,7 +65,7 @@
 <p>Each enemy (Database ▸ Enemies) defines:</p>
 <ul><li><strong>Stats</strong> — HP, MP, attack, defense, agility, etc.</li><li><strong>Rewards</strong> — EXP and gold granted on defeat.</li><li><strong>A weighted action list</strong> — what the enemy tends to do each turn (attack, cast, etc.), with some actions more likely than others. Each row can also carry a <strong>condition</strong> — a turn pattern, own HP above/below a percentage, a random chance, or a state on itself — and rows whose condition fails drop out of that turn's pick. A dragon that breathes fire every third turn and heals under 30% HP is three rows.</li><li><strong>A procedural sprite and color tint</strong> — drawn from one of <strong>twelve monster families</strong>, each with a distinct silhouette, idle motion, and combat role. Re-tint and re-stat them to create many distinct foes from the same family.</li></ul>
 <p>Group enemies into <strong>troops</strong> to use them in battle.</p>
-<p>The same enemy database entries can also power real-time <strong>Action Combat</strong> events on maps. See <a href="Events.html#action-combat-events">Events</a> for sword-swing enemies, touch damage, knockback, and defeat self-switches.</p>
+<p>The same enemy database entries can also power real-time <strong>Action Combat</strong> events on maps. See <a href="Events.html#action-combat-events">Events</a> for the short setup, and the full <a href="Action-Combat.html">Action Combat guide</a> for Attack Profiles, timing phases, hitboxes, VFX/SFX, respawn, persistence, and authoritative multiplayer behavior.</p>
 <hr>
 <h2 id="states">States</h2>
 <p><strong>States</strong> are status effects — the spice of any battle system. Define them in <strong>Database ▸ States</strong>. Each state controls:</p>

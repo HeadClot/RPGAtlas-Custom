@@ -16,6 +16,7 @@ import { defaultWorld } from "../../../src/engine/state/default-world.js";
 import { Zone, type ZoneApi, type ZoneOutbox } from "../core/zone.js";
 import type { WorldLimits } from "../core/config.js";
 import type { World } from "../../../src/shared/sim/world.js";
+import type { CombatPersistence } from "../../../src/shared/sim/combat-persistence.js";
 
 export { createZoneEventRuntime };
 export const engineDefaultWorld: World = defaultWorld;
@@ -25,6 +26,7 @@ export interface EngineZoneOptions {
   limits: WorldLimits;
   seed?: number | null;
   log?: (level: "info" | "warn", event: string, detail?: Record<string, unknown>) => void;
+  combatPersistence?: CombatPersistence;
 }
 
 /** A BeaconWorld `zoneFactory` that runs the ENGINE event runtime IN-PROCESS.
@@ -46,6 +48,7 @@ export function engineZoneFactory(
         seed: opts.seed ?? null,
         world: engineDefaultWorld,
         runtimeFactory: createZoneEventRuntime,
+        combatPersistence: opts.combatPersistence,
       });
     }
     opts.log?.("warn", "engine-zone-inproc-extra-map", { mapId });

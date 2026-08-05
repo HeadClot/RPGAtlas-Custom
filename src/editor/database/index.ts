@@ -23,6 +23,7 @@ import { animationsTab } from "./animations-tab";
 import { tilesetTab } from "./tilesets-tab";
 import { typesTab, nameListTab } from "./types-tab";
 import { multiplayerTab } from "./multiplayer-tab";
+import { attackProfilesTab } from "./combat-tab";
 
 function dbTabs() {
   return [
@@ -37,6 +38,7 @@ function dbTabs() {
     { label: "Enemies", build: enemiesTab },
     { label: "Troops", build: troopsTab },
     { label: "Animations", build: animationsTab },
+    { label: "Attack Profiles", build: attackProfilesTab },
     { label: "Common Events", build: commonEventsTab },
     { label: "Quests", build: questsTab },
     { label: "States", build: statesTab },

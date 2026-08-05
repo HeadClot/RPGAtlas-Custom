@@ -15,6 +15,7 @@
 - [Dialogue & Cutscenes](Dialogue-and-Cutscenes)
 - [The Database](The-Database)
 - [Battles & States](Battles-and-States)
+- [Action Combat](Action-Combat)
 - [Characters & Custom Assets](Characters-and-Custom-Assets)
 - [Adding Your Own Art and Music](Adding-Your-Own-Art-and-Music)
 - [The Asset Browser](The-Asset-Browser)

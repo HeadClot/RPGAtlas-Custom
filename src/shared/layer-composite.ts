@@ -20,6 +20,35 @@ import { layerView, entryArray, BLEND_COMPOSITE } from "./layer-view";
 
 type DrawTile = (g: any, id: number, dx: number, dy: number) => void;
 
+interface PaintedCell {
+  x: number;
+  y: number;
+}
+
+let tintScratch: HTMLCanvasElement | null = null;
+let tintScratchSize = 0;
+
+function paintedCells(arr: number[], width: number, height: number): PaintedCell[] {
+  const cells: PaintedCell[] = [];
+  for (let y = 0; y < height; y++) {
+    const row = y * width;
+    for (let x = 0; x < width; x++) {
+      if (arr[row + x]) cells.push({ x, y });
+    }
+  }
+  return cells;
+}
+
+function getTintScratch(TILE: number): HTMLCanvasElement {
+  if (!tintScratch || tintScratchSize !== TILE) {
+    tintScratch = document.createElement("canvas");
+    tintScratch.width = TILE;
+    tintScratch.height = TILE;
+    tintScratchSize = TILE;
+  }
+  return tintScratch;
+}
+
 /** Draw every cell of one layer array into `g` at TILE size. When `tint` is a
  *  CSS color it is multiplied over the layer's own pixels (via an offscreen so
  *  the multiply is confined to painted cells, not the whole map rect). The
@@ -27,38 +56,51 @@ type DrawTile = (g: any, id: number, dx: number, dy: number) => void;
 export function drawEntryTiles(
   g: any, arr: number[], m: any, drawTile: DrawTile, TILE: number, tint?: string, frame = 0,
 ): void {
-  // Advanced maps commonly carry optional detail layers that are empty or
-  // sparse. Avoid walking/calling the shared cell helper for transparent cells
-  // while preserving the exact draw order and blend state for painted cells.
-  let hasTiles = false;
-  for (let i = 0; i < arr.length; i++) {
-    if (arr[i]) { hasTiles = true; break; }
-  }
-  if (!hasTiles) return;
-
-  const paint = (dst: any) => {
+  if (!tint) {
+    // Keep the un-tinted traversal byte-identical to the established
+    // generalized-layer path. Classic-equivalence goldens intentionally
+    // protect this exact row-major ordering.
+    let hasTiles = false;
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i]) { hasTiles = true; break; }
+    }
+    if (!hasTiles) return;
     for (let y = 0; y < m.height; y++) {
       const row = y * m.width;
       for (let x = 0; x < m.width; x++) {
         if (arr[row + x]) {
-          drawLayerCell(dst, arr, m.width, m.height, x, y, x * TILE, y * TILE, TILE, drawTile, frame);
+          drawLayerCell(g, arr, m.width, m.height, x, y, x * TILE, y * TILE, TILE, drawTile, frame);
         }
       }
     }
-  };
-  if (!tint) { paint(g); return; }
-  const tmp = document.createElement("canvas");
-  tmp.width = m.width * TILE;
-  tmp.height = m.height * TILE;
+    return;
+  }
+
+  // Tinted advanced layers are commonly sparse. Build the occupied list once
+  // so the scratch path never revisits transparent cells.
+  const cells = paintedCells(arr, m.width, m.height);
+  if (!cells.length) return;
+
+  // Sparse tinted layers do not need a map-sized intermediate canvas. Reuse a
+  // single tile-sized scratch canvas and composite each painted cell into the
+  // destination at its authored position. The second draw is the same
+  // destination-in mask used by the old full-map implementation, preserving
+  // transparent tile edges while avoiding a 3072×3072 allocation and fill.
+  const tmp = getTintScratch(TILE);
   const tg = tmp.getContext("2d") as any;
-  paint(tg);
-  tg.globalCompositeOperation = "multiply";
-  tg.fillStyle = tint;
-  tg.fillRect(0, 0, tmp.width, tmp.height);
-  tg.globalCompositeOperation = "destination-in"; // clip the tint back to painted pixels
-  paint(tg);
-  tg.globalCompositeOperation = "source-over";
-  g.drawImage(tmp, 0, 0);
+  for (const { x, y } of cells) {
+    tg.clearRect(0, 0, TILE, TILE);
+    tg.globalCompositeOperation = "source-over";
+    tg.globalAlpha = 1;
+    drawLayerCell(tg, arr, m.width, m.height, x, y, 0, 0, TILE, drawTile, frame);
+    tg.globalCompositeOperation = "multiply";
+    tg.fillStyle = tint;
+    tg.fillRect(0, 0, TILE, TILE);
+    tg.globalCompositeOperation = "destination-in";
+    drawLayerCell(tg, arr, m.width, m.height, x, y, 0, 0, TILE, drawTile, frame);
+    tg.globalCompositeOperation = "source-over";
+    g.drawImage(tmp, x * TILE, y * TILE);
+  }
 }
 
 /** Composite a layersAdv map into the engine's two buffers. `lg`/`ug` are the

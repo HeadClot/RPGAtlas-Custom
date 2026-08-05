@@ -14,6 +14,7 @@ import { openDatabase } from "../database";
 import {
   assetUrlSync, isAssetKey, libraryCatalog, libraryMetas, usedAssetKeys,
 } from "../../shared/asset-library";
+import { validateCombatProject } from "../../shared/sim/combat-profiles";
 import {
   registerConsoleCommand, listConsoleCommands, getConsoleCommand,
   done, fail, text, table, link,
@@ -105,6 +106,10 @@ registerConsoleCommand({
       }
     }
     for (const ce of p.commonEvents) checkCommands(ce.commands || [], "Common event: " + ce.name);
+
+    for (const issue of validateCombatProject(p)) {
+      problems.push({ where: issue.where, what: issue.message, mapId: issue.mapId });
+    }
 
     const missingAssets: string[] = [];
     try {

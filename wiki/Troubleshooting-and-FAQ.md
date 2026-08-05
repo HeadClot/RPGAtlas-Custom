@@ -21,12 +21,12 @@ finishes, double-click `RPGAtlas.exe` again. See
 [Installation & Setup](Installation-and-Setup#running-from-a-source-checkout-git-clone).
 
 ### "RPGAtlas could not start Node.js (is it installed?)"
-Running from a source checkout needs [Node.js](https://nodejs.org/) **18 or newer** on your computer.
+Running from a source checkout needs [Node.js](https://nodejs.org/) **20 or newer** on your computer.
 Install the LTS version from nodejs.org (one-time), then run `RPGAtlas.exe` again.
 
 ### "Windows protected your PC" / unknown publisher
 Expected — the launcher is **unsigned**. Click **More info ▸ Run anyway**. It only starts a local
-server and opens your browser. See [Installation & Setup](Installation-and-Setup#windows-protected-your-pc--unknown-publisher).
+server and opens your browser. See [Installation & Setup](Installation-and-Setup#windows-protected-your-pc-unknown-publisher).
 
 ### "Could not find a free local port (8080-8099)"
 Other programs are using all of those ports — usually other copies of RPGAtlas. Close other RPGAtlas
@@ -77,7 +77,7 @@ infinite. Save `.json` checkpoints at milestones.
 Passability comes from the topmost tile, but you can fix any cell directly: switch to
 **Passability mode** and click the tile to cycle auto → block → pass. For custom tiles, filename
 suffixes like `.pass` and `.terrain` set defaults. See
-[Maps & Tiles](Maps-and-Tiles#passability--where-the-player-can-walk).
+[Maps & Tiles](Maps-and-Tiles#passability-where-the-player-can-walk).
 
 ### My HD-2D map looks flat / like normal 2D
 HD-2D is **opt-in per map** (enable it in Map Properties) and **falls back to flat 2D** on devices
@@ -97,7 +97,7 @@ that can't run WebGL2. Heights only extrude in HD-2D maps. See
 ### The game froze during a cutscene
 An **Autorun** page with no end condition runs forever. Make the page flip a **switch/self-switch** at
 its end, and add an empty page whose condition is that flag, so the event stops. See
-[Events](Events#triggers--what-starts-an-event).
+[Events](Events#triggers-what-starts-an-event).
 
 ### A chest gives its item every time
 You're missing the **self-switch**. Set Self-Switch A = ON after the reward, and add a second page

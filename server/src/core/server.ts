@@ -20,11 +20,13 @@ import {
   encodeMessage,
   type ClientMessage,
   type ErrorCode,
+  type PlayerLoadout,
 } from "../../../src/shared/net/protocol.js";
 import { generateRoomCode } from "../../../src/shared/net/room-code.js";
 import { BeaconRoom, type Clock, type RoomMember, type RoomOptions } from "./room.js";
 import { DEFAULT_LIMITS, type BeaconLimits } from "./config.js";
 import type { ServerConnection } from "./connection.js";
+import type { JsonValue } from "../../../src/shared/net/protocol.js";
 
 export interface BeaconServerOptions {
   /** The game project every room in this process hosts (the configured game;
@@ -47,6 +49,10 @@ export interface BeaconServerOptions {
    *  factory; the CF DO target leaves it unset (engine rooms stay Node-only in
    *  2.0 — D-9E-1). */
   roomSimFactory?: RoomOptions["simFactory"];
+  /** Whether the selected room simulation can authoritatively run field
+   *  action combat. Defaults to true only when an engine room simulator is
+   *  supplied; player-only and Cloudflare targets must opt in explicitly. */
+  supportsActionCombat?: boolean;
   /** Optional structured log sink (dev-facing; never player copy). */
   log?: (level: "info" | "warn", event: string, detail?: Record<string, unknown>) => void;
 }
@@ -56,6 +62,7 @@ interface ConnState {
   conn: ServerConnection;
   phase: "new" | "in-room";
   name: string;
+  loadout?: PlayerLoadout;
   room: BeaconRoom | null;
   member: RoomMember | null;
   /** Message token bucket. */
@@ -79,6 +86,7 @@ export class BeaconServer {
   private readonly seed: number | null;
   private readonly fixedRoomCode: string | undefined;
   private readonly roomSimFactory: BeaconServerOptions["roomSimFactory"];
+  private readonly actionCombatBlocked: boolean;
   private readonly log: NonNullable<BeaconServerOptions["log"]>;
   private readonly rooms = new Map<string, BeaconRoom>();
   private readonly conns = new Set<ConnState>();
@@ -91,6 +99,8 @@ export class BeaconServer {
     this.seed = opts.seed ?? null;
     this.fixedRoomCode = opts.fixedRoomCode;
     this.roomSimFactory = opts.roomSimFactory;
+    this.actionCombatBlocked = projectHasActionCombat(opts.project) &&
+      !(opts.supportsActionCombat ?? !!opts.roomSimFactory);
     this.log = opts.log || (() => {});
   }
 
@@ -115,6 +125,16 @@ export class BeaconServer {
 
   get connectionCount(): number {
     return this.conns.size;
+  }
+
+  /** Snapshot/restore hook used by the Cloudflare friend-room DO. The core
+   * remains transport-agnostic; the DO decides when and where to persist it. */
+  snapshotRoom(code: string): JsonValue | null {
+    return this.rooms.get(code)?.snapshotData() || null;
+  }
+
+  restoreRoom(code: string, data: JsonValue): void {
+    this.rooms.get(code)?.restoreData(data);
   }
 
   /** Snapshot of live counts (health/metrics; carries no player data). */
@@ -214,6 +234,7 @@ export class BeaconServer {
         return;
       }
       st.name = String(msg.name || "").slice(0, MAX_NAME_LEN);
+      st.loadout = msg.loadout;
       return;
     }
     if (!st.name) {
@@ -246,6 +267,10 @@ export class BeaconServer {
 
   private handleJoin(st: ConnState, code: string | undefined): void {
     if (!this.allowJoinAttempt(st)) return;
+    if (this.actionCombatBlocked) {
+      this.sendError(st, "not-allowed", true);
+      return;
+    }
     // One-room-per-DO: a codeless (create) OR matching-code join both enter the
     // pinned room; any other code cannot exist here.
     if (this.fixedRoomCode) {
@@ -283,6 +308,10 @@ export class BeaconServer {
 
   private handleResume(st: ConnState, code: string, token: string): void {
     if (!this.allowJoinAttempt(st)) return;
+    if (this.actionCombatBlocked) {
+      this.sendError(st, "not-allowed", true);
+      return;
+    }
     const room = this.rooms.get(code);
     const member = room ? room.resume(st.conn, token) : null;
     if (!room || !member) {
@@ -303,7 +332,7 @@ export class BeaconServer {
       this.sendError(st, "not-allowed", true);
       return;
     }
-    const member = room.admit(st.conn, st.name, "");
+    const member = room.admit(st.conn, st.name, "", st.loadout);
     if (!member) {
       this.sendError(st, "room-full");
       return;
@@ -372,4 +401,20 @@ function byteLen(s: string): number {
     else bytes += 3;
   }
   return bytes;
+}
+
+/** Detect authored field combat without importing the engine schema/runtime.
+ *  This keeps the transport core able to reject an unsupported deployment
+ *  before a player enters a room. */
+function projectHasActionCombat(project: unknown): boolean {
+  const maps = (project as { maps?: unknown[] } | null)?.maps;
+  if (!Array.isArray(maps)) return false;
+  return maps.some((map) => {
+    const events = (map as { events?: unknown[] } | null)?.events;
+    return Array.isArray(events) && events.some((event) => {
+      const pages = (event as { pages?: unknown[] } | null)?.pages;
+      return Array.isArray(pages) && pages.some((page) =>
+        !!((page as { combat?: { enabled?: unknown } } | null)?.combat?.enabled));
+    });
+  });
 }

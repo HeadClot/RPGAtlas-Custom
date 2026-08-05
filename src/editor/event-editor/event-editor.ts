@@ -24,6 +24,8 @@ import { buildCmdRows, cmdListWidget } from "./command-list";
 import { cmdSummary, mountForm } from "./command-defs";
 import { graphEditorWidget } from "./graph-editor";
 import { compileGraph, decompileCommands } from "../../shared/event-graph";
+import { attackProfileOptions, combatPresentationFields } from "../database/combat-tab";
+import { resolveEnemyCombat, validateCombatProject } from "../../shared/sim/combat-profiles";
 
   // ============================ event editor ============================
   // onCommitNew (optional): for a brand-new, not-yet-inserted event, called on OK after the edited
@@ -342,7 +344,8 @@ import { compileGraph, decompileCommands } from "../../shared/event-graph";
           propRow("Priority", sel(pg, "priority", [{ v: "below", l: "Below player" }, { v: "same", l: "Same as player" }, { v: "above", l: "Above player" }])),
           propRow("Through", chk(pg, "through"))),
       ]);
-      pg.combat = Object.assign(RA.defaultActionCombat(), pg.combat || {});
+      pg.combat = Object.assign(RA.defaultActionCombat(), RA.defaultActionCombatTiming(), pg.combat || {});
+      if (pg.combat.inheritDefaults == null) pg.combat.inheritDefaults = true;
       const combatBadge = h("span", { class: "ev-badge" }, pg.combat.enabled ? "enabled" : "");
       combatBadge.style.display = pg.combat.enabled ? "" : "none";
       const refreshCombatBadge = () => {
@@ -353,18 +356,42 @@ import { compileGraph, decompileCommands } from "../../shared/event-graph";
         h("div", { class: "prop-rows" },
           propRow("Enabled", chk(pg.combat, "enabled")),
           propRow("Enemy", sel(pg.combat, "enemyId", dbOpts(S.proj.enemies, "(none)"))),
+          propRow("Inherit enemy/profile defaults", chk(pg.combat, "inheritDefaults")),
+          propRow("Attack profile", sel(pg.combat, "profileId", attackProfileOptions())),
           h("div", { class: "subhead" }, "Enemy AI"),
           propRow("AI", sel(pg.combat, "ai", RA.ACTION_COMBAT_AI || [{ v: "none", l: "None" }])),
           propRow("HP override", nIn(pg.combat, "hp", 0, 9999)),
           propRow("Touch damage", nIn(pg.combat, "touchDamage", 0, 999)),
           propRow("Knockback", nIn(pg.combat, "knockbackTiles", 0, 4)),
           propRow("Invuln frames", nIn(pg.combat, "invulnFrames", 0, 180)),
+          h("div", { class: "subhead" }, "Enemy attack timing"),
+          propRow("Attack cooldown", nIn(pg.combat, "attackCooldown", 0, 600)),
+          propRow("Telegraph frames", nIn(pg.combat, "attackWindupFrames", 0, 180)),
+          propRow("Active frames", nIn(pg.combat, "attackActiveFrames", 1, 180)),
+          propRow("Recovery frames", nIn(pg.combat, "attackRecoveryFrames", 0, 600)),
+          propRow("Attack range", nIn(pg.combat, "attackRange", 1, 8)),
+          propRow("Stagger frames", nIn(pg.combat, "staggerFrames", 0, 180)),
+          propRow("Respawn frames", nIn(pg.combat, "respawnFrames", 0, 3600)),
           propRow("Defeat switch", sel(pg.combat, "defeatSelfSwitch",
             [{ v: "", l: "(erase event)" }, { v: "A", l: "Self-Switch A" }, { v: "B", l: "Self-Switch B" }, { v: "C", l: "Self-Switch C" }, { v: "D", l: "Self-Switch D" }])),
+          h("div", { class: "subhead" }, "Combat presentation"),
+          combatPresentationFields(pg.combat),
           h("div", { class: "dim" },
-            "Players use the remappable Attack action to swing. Enemy AI controls extra movement such as chasing; Touch damage controls adjacent strikes. In messages, use \\input[attack] for an input-aware prompt. HP 0 uses the selected enemy's database HP.")),
+            "Players use the remappable Attack action to swing. Telegraph, active, and recovery frames make enemy contact attacks readable. Enemy AI controls extra movement such as chasing; Touch damage controls legacy immediate contact. In messages, use \\input[attack] for an input-aware prompt. HP 0 uses the selected enemy's database HP.")),
       ], combatBadge);
       combatSection.addEventListener("change", refreshCombatBadge);
+      const resolvedCombat = h("div", { class: "dim" });
+      const refreshResolvedCombat = () => {
+        const resolved = resolveEnemyCombat(S.proj, pg);
+        const warnings = validateCombatProject({ ...S.proj, maps: [{ id: 0, name: "Current map", events: [{ id: ev.id, name: ev.name, pages: [pg] }] }] } as any);
+        resolvedCombat.textContent = resolved
+          ? "Resolved enemy: " + resolved.hp + " HP · contact " + resolved.touchDamage + " · range " + resolved.attackRange + " · profile " + (resolved.profileId || "default")
+          : "No resolved Action Combat enemy.";
+        if (warnings.length) resolvedCombat.textContent += " · " + warnings.length + " validation warning(s)";
+      };
+      combatSection.appendChild(resolvedCombat);
+      combatSection.addEventListener("input", refreshResolvedCombat);
+      refreshResolvedCombat();
 
       const left = h("div", { class: "event-ide-col event-ide-left" }, condSection, appSection, behSection, combatSection);
 

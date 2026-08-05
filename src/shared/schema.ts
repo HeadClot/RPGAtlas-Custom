@@ -339,6 +339,62 @@ export interface Actor {
   /** Second weapon (post-1.1 two-weapon fighting). Only read when the hero's
    *  class carries the `special`/`dualWield` trait; absent = classic. */
   weapon2Id?: number;
+  /** Optional field-combat profile used by map action combat. */
+  combat?: ActorCombatProfile;
+}
+
+/** Reusable field-combat attack definition (Database ▸ Attack Profiles). */
+export interface AttackProfile {
+  id: number;
+  name: string;
+  damage?: number;
+  damageScale?: number;
+  windupFrames?: number;
+  activeFrames?: number;
+  recoveryFrames?: number;
+  cooldown?: number;
+  range?: number;
+  knockbackTiles?: number;
+  staggerFrames?: number;
+  hitbox?: "directional" | "adjacent" | "radius" | string;
+  animationId?: number;
+  telegraphAnimationId?: number;
+  hitAnimationId?: number;
+  hurtAnimationId?: number;
+  defeatAnimationId?: number;
+  reviveAnimationId?: number;
+  attackSound?: string;
+  telegraphSound?: string;
+  hitSound?: string;
+  hurtSound?: string;
+  defeatSound?: string;
+  reviveSound?: string;
+}
+
+/** Actor-specific map-combat values. Missing values inherit from class,
+ * equipped weapons, and the selected AttackProfile. */
+export interface ActorCombatProfile {
+  profileId?: number;
+  maxHp?: number;
+  attackProfileId?: number;
+  damage?: number;
+  damageScale?: number;
+  windupFrames?: number;
+  activeFrames?: number;
+  recoveryFrames?: number;
+  cooldown?: number;
+  range?: number;
+  knockbackTiles?: number;
+  staggerFrames?: number;
+  invulnFrames?: number;
+  staggerResistance?: number;
+  reviveFrames?: number;
+  reviveHp?: number;
+  defeatBehavior?: "checkpoint" | "respawn" | "gameOver" | string;
+  animationId?: number;
+  hitAnimationId?: number;
+  attackSound?: string;
+  hitSound?: string;
 }
 
 export interface Learning {
@@ -527,6 +583,23 @@ export interface Weapon {
   animationId?: number;
   /** Item rarity tag (system.types.itemRarities id). Organisational only. */
   rarityId?: number;
+  /** Optional field-combat profile and weapon-local overrides. */
+  combat?: {
+    profileId?: number;
+    damage?: number;
+    damageScale?: number;
+    range?: number;
+    windupFrames?: number;
+    activeFrames?: number;
+    recoveryFrames?: number;
+    cooldown?: number;
+    knockbackTiles?: number;
+    staggerFrames?: number;
+    animationId?: number;
+    hitAnimationId?: number;
+    attackSound?: string;
+    hitSound?: string;
+  };
 }
 
 export interface Armor {
@@ -539,6 +612,18 @@ export interface Armor {
   params?: Params;
   /** Item rarity tag (system.types.itemRarities id). Organisational only. */
   rarityId?: number;
+  /** Optional field-combat defensive/presentation overrides. */
+  combat?: {
+    profileId?: number;
+    invulnFrames?: number;
+    staggerResistance?: number;
+    reviveFrames?: number;
+    reviveHp?: number;
+    hurtAnimationId?: number;
+    reviveAnimationId?: number;
+    hurtSound?: string;
+    reviveSound?: string;
+  };
 }
 
 /** Condition gating one enemy action row (Phase 5; the M3·C kinds are the MZ
@@ -604,6 +689,24 @@ export interface Enemy {
    *  ability doubles only the classic `gold` field, never these rows.
    *  Absent/empty = the exact pre-wallet rewards. */
   currencyRewards?: CurrencyReward[];
+  /** Central defaults for event-page Action Combat instances. */
+  actionCombat?: {
+    profileId?: number;
+    hp?: number;
+    touchDamage?: number;
+    knockbackTiles?: number;
+    invulnFrames?: number;
+    attackCooldown?: number;
+    attackWindupFrames?: number;
+    attackActiveFrames?: number;
+    attackRecoveryFrames?: number;
+    attackRange?: number;
+    staggerFrames?: number;
+    respawnFrames?: number;
+    persistentDefeat?: boolean;
+    defeatSelfSwitch?: "" | "A" | "B" | "C" | "D" | string;
+    ai?: "none" | "chase" | string;
+  };
 }
 
 /** A troop battle-event page condition (Phase 5). An empty cond never fires. */
@@ -1528,12 +1631,32 @@ export interface EventPageCondition {
 export interface ActionCombat {
   enabled: boolean;
   enemyId: number;
+  /** Optional reusable enemy attack profile. */
+  profileId?: number;
   ai: "none" | "chase" | string;
   hp: number;
   touchDamage: number;
   knockbackTiles: number;
   invulnFrames: number;
   defeatSelfSwitch: "" | "A" | "B" | "C" | "D" | string;
+  attackCooldown?: number;
+  attackWindupFrames?: number;
+  attackActiveFrames?: number;
+  attackRecoveryFrames?: number;
+  attackRange?: number;
+  staggerFrames?: number;
+  respawnFrames?: number;
+  /** New pages may inherit missing values from the selected enemy/profile. */
+  inheritDefaults?: boolean;
+  animationId?: number;
+  telegraphAnimationId?: number;
+  hitAnimationId?: number;
+  attackSound?: string;
+  telegraphSound?: string;
+  hitSound?: string;
+  hurtSound?: string;
+  defeatSound?: string;
+  reviveSound?: string;
 }
 
 // ---- Atlas Graph (Phase 4): node-based visual scripting IR ----
@@ -2153,6 +2276,9 @@ export interface Project {
   assets: ProjectAssets;
   /** Battle animations (Phase 5). Always present after the v2 migration. */
   animations: BattleAnimation[];
+  /** Reusable field-combat attack definitions. Additive; absent on legacy
+   * projects until migration. */
+  attackProfiles?: AttackProfile[];
   actors: Actor[];
   classes: ClassDef[];
   skills: Skill[];

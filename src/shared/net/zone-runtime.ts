@@ -14,6 +14,9 @@
 import type { InputIntent, JsonValue, PlayerId } from "./protocol.js";
 import type { World } from "../sim/world.js";
 import type { MapCollision } from "../sim/collision.js";
+import type { CombatNetState } from "../sim/action-combat.js";
+import type { CombatPersistence } from "../sim/combat-persistence.js";
+import type { CombatEvent } from "../sim/combat-persistence.js";
 
 /** The party verbs a zone routes to its engine runtime (Beacon MP9·E — the
  *  F-1 fix: these §C5 intents were silently dropped by every server zone). */
@@ -38,6 +41,8 @@ export interface ZoneRuntimeContext {
   mapId: number;
   collision: MapCollision;
   outbox: ZoneRuntimeOutbox;
+  /** Optional durable combat adapter supplied by the host. */
+  persistence?: CombatPersistence;
 }
 
 /** One event's networked state (for the world-zone delta, so a future client
@@ -52,11 +57,18 @@ export interface EventNetState {
   dir: number;
   moving: boolean;
   page: number;
+  erased?: boolean;
+  combat?: CombatNetState;
 }
 
 /** The engine runtime the zone drives. Every method is fire-and-forget (the
  *  zone never blocks on it), mirroring the ZoneApi discipline. */
 export interface ZoneRuntime {
+  /** Host capabilities are explicit so unsupported targets cannot silently
+   * fall back to client-authoritative action combat. */
+  capabilities?: { actionCombat: boolean; persistence: boolean };
+  /** False while an async durable restore is still being applied. */
+  ready?(): boolean;
   /** Resolve events + bind the world to this map (called once, at attach). */
   start(): void;
   /** Advance the engine layer one 60 Hz tick (after the zone moved players,
@@ -67,8 +79,12 @@ export interface ZoneRuntime {
   onAct(pid: PlayerId, x: number, y: number, dir: number): void;
   /** A player finished a step onto (x,y) — fire a touch event on that tile. */
   onArrive(pid: PlayerId, x: number, y: number): void;
+  /** A player requested a field-combat attack; the runtime validates and applies it. */
+  onAttack?(pid: PlayerId): void;
   /** Live event states for the world-zone broadcast. */
   eventStates(): EventNetState[];
+  /** Ordered presentation/reconciliation outcomes since the previous broadcast. */
+  drainCombatEvents?(): CombatEvent[];
   /** The event-runtime state for the ZoneSnapshot data bag (§A5 D-8-0). */
   snapshotData(): Record<string, JsonValue>;
   /** Re-apply a snapshotted event-runtime state after an eviction/restart. */

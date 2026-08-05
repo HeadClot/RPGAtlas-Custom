@@ -44,12 +44,10 @@ node scripts/build-coop-demo.mjs      # writes Atlas_Quest_Coop.json
   to share.
 - **Driftwood's free relay** *(live!).* The free relay is a Beacon server Driftwood runs,
   and it hosts this very demo game — you run nothing at all: just **Play Together ▸ Create
-  Room** for a code, and friends **Join a Room**. You'll need RPGAtlas **2.0.1 or newer**
-  (older versions can't reach Cloudflare-hosted play servers). One honest limit for now:
-  free-relay rooms are for meeting up — walking, waving, partying up, chatting. For the
-  Practice Dummy *battle*, use the run-your-own server above. (A play server hosts one game —
-  the relay runs the demo, so your *own* game still needs its own server; see **Play server
-  address** below.)
+  Room** for a code, and friends **Join a Room**. Use RPGAtlas **2.1.0 or newer** for the
+  current room, action-combat, and Cloudflare protocol behavior. The relay hosts the demo game;
+  your own game still needs a Beacon server hosting your own project (see **Play server address**
+  below).
 
 Either way, the flow is: **Play Together → Create Room** (share the code) → a friend picks
 **Join a Room** and enters it. You're both on the shore in seconds. On your own server, open
@@ -178,11 +176,12 @@ A player who isn't in a party gets their **own** private battle, exactly as in a
 >   `--no-engine-rooms` for the lighter walk-and-emote rooms with no battles.)
 > - **Persistent worlds** with authored events turned on (`--engine-events` — see
 >   **[Hosting a World](Hosting-a-World)**).
-> - **Driftwood's free relay** is live — but it runs on Cloudflare, so its demo rooms are
->   walk-and-chat only for now (next line). Your own game's battles run on a
->   server hosting *your* project — the one-liner in the demo section.
-> - **Cloudflare-hosted rooms** are walk-and-chat only for now; parties and battles need the
->   Node server. A temporary limit we'll close after 2.0.
+> - **Driftwood's free relay** is live and uses the same Cloudflare Durable Object room runtime,
+>   including the current shared movement and action-combat behavior for the hosted demo. Your
+>   own game's content still runs only when a server hosts *your* project.
+> - **Cloudflare-hosted rooms and worlds** use the shared authoritative runtime. Node remains the
+>   easiest self-hosting target when you need local files, worker-thread tuning, or the full Beacon
+>   CLI; see **[Hosting a World](Hosting-a-World)** for the current deployment steps.
 > - **Online battles start from Battle *events*** — fights you place with the Battle command
 >   (an action-trigger monster, a boss, a cutscene fight). Random step encounters (a map's
 >   walk-around encounter list) **don't fire on a server yet** — they stay single-player for

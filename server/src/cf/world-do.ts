@@ -29,8 +29,10 @@
 
 import { BeaconWorld } from "../core/beacon-world.js";
 import { KvWorldStore } from "../core/store.js";
-import { doStorageKv } from "./do-store.js";
+import { doCombatPersistence, doStorageKv } from "./do-store.js";
 import type { ServerConnection } from "../core/connection.js";
+import { cloudActionZoneFactory } from "./action-combat-adapter.js";
+import { DEFAULT_WORLD_LIMITS } from "../core/config.js";
 
 /** The Worker env bindings the world DO needs: its own namespace + the game
  *  project JSON in KV (too large for a plaintext var), loaded once per isolate. */
@@ -95,7 +97,11 @@ export class BeaconWorldDO {
         const projectJson = await this.env.GAME.get("project");
         if (!projectJson) throw new Error("beacon: GAME KV has no 'project' key");
         const store = new KvWorldStore(doStorageKv(this.state.storage));
-        const world = new BeaconWorld({ project: JSON.parse(projectJson), store, requirePassport: true });
+        const project = JSON.parse(projectJson);
+        const world = new BeaconWorld({
+          project, store, requirePassport: true,
+          zoneFactory: cloudActionZoneFactory({ project, limits: DEFAULT_WORLD_LIMITS, persistence: doCombatPersistence(this.state.storage) }),
+        });
         await world.load(); // §A5 restore: WorldSnapshot + records + ZoneSnapshots
         this.world = world;
         return world;

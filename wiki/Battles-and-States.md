@@ -10,7 +10,7 @@ are built, the battle views and systems, status effects, and how to keep combat 
 A battle always pits the party against a **troop** (a group of enemies defined in the
 [Database](The-Database#troops)). You start one in two ways:
 
-- **A fixed battle:** a **Start Battle** [event command](Events#battle-shops--audio) — for bosses and
+- **A fixed battle:** a **Start Battle** [event command](Events#battle-shops-audio) — for bosses and
   scripted fights.
 - **Random encounters:** turn them on in **Map Properties** with a list of troops and a rate. See
   [Maps & Tiles](Maps-and-Tiles#random-encounters).
@@ -148,8 +148,9 @@ Each enemy (Database ▸ Enemies) defines:
 Group enemies into **troops** to use them in battle.
 
 The same enemy database entries can also power real-time **Action Combat** events on maps. See
-[Events](Events#action-combat-events) for sword-swing enemies, touch damage, knockback, and defeat
-self-switches.
+[Events](Events#action-combat-events) for the short setup, and the full
+[Action Combat guide](Action-Combat) for Attack Profiles, timing phases, hitboxes, VFX/SFX,
+respawn, persistence, and authoritative multiplayer behavior.
 
 ---
 

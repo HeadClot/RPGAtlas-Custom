@@ -46,6 +46,21 @@ pre-rebrand plugins. The Script event command receives `atlas` and `game` as glo
 
 `onRender` draws onto the 2D overlay canvas above the scene in both classic and HD-2D modes.
 
+### A small plugin
+
+Create a project plugin in **Tools ▸ Plugin Manager…**, enable it, and keep the body focused on
+one feature. This example changes a message and adds a harmless map-load log:
+
+```js
+(() => {
+  atlas.onMapLoad(map => console.log("Loaded map", map.name));
+  atlas.onMessageText(html => html.replace("Welcome", "Welcome, adventurer"));
+})();
+```
+
+Hooks are installed when the plugin runs at boot. Guard optional data and avoid assuming the game
+is already on a map: title, battle, and game-over scenes do not provide the same live objects.
+
 ### Extending the engine
 
 | Call | Effect |
@@ -53,7 +68,22 @@ pre-rebrand plugins. The Script event command receives `atlas` and `game` as glo
 | `atlas.registerCommand(type, fn)` | Adds a new event command; `fn(cmd, interp)` may be `async` — the event waits for it. Registered commands are also usable from Atlas Graph pages (as command-list nodes) and are error-isolated per call. |
 | `atlas.setTransition({ out, in })` | Replaces the map-transfer fade; each is `async () => {}` |
 | `atlas.startBattle(troopId, canEscape)` | Starts a battle → `Promise<"win" \| "lose" \| "escape">` |
-| `atlas.zonesAt(x, y)` | The current map's [gameplay zones](Advanced-Map-Editor#objects--gameplay-zones) covering a tile, in author draw order — **custom** zones carry whatever `props` you gave them, making this a "regions with data" system. Also on the Script API as `game.zonesAt(x, y)`. |
+| `atlas.zonesAt(x, y)` | The current map's [gameplay zones](Advanced-Map-Editor#objects-gameplay-zones) covering a tile, in author draw order — **custom** zones carry whatever `props` you gave them, making this a "regions with data" system. Also on the Script API as `game.zonesAt(x, y)`. |
+
+### Registering a custom event command
+
+Custom commands use a new command type and receive the command object plus the active interpreter.
+An async handler pauses the event until its promise resolves:
+
+```js
+atlas.registerCommand("startBonusBattle", async cmd => {
+  const result = await atlas.startBattle(Number(cmd.troopId) || 1, true);
+  console.log("Bonus battle ended:", result);
+});
+```
+
+The command can be inserted from a Script/Atlas Graph flow when its type is present in the project
+command list. Validate all project-controlled values before using them in DOM or network code.
 
 ### Multiplayer — `atlas.mp`
 
@@ -139,11 +169,11 @@ Reusable conversations can be awaited with `game.callDialogue(id)`, just like
 ## Compatibility promise
 
 This surface is **frozen for 2.x**: existing properties and calls — including the multiplayer
-surface `atlas.mp` added in 2.0 — keep working across updates (new ones may be added). Plugins and
+surface `atlas.mp` — keep working across updates (new ones may be added). Plugins and
 graphs written against it survive engine upgrades and ship unchanged inside exported games — see the
 [Migration Guide](Migration-Guide).
 
-> **2.0 note.** The online-multiplayer additions (`atlas.mp` — join/leave hooks + `sendCustom`) are
+> **2.1 note.** The online-multiplayer additions (`atlas.mp` — join/leave hooks + `sendCustom`) are
 > now part of the frozen surface. `sendCustom` payloads are opaque to the engine and travel on the
 > communication tier (like an emote), size-capped and rate-limited; they never carry a player's
 > address or any personal information.

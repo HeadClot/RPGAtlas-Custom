@@ -72,6 +72,20 @@ import { createHeadlessBattle } from "./battle-runtime.js";
 import { pumpTickTimers, waitTicks, tickTweenTicks } from "../../shared/sim/timers.js";
 import { DIR_OFFSET, isPassable, type MapCollision } from "../../shared/sim/collision.js";
 import { advanceRoute, eventMayStep, type RouteOps } from "../../shared/move-route.js";
+import {
+  applyHurt,
+  attackIsActive,
+  createCombatState,
+  markDead,
+  respawnIfReady,
+  startAttack,
+  swordHitsEntity,
+  tickAttack,
+  toCombatNetState,
+} from "../../shared/sim/action-combat.js";
+import { resolveActorCombat, resolveEnemyCombat, type ResolvedEnemyCombat } from "../../shared/sim/combat-profiles.js";
+import { CombatLedger, type CombatEvent } from "../../shared/sim/combat-persistence.js";
+import { CombatEventStream, knockbackStep, playerDamageFor, selectCombatTarget } from "../../shared/sim/action-combat-adapter.js";
 import type { JsonValue, PlayerId } from "../../shared/net/protocol.js";
 import type { World } from "../../shared/sim/world.js";
 import type {
@@ -119,9 +133,7 @@ function pageActive(mapId: number, evId: any, page: any): boolean {
   return true;
 }
 
-/** Build one event runtime state — the headless subset of map-runtime.makeEvRT
- *  (no charset index / light / on-map combat: the server needs event LOGIC, not
- *  its sprite). */
+/** Build one event runtime state — the headless subset of map-runtime.makeEvRT. */
 function makeEvRT(world: World, mapId: number, evData: any): any {
   const rt: any = {
     ev: evData,
@@ -129,7 +141,8 @@ function makeEvRT(world: World, mapId: number, evData: any): any {
     rx: evData.x, ry: evData.y,
     prx: evData.x, pry: evData.y,
     dir: 0, animT: 0, moving: false, tx: evData.x, ty: evData.y,
-    page: null, pageIndex: -1, erased: false, locked: false,
+    page: null, pageIndex: -1, erased: false, locked: false, combat: null,
+    project: world.proj,
     moveT: 30 + world.rnd(90), route: null, speed: 0.05,
   };
   refreshPage(mapId, rt);
@@ -149,6 +162,16 @@ function refreshPage(mapId: number, rt: any): void {
   rt.pageIndex = pi;
   rt.page = pi >= 0 ? rt.ev.pages[pi] : null;
   if (rt.page) rt.dir = rt.page.dir || 0;
+  const cfg = rt.page ? resolveEnemyCombat(rt.project as any, rt.page) : null;
+  if (!cfg) rt.combat = null;
+  else if (!rt.combat || rt.combat.pageIndex !== pi || rt.combat.enemyId !== cfg.enemyId) {
+    rt.combat = Object.assign(createCombatState(), {
+      pageIndex: pi,
+      enemyId: cfg.enemyId,
+      hp: cfg.hp || 100,
+      maxHp: cfg.hp || 100,
+    });
+  }
 }
 
 /* ── the runtime ─────────────────────────────────────────────────────────── */
@@ -189,6 +212,14 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
   const shVar = new Map<string, number>();
   let shTime = 0;
   const shPSwitch = new Map<string, boolean>(); // key = pid + ":" + id
+  let combatLedger = new CombatLedger();
+  let combatEvents = new CombatEventStream();
+
+  function recordCombat(event: Omit<CombatEvent, "seq">): CombatEvent {
+    const row = combatLedger.append(event);
+    combatEvents.append(row);
+    return row;
+  }
 
   /* ── entity queries + motion (headless port of map-runtime) ────────────── */
 
@@ -230,6 +261,134 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     ent.tx = ent.x + dx;
     ent.ty = ent.y + dy;
     ent.moving = true;
+  }
+
+  function combatConfig(rt: any): ResolvedEnemyCombat | null {
+    return rt && rt.page ? resolveEnemyCombat(world.proj as any, rt.page) : null;
+  }
+
+  function playerAttackDamage(player: any, rt: any): number {
+    const resolved = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
+    const enemy = world.proj && world.proj.enemies
+      ? world.proj.enemies.find((e: any) => Number(e.id) === Number(rt.combat.enemyId))
+      : null;
+    const def = Number(enemy && enemy.stats && enemy.stats.def) || 0;
+    return playerDamageFor(world.proj as any, player.loadout || { actorId: resolved.actorId }, def);
+  }
+
+  function defeatEvent(rt: any, cfg: ResolvedEnemyCombat): void {
+    if (!rt.combat || rt.combat.dead) return;
+    markDead(rt.combat, cfg.respawnFrames);
+    rt.combat.hp = 0;
+    recordCombat({ tick: world.tick, kind: "defeat", target: rt.ev.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, animationId: cfg.animationId, sound: cfg.defeatSound });
+    // A defeat self-switch is permanent authored defeat. Respawn is the
+    // alternate authored behavior and keeps the event on the field.
+    const sw = Number(cfg.respawnFrames) > 0 ? "" : cfg.defeatSelfSwitch;
+    if (sw) {
+      G.selfSw[mapId + ":" + rt.ev.id + ":" + sw] = true;
+      refreshAllPages();
+    } else if (Number(cfg.respawnFrames) <= 0) {
+      rt.erased = true;
+      rt.page = null;
+      rt.pageIndex = -1;
+    }
+  }
+
+  function hitEvent(player: any, rt: any): void {
+    const cfg = combatConfig(rt);
+    if (!cfg || !rt.combat || rt.combat.dead || rt.combat.invuln > 0) return;
+    const dmg = playerAttackDamage(player, rt);
+    rt.combat.hp = Math.max(0, Number(rt.combat.hp || 100) - dmg);
+    recordCombat({ tick: world.tick, kind: "hit", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, attackId: player.combat.attackId, x: rt.x, y: rt.y, dir: player.combat.dir, animationId: cfg.hitAnimationId, sound: cfg.hitSound });
+    recordCombat({ tick: world.tick, kind: "damage", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, amount: dmg, hpAfter: Math.max(0, rt.combat.hp), attackId: player.combat.attackId, x: rt.x, y: rt.y, sound: cfg.hurtSound });
+    applyHurt(rt.combat, cfg.invulnFrames, cfg.staggerFrames || 10);
+    if (rt.combat.hp <= 0) defeatEvent(rt, cfg);
+    else {
+      if (cfg.knockbackTiles > 0 && !rt.moving && knockbackStep(rt, player.combat.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) {
+        rt.combat.knockback = Math.max(0, Number(cfg.knockbackTiles) || 0) - 1;
+        rt.combat.knockbackDir = player.combat.dir;
+      }
+    }
+  }
+
+  function hitPlayer(rt: any, player: any, cfg: ResolvedEnemyCombat): void {
+    if (!player || player.combat.dead || player.combat.invuln > 0) return;
+    if (rt.combat.hitIds.has(player.id)) return;
+    rt.combat.hitIds.add(player.id);
+    player.hp = Math.max(0, Number(player.hp || 100) - Math.max(0, cfg.touchDamage));
+    recordCombat({ tick: world.tick, kind: "damage", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, amount: Math.max(0, cfg.touchDamage), hpAfter: player.hp, attackId: rt.combat.attackId, x: player.x, y: player.y, sound: cfg.hurtSound });
+    applyHurt(player.combat, 60, cfg.staggerFrames || 0);
+    if (player.hp <= 0) {
+      const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
+      const reviveFrames = Math.max(1, actor.reviveFrames || 300);
+      markDead(player.combat, reviveFrames);
+      player.revive = reviveFrames;
+      recordCombat({ tick: world.tick, kind: "playerDeath", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, x: player.x, y: player.y, animationId: cfg.animationId, sound: cfg.defeatSound });
+    }
+  }
+
+  function tickFieldCombat(): void {
+    const players = [...world.roster.players.values()];
+    for (const player of players) {
+      if (!player.combat) continue;
+      if (player.combat.dead) {
+        tickAttack(player.combat, 0, 0);
+        if (respawnIfReady(player.combat)) {
+          const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
+          player.hp = Math.max(1, actor.reviveHp);
+          player.maxHp = Math.max(player.maxHp || 0, actor.maxHp);
+          player.revive = 0;
+          recordCombat({ tick: world.tick, kind: "revive", target: player.id, mapId, x: player.x, y: player.y, animationId: actor.reviveFrames ? actor.hitAnimationId : 0, sound: actor.hitSound });
+        }
+        continue;
+      }
+      if (attackIsActive(player.combat)) {
+        for (const rt of world.evRTs) {
+          if (!rt.combat || rt.combat.dead || player.combat.hitIds.has(rt.ev.id)) continue;
+          if (swordHitsEntity(player, rt, player.combat.dir)) {
+            player.combat.hitIds.add(rt.ev.id);
+            hitEvent(player, rt);
+          }
+        }
+      }
+      tickAttack(player.combat, 3, 9);
+    }
+    for (const rt of world.evRTs) {
+      const cfg = combatConfig(rt);
+      if (!cfg || !rt.combat) continue;
+      if (rt.combat.dead) {
+        if (Number(cfg.respawnFrames) > 0 && respawnIfReady(rt.combat)) {
+          rt.combat.hp = cfg.hp;
+          rt.erased = false;
+          recordCombat({ tick: world.tick, kind: "respawn", target: rt.ev.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, sound: cfg.reviveSound });
+          refreshPage(mapId, rt);
+        }
+        continue;
+      }
+      if (attackIsActive(rt.combat)) {
+        for (const player of players) {
+          const dist = Math.abs(player.x - rt.x) + Math.abs(player.y - rt.y);
+          if (dist <= (cfg.attackRange || 1)) hitPlayer(rt, player, cfg);
+        }
+      } else if (rt.combat.phase === "idle" && rt.combat.attackCooldown <= 0 && cfg.touchDamage > 0) {
+        const target = players.find((p: any) => !p.combat.dead && Math.abs(p.x - rt.x) + Math.abs(p.y - rt.y) <= (cfg.attackRange || 1));
+        if (target) {
+          rt.dir = dirTo(rt.x, rt.y, target.x, target.y);
+          rt.combat.hitIds.clear();
+          startAttack(rt.combat, rt.dir, cfg.attackWindupFrames, cfg.attackActiveFrames, cfg.attackRecoveryFrames);
+          rt.combat.attackCooldown = cfg.attackCooldown || 45;
+          recordCombat({ tick: world.tick, kind: "telegraph", source: rt.ev.id, target: target.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, dir: rt.dir, animationId: cfg.telegraphAnimationId, sound: cfg.telegraphSound });
+          // Zero-windup attacks are active immediately on this tick.
+          if (attackIsActive(rt.combat)) {
+            for (const player of players) {
+              const dist = Math.abs(player.x - rt.x) + Math.abs(player.y - rt.y);
+              if (dist <= (cfg.attackRange || 1)) hitPlayer(rt, player, cfg);
+            }
+          }
+        }
+      }
+      tickAttack(rt.combat, cfg.attackWindupFrames, cfg.attackActiveFrames);
+    }
   }
   /** Advance an in-progress step (map-runtime.updateEntityMotion). */
   function updateEntityMotion(ent: any, speed: number): boolean {
@@ -546,7 +705,33 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       }
       for (const rt of world.evRTs) {
         if (rt.erased || !rt.page) continue;
-        if (rt.moving) updateEntityMotion(rt, rt.speed);
+        if (rt.moving) {
+          const arrived = updateEntityMotion(rt, rt.speed);
+          if (arrived && rt.combat && Number(rt.combat.knockback) > 0) {
+            const remaining = Number(rt.combat.knockback) || 0;
+            if (knockbackStep(rt, Number(rt.combat.knockbackDir) || rt.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) {
+              rt.combat.knockback = remaining - 1;
+            } else {
+              rt.combat.knockback = 0;
+            }
+          }
+        }
+        const chaseCfg = combatConfig(rt);
+        if (!rt.moving && chaseCfg?.ai === "chase" && !rt.locked && !ctx.blockingRun && rt.combat && !rt.combat.dead && rt.combat.stagger <= 0) {
+          const target = selectCombatTarget(rt, [...world.roster.players.values()].filter((p: any) => !p.combat.dead && p.mapId === mapId), 8);
+          if (target && Math.abs(target.x - rt.x) + Math.abs(target.y - rt.y) > (chaseCfg.attackRange || 1)) {
+            const dx = target.x - rt.x, dy = target.y - rt.y;
+            const preferred = Math.abs(dx) >= Math.abs(dy) ? [dx > 0 ? 2 : 1, dy > 0 ? 0 : 3] : [dy > 0 ? 0 : 3, dx > 0 ? 2 : 1];
+            for (const dir of preferred) {
+              const [sx, sy] = DIR_OFFSET[dir] || [0, 0];
+              if (canEntityPass(rt, rt.x + sx, rt.y + sy) && eventMayStep(rt, rt.x + sx, rt.y + sy)) {
+                rt.dir = dir;
+                startMove(rt, dir);
+                break;
+              }
+            }
+          }
+        }
         if (!rt.moving && rt.route) {
           updateRoute(rt);
         } else if (!rt.moving) {
@@ -577,6 +762,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
             });
         }
       }
+      tickFieldCombat();
       updateCommonEvents();
       diffAndPropagate();
     },
@@ -615,27 +801,59 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       }
     },
 
+    onAttack(pid: PlayerId): void {
+      const player = world.roster.players.get(pid) as any;
+      if (!player || player.moving || player.combat.dead || world.blocking.has(pid)) return;
+      const actor = resolveActorCombat(world.proj, player.loadout?.actorId || 1, player.loadout);
+      if (player.combat.attackCooldown > 0) return;
+      if (startAttack(player.combat, player.dir, actor.windupFrames, actor.activeFrames, actor.recoveryFrames)) {
+        player.combat.attackCooldown = actor.cooldown;
+      }
+    },
+
     eventStates(): EventNetState[] {
       const out: EventNetState[] = [];
       for (const rt of world.evRTs) {
-        if (!rt.page || rt.erased) continue;
         out.push({
           id: rt.ev.id, x: rt.x, y: rt.y, rx: rt.rx, ry: rt.ry,
-          dir: rt.dir, moving: rt.moving, page: rt.pageIndex,
+          dir: rt.dir, moving: rt.moving, page: rt.pageIndex, erased: !!rt.erased,
+          combat: rt.combat ? toCombatNetState(rt.combat) : undefined,
         });
       }
       return out;
     },
 
+    drainCombatEvents(): CombatEvent[] {
+      return combatEvents.drain();
+    },
+
     snapshotData(): Record<string, JsonValue> {
       const events: JsonValue[] = [];
       for (const rt of world.evRTs) {
-        events.push({ id: rt.ev.id, x: rt.x, y: rt.y, dir: rt.dir, page: rt.pageIndex, erased: rt.erased });
+        events.push({
+          id: rt.ev.id,
+          x: rt.x,
+          y: rt.y,
+          dir: rt.dir,
+          page: rt.pageIndex,
+          erased: rt.erased,
+          combat: rt.combat ? {
+            ...toCombatNetState(rt.combat),
+            hp: Number(rt.combat.hp || 0),
+            maxHp: Number(rt.combat.maxHp || 0),
+            attackCooldown: Number(rt.combat.attackCooldown || 0),
+            respawn: Number(rt.combat.respawn || 0),
+          } : null,
+        });
       }
-      return { events };
+      return { events, combatLedger: combatLedger.toJSON() as unknown as JsonValue };
     },
 
     restoreData(data: Record<string, JsonValue>): void {
+      if (data && Array.isArray(data.combatLedger)) {
+        combatLedger = new CombatLedger(data.combatLedger as unknown as CombatEvent[]);
+        combatEvents = new CombatEventStream(data.combatLedger as unknown as CombatEvent[]);
+      }
       const events = data && (data.events as any[]);
       if (!Array.isArray(events)) return;
       const byId = new Map<number, any>();
@@ -647,6 +865,9 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
         rt.rx = rt.prx = e.x; rt.ry = rt.pry = e.y;
         rt.dir = e.dir;
         rt.erased = !!e.erased;
+        if (e.combat && rt.combat) {
+          Object.assign(rt.combat, e.combat, { hitIds: new Set() });
+        }
       }
     },
 
