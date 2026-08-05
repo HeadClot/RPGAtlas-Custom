@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Stable renderer golden captures",
+    summary:
+      "Renderer golden tests now wait for the completed map frame before comparing HD-2D and generalized-layer output.",
+    items: [
+      "Prevented screenshots from capturing the title backdrop after the title UI has already been removed.",
+      "Kept generalized-layer pixel comparisons focused on rendered map frames instead of startup timing noise.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Action combat authoring and persistence",
     summary:
       "Expanded reusable field-combat authoring and enabled persistent, server-authoritative combat recovery across Node and Cloudflare hosts.",

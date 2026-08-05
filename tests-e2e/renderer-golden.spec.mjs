@@ -86,6 +86,10 @@ async function bootToStableMap(page, hdParam, transformProject) {
   await expect(page.getByText("New Game", { exact: true })).toBeVisible({ timeout: 15_000 });
   // A couple of virtual frames for the title backdrop to finish its own setup.
   await page.clock.runFor(50);
+  // Keep the title canvas as a reference. The title DOM can disappear before
+  // the asynchronous map render has replaced that canvas, so checking only
+  // .titlewin (or one canvas pixel) is not enough to establish readiness.
+  const titleGameCanvas = await page.locator("#gamecanvas").screenshot();
   await page.getByText("New Game", { exact: true }).click();
   // newGame(): fadeTo(1,300) -> loadMap -> render() -> fadeTo(0,300); each
   // fadeTo awaits sleep(ms+30). 700ms of virtual time clears both fades.
@@ -95,6 +99,66 @@ async function bootToStableMap(page, hdParam, transformProject) {
   // settle on a specific, reproducible tick rather than whatever frame the
   // fade happened to land on.
   await page.clock.runFor(500);
+
+  // Wait for an actual completed composite frame. A screenshot may otherwise
+  // land between the 2D and WebGL canvas updates: the title window is gone, but
+  // #gamecanvas can still contain its old backdrop. Require two consecutive
+  // stage captures to be map frames, advancing the fake clock in bounded
+  // increments while the asynchronous render catches up.
+  let mapPainted = false;
+  let stableStage = null;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const stage = await page.locator("#stage").screenshot();
+    const confirmationStage = await page.locator("#stage").screenshot();
+    const differsFromTitle = (png) => page.evaluate(async ([stageB64, titleB64]) => {
+      const load = (b64) => new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = "data:image/png;base64," + b64;
+      });
+      const [si, ti] = await Promise.all([load(stageB64), load(titleB64)]);
+      if (si.width !== ti.width || si.height !== ti.height) return true;
+      const canvas = document.createElement("canvas");
+      canvas.width = si.width;
+      canvas.height = si.height;
+      const g = canvas.getContext("2d");
+      g.drawImage(si, 0, 0);
+      const sd = g.getImageData(0, 0, canvas.width, canvas.height).data;
+      g.clearRect(0, 0, canvas.width, canvas.height);
+      g.drawImage(ti, 0, 0);
+      const td = g.getImageData(0, 0, canvas.width, canvas.height).data;
+      let diff = 0;
+      for (let i = 0; i < sd.length; i++) if (sd[i] !== td[i]) diff++;
+      return diff;
+    }, [png.toString("base64"), titleGameCanvas.toString("base64")]);
+    const stageDiffersFromTitle = await differsFromTitle(stage);
+    const confirmationDiffersFromTitle = await differsFromTitle(confirmationStage);
+    const glMounted = hdParam !== 1 || await page.evaluate(() => {
+      const gl = document.querySelector("#glcanvas");
+      return !!gl && gl.width > 0 && gl.height > 0;
+    });
+    const rendererPainted = hdParam !== 1 || await page.evaluate(() => {
+      const stats = (window).RPGATLAS_RENDERER_STATS?.();
+      return !!stats && stats.calls > 0;
+    });
+    // A partial canvas swap can differ from the title by a few hundred
+    // thousand bytes while still leaving most of the backdrop visible. A
+    // completed map replaces the full-screen title composition.
+    if (rendererPainted && glMounted && stageDiffersFromTitle > 1_000_000
+      && confirmationDiffersFromTitle > 1_000_000) {
+      mapPainted = true;
+      stableStage = confirmationStage;
+      break;
+    }
+    await page.clock.runFor(50);
+  }
+  expect(mapPainted, "map render did not produce a stable frame").toBe(true);
+  return stableStage;
+}
+
+async function expectStableMapScreenshot(page, hdParam, transformProject, snapshotName) {
+  const stableStage = await bootToStableMap(page, hdParam, transformProject);
+  await expect(stableStage).toMatchSnapshot(snapshotName, { maxDiffPixelRatio: 0.02 });
 }
 
 test.describe("renderer golden images", () => {
@@ -104,8 +168,7 @@ test.describe("renderer golden images", () => {
   );
 
   test("HD-2D map (Meridian Village, ?hd2d=1) renders a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1);
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-meridian-village.png");
+    await expectStableMapScreenshot(page, 1, null, "hd2d-meridian-village.png");
   });
 
   // The sample project keeps bloom/DoF/fog off, so the spec above never runs
@@ -121,25 +184,23 @@ test.describe("renderer golden images", () => {
   };
 
   test("HD-2D post stack (bloom+DoF+fog) renders a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, withPostStack);
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-post-meridian-village.png");
+    await expectStableMapScreenshot(page, 1, withPostStack, "hd2d-post-meridian-village.png");
   });
 
   // Stage B: sun shadow maps are a NEW capability (three.js renderer only —
   // no classic reference exists), so this baseline was captured from the
   // three.js renderer itself and guards against regressions from here on.
   test("HD-2D sun shadows (map.hd2d.shadows) render a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, (project) => {
+    await expectStableMapScreenshot(page, 1, (project) => {
       project.maps[0].hd2d = { enabled: true, tilt: 50, shadows: true, lights: true, ambient: 0.45 };
       return project;
-    });
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-shadows-meridian-village.png");
+    }, "hd2d-shadows-meridian-village.png");
   });
 
   // Stage B.2: point-light shadows (three.js renderer only). The transform
   // injects two big lights and a raised wall so terrain AND sprites occlude.
   test("HD-2D point-light shadows (map.hd2d.pointShadows) render a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, (project) => {
+    await expectStableMapScreenshot(page, 1, (project) => {
       const m = project.maps[0];
       m.hd2d = { enabled: true, tilt: 50, lights: true, ambient: 0.25, pointShadows: true };
       m.lights = [
@@ -148,24 +209,22 @@ test.describe("renderer golden images", () => {
       ];
       for (let y = 9; y <= 10; y++) m.heights[y * m.width + 8] = 2;
       return project;
-    });
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-pointshadows-meridian-village.png");
+    }, "hd2d-pointshadows-meridian-village.png");
   });
 
   // Stage C: animated water surface (village pond) — waves/reflection/foam
   // all derive from the frozen engine tick, so the frame is reproducible.
   test("HD-2D water surface (map.hd2d.water) renders a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, (project) => {
+    await expectStableMapScreenshot(page, 1, (project) => {
       project.maps[0].hd2d = { enabled: true, tilt: 50, water: true, lights: true, ambient: 0.45 };
       return project;
-    });
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-water-meridian-village.png");
+    }, "hd2d-water-meridian-village.png");
   });
 
   // Stage C: auto materials — relief + specular from lights, emissive glow at
   // low ambient (village windows). Lights injected near the pond and house A.
   test("HD-2D auto materials (map.hd2d.materials) render a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, (project) => {
+    await expectStableMapScreenshot(page, 1, (project) => {
       const m = project.maps[0];
       m.hd2d = { enabled: true, tilt: 50, materials: true, lights: true, ambient: 0.15 };
       m.lights = [
@@ -173,48 +232,44 @@ test.describe("renderer golden images", () => {
         { rx: 18, ry: 6.5, color: "#ffb060", radius: 260 },
       ];
       return project;
-    });
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-materials-meridian-village.png");
+    }, "hd2d-materials-meridian-village.png");
   });
 
   // Stage D: the extended post stack — ACES, warm grade, vignette, SSAO,
   // FXAA on top of bloom. (The Stage A bloom/DoF golden above still passes
   // unchanged, proving the new composite is bit-identical with these off.)
   test("HD-2D post stack v2 (ACES+grade+vignette+SSAO+FXAA) renders a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, (project) => {
+    await expectStableMapScreenshot(page, 1, (project) => {
       project.maps[0].hd2d = {
         enabled: true, tilt: 50, bloom: true, lights: true, ambient: 0.45,
         aces: true, vignette: true, lut: "warm", ssao: true, fxaa: true,
       };
       return project;
-    });
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-post2-meridian-village.png");
+    }, "hd2d-post2-meridian-village.png");
   });
 
   // Stage D: day/night at golden hour — low gold-tinted sun, long shadows,
   // window glow beginning to engage, water glints on the dusk sun.
   test("HD-2D day/night dusk (map.hd2d.dayNight) renders a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, (project) => {
+    await expectStableMapScreenshot(page, 1, (project) => {
       project.maps[0].hd2d = {
         enabled: true, tilt: 50, lights: true, ambient: 0.45,
         dayNight: true, timeOfDay: 17.5, shadows: true, water: true, materials: true,
       };
       return project;
-    });
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-dusk-meridian-village.png");
+    }, "hd2d-dusk-meridian-village.png");
   });
 
   // Stage E: stateless GPU weather particles — positions are pure functions
   // of the frozen tick, so rain streaks land identically every run.
   test("HD-2D weather particles (map.hd2d.weather rain) render a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, (project) => {
+    await expectStableMapScreenshot(page, 1, (project) => {
       project.maps[0].hd2d = {
         enabled: true, tilt: 50, lights: true, ambient: 0.4,
         weather: "rain", dropShadows: true,
       };
       return project;
-    });
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-rain-meridian-village.png");
+    }, "hd2d-rain-meridian-village.png");
   });
 
   // Stage D2: cliff auto-texturing (three.js renderer only, map.hd2d.cliffs).
@@ -224,19 +279,17 @@ test.describe("renderer golden images", () => {
   // tint (guarded by every other HD-2D golden here) — this baseline is the
   // sculpted look, so it also proves the flag actually changes the pixels.
   test("HD-2D cliff auto-texturing (map.hd2d.cliffs) renders a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 1, (project) => {
+    await expectStableMapScreenshot(page, 1, (project) => {
       const m = project.maps[0];
       m.hd2d = { enabled: true, tilt: 50, cliffs: true, lights: true, ambient: 0.45 };
       for (let y = 8; y <= 9; y++)
         for (let x = 9; x <= 10; x++) m.heights[y * m.width + x] = 3;
       return project;
-    });
-    await expect(page.locator("#stage")).toHaveScreenshot("hd2d-cliffs-meridian-village.png");
+    }, "hd2d-cliffs-meridian-village.png");
   });
 
   test("classic 2D renderer (?hd2d=0 override) renders a stable frame", async ({ page }) => {
-    await bootToStableMap(page, 0);
-    await expect(page.locator("#stage")).toHaveScreenshot("classic2d-meridian-village.png");
+    await expectStableMapScreenshot(page, 0, null, "classic2d-meridian-village.png");
   });
 });
 
@@ -279,9 +332,9 @@ test.describe("generalized layers (map.layersAdv)", () => {
    * That costs nothing: this describe guards LAYER COMPOSITING; the walking-
    * mover render path is covered by the committed goldens above. */
   async function frame(page, hd, transform) {
-    await bootToStableMap(page, hd, (project) =>
+    const stableStage = await bootToStableMap(page, hd, (project) =>
       pinMovers(transform ? (transform(project) ?? project) : project));
-    return page.locator("#stage").screenshot();
+    return stableStage || page.locator("#stage").screenshot();
   }
   /** Count RGBA byte differences between two PNG buffers, decoded in-page. */
   async function pixelDiff(page, a, b) {
