@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 5, 2026",
+    title: "Faster e2e setup with verbose diagnostics",
+    summary:
+      "Reduced redundant browser bootstraps and fixed waits in the Playwright harness while making importer build logging verbose.",
+    items: [
+      "Atlas Quest and Project Manager e2e fixtures now seed their test state before the first application navigation.",
+      "Presentation, playtest, terrain, and renderer-memory checks wait on live state instead of unconditional sleeps.",
+      "RPG Maker importer bundling now emits verbose diagnostics during e2e runs.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
     title: "Feature-oriented source layout",
     summary:
       "Regrouped internal TypeScript modules by feature and responsibility while preserving the editor, player, export, server, and plugin compatibility boundaries.",

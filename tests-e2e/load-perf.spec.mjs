@@ -168,12 +168,34 @@ test.describe("renderer memory stability", () => {
       await expect.poll(() => page.evaluate(() => window.Atlas.atlas.map.id)).toBe(1);
     };
 
-    // Two warm-up cycles + a settle beat: chunk textures, sprite pools, and
-    // most lazy walk-frame sprite textures (NPCs animate on random movement,
-    // and each newly shown frame canvas mints a CanvasTexture) get created.
+    // Two warm-up cycles plus a state-based settle: chunk textures, sprite
+    // pools, and most lazy walk-frame sprite textures (NPCs animate on random
+    // movement, and each newly shown frame canvas mints a CanvasTexture) get
+    // created. Wait until the live resource signature has stayed unchanged
+    // long enough to distinguish a real plateau from one quiet poll interval.
     await cycle();
     await cycle();
-    await page.waitForTimeout(1000);
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const stats = window.RPGATLAS_RENDERER_STATS();
+            if (!stats) return false;
+            const signature = `${stats.geometries}:${stats.textures}`;
+            const state = window.__RPGATLAS_E2E_MEMORY_SETTLE__ || {
+              signature,
+              since: performance.now(),
+            };
+            if (state.signature !== signature) {
+              state.signature = signature;
+              state.since = performance.now();
+            }
+            window.__RPGATLAS_E2E_MEMORY_SETTLE__ = state;
+            return performance.now() - state.since >= 250;
+          }),
+        { timeout: 5000, intervals: [50, 100, 200] },
+      )
+      .toBe(true);
     const baseline = await page.evaluate(() => window.RPGATLAS_RENDERER_STATS());
     expect(baseline).not.toBeNull();
 

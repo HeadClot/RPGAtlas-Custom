@@ -124,12 +124,18 @@ async function pixelDiff(page, a, b) {
 }
 
 /** Texture uploads and the final async render can finish just after
- * page.clock.runFor() returns. Give those real-time tasks a chance to settle
- * while the virtual clock remains paused, then capture one stable frame. */
+ * page.clock.runFor() returns. Capture until two consecutive frames match
+ * while the virtual clock remains paused; this settles on the actual renderer
+ * state instead of paying a fixed real-time delay on every capture. */
 async function stableStageScreenshot(page) {
-  await page.clock.runFor(0);
-  await page.waitForTimeout(100);
-  return page.locator("#stage").screenshot();
+  let previous = null;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await page.clock.runFor(0);
+    const current = await page.locator("#stage").screenshot();
+    if (previous && current.equals(previous)) return current;
+    previous = current;
+  }
+  throw new Error("renderer did not settle to two identical frames");
 }
 
 test.describe("animated terrain (Phase 8 Stage C)", () => {

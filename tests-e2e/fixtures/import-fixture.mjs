@@ -27,7 +27,7 @@ function importer() {
         format: "esm",
         platform: "node",
         write: false,
-        logLevel: "silent",
+        logLevel: "verbose",
       });
       const dir = mkdtempSync(join(tmpdir(), "rpgatlas-mzimport-"));
       const file = join(dir, "mz-import.mjs");

@@ -12,22 +12,27 @@ import { test, expect } from "@playwright/test";
 import { atlasQuestJson } from "./fixtures/atlas-quest.mjs";
 
 const SEED_ROOT = "/Games/Seed Game";
+let seedScriptId = 0;
 
 /** Seed the fake host's localStorage (docs + recents) with one openable game,
- *  then navigate to the manager. Mirrors the atlas-quest seed pattern: prime the
- *  origin, write storage, then load ?fakehost so start() installs the fake host
- *  and reads the seed. */
+ *  then navigate to the manager. The init script runs before the manager's
+ *  boot script, avoiding the throwaway prime navigation while its unique
+ *  sessionStorage marker prevents a later reload in this test from restoring
+ *  the original seed over user changes. */
 async function gotoManagerWithSeed(page, { recents = [], docs = {} } = {}) {
-  // Prime the origin under ?fakehost so the manager mounts (as on desktop) instead of the
-  // browser editor booting and writing a meta-less rpgatlas_project mirror — which the
-  // H6·A migration offer would then read as a "legacy game" (see H6·A §1.1).
-  await page.goto("/index.html?fakehost");
-  await page.evaluate(
-    ({ r, d }) => {
+  const seedKey = `__rpgatlas_e2e_manager_seed_${++seedScriptId}`;
+  await page.addInitScript(
+    ({ r, d, key }) => {
+      if (location.origin === "null" || sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
       localStorage.setItem("atlas.fakehost.recents", r);
       localStorage.setItem("atlas.fakehost.docs", d);
     },
-    { r: JSON.stringify(recents), d: JSON.stringify(docs) },
+    {
+      r: JSON.stringify(recents),
+      d: JSON.stringify(docs),
+      key: seedKey,
+    },
   );
   await page.goto("/index.html?fakehost");
 }

@@ -16,6 +16,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const projectPath = join(here, "..", "..", "Atlas_Quest.json");
 
 let cached = null;
+let seedScriptId = 0;
 export function atlasQuestJson() {
   if (!cached) cached = readFileSync(projectPath, "utf8");
   return cached;
@@ -43,14 +44,16 @@ export function pinMovers(project) {
 
 /**
  * Seeds localStorage with the Atlas Quest sample project, then navigates to
- * `path`. Must set localStorage before any app script runs, so we navigate
- * to the target origin first (about:blank has no localStorage bound to the
- * app's origin), seed, then navigate again to the real page.
+ * `path`. An init script writes the seed before the app's first script runs,
+ * so each helper call needs only one real application navigation. The unique
+ * sessionStorage marker keeps the init script from reseeding a later reload
+ * in the same test; this matters to tests that boot multiple project variants
+ * on one page.
  *
- * `installClock: true` installs Playwright's fake clock (see clock.install())
- * in between the seed and the real navigation, so it is in place before
- * js/engine.js boot() ever calls requestAnimationFrame(loop) — needed for
- * deterministic golden-image captures (see tests-e2e/renderer-golden.spec.mjs).
+ * `installClock: true` installs Playwright's fake clock before the navigation,
+ * so it is in place before js/engine.js boot() ever calls
+ * requestAnimationFrame(loop) — needed for deterministic golden-image
+ * captures (see tests-e2e/renderer-golden.spec.mjs).
  *
  * `rngSeed` closes the one nondeterminism the fake clock does NOT freeze:
  * gameplay rolls (random-walk NPCs, encounter timing, battle rolls) come from
@@ -77,11 +80,17 @@ export async function gotoWithAtlasQuest(
     const project = JSON.parse(json);
     json = JSON.stringify(transformProject(project) ?? project);
   }
-  // Prime the origin so we can write to its localStorage before boot.
-  await page.goto(path);
-  await page.evaluate((seeded) => {
-    localStorage.setItem("rpgatlas_project", seeded);
-  }, json);
+  const seedKey = `__rpgatlas_e2e_seed_${++seedScriptId}`;
+  await page.addInitScript(
+    ({ seeded, key }) => {
+      // The Playwright page starts at about:blank. Its opaque origin has no
+      // app storage; the guard also keeps this script harmless there.
+      if (location.origin === "null" || sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+      localStorage.setItem("rpgatlas_project", seeded);
+    },
+    { seeded: json, key: seedKey },
+  );
   if (installClock) {
     // Fixed epoch start so any incidental Date.now()/timestamp text in the
     // UI (e.g. save-slot listings) is also reproducible across runs.
