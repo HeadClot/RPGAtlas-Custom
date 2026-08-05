@@ -16,11 +16,11 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S, curMap } from "../editor-state";
+import { editorState as S, curMap } from "../core/editor-state";
 import { touch } from "../persistence";
 import { pushUndo } from "../map-editor/history";
 import type { Stamp } from "../../shared/schema";
-import { captureStampData, writeStampData } from "../../shared/stamp-ops";
+import { captureStampData, writeStampData } from "../../shared/map/stamp-ops";
 import { advState } from "./adv-state";
 
 /** The live proj.stamps array, created lazily so a project that never captures

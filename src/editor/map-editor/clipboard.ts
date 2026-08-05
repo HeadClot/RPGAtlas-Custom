@@ -7,13 +7,13 @@
    Copyright (C) 2026 RPGAtlas contributors - GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA, LAYER_ORDER, editorState as S, curMap } from "../editor-state";
+import { RA, LAYER_ORDER, editorState as S, curMap } from "../core/editor-state";
 import { touch } from "../persistence";
 import { renderMap } from "./map-render";
 import { pushUndo } from "./history";
 import { eventAt, heightsOf, shadowsOf } from "./painting";
 import { setStatus, flashStatus } from "./status";
-import { setMode, refreshToolbar } from "../workspace";
+import { setMode, refreshToolbar } from "../core/workspace";
 
   // ---- clipboard ----
   export function canCopy() {

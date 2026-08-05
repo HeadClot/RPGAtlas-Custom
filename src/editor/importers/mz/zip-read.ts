@@ -1,7 +1,7 @@
 /* RPGAtlas — src/editor/importers/mz/zip-read.ts
    Project Compass M1·D: a tiny, dependency-free ZIP reader so the import wizard
    can accept a `.zip` of an RPG Maker project as well as a picked folder. It is
-   the mirror of the STORE-method writer in src/editor/export-web.ts, plus DEFLATE
+   the mirror of the STORE-method writer in src/editor/export/export-web.ts, plus DEFLATE
    support via the platform's native `DecompressionStream("deflate-raw")` (present
    in Chromium — the browser + Tauri target — and in Node 18+ where vitest runs).
 

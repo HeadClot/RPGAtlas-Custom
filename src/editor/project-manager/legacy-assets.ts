@@ -6,7 +6,7 @@
    folder is self-contained. Idempotent by construction: once copied, the project holds
    them, so the next open finds nothing to migrate.
 
-   The pure "which keys to copy" decision is planLegacyMigration (src/shared/asset-scan.ts,
+   The pure "which keys to copy" decision is planLegacyMigration (src/shared/assets/asset-scan.ts,
    vitest). Here we read the global blobs (through the ManagerHost's optional
    globalAsset* methods — the real host wraps the existing app-data library_* commands;
    the ?fakehost host serves a seeded global library) and import them into the active
@@ -14,15 +14,15 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { h } from "../dom";
-import { modal } from "../modals";
+import { h } from "../core/dom";
+import { modal } from "../core/modals";
 import {
   importAssets,
   libraryMetas,
   usedAssetKeys,
   type CatalogEntry,
-} from "../../shared/asset-library";
-import { planLegacyMigration } from "../../shared/asset-scan";
+} from "../../shared/assets/asset-library";
+import { planLegacyMigration } from "../../shared/assets/asset-scan";
 import { activeManagerHost } from "./manager-host";
 
 /** Copy every used-but-not-yet-here global-library asset into the open project. Returns

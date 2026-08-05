@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   categoryOf, matchesSearch, filterTileIds, CATEGORY_ORDER, CATEGORY_LABEL_KEY,
-} from "../src/shared/tile-categories";
+} from "../src/shared/map/tile-categories";
 
 describe("tile-categories: categoryOf", () => {
   it("classifies water keys", () => {

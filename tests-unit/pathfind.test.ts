@@ -2,7 +2,7 @@
    Phase 5 Stage C: the pure A* module. GPL-3.0-or-later (see LICENSE). */
 
 import { describe, it, expect } from "vitest";
-import { findPath } from "../src/shared/pathfind";
+import { findPath } from "../src/shared/map/pathfind";
 
 /** Build a passable oracle from an ASCII grid ('#' = blocked). */
 function grid(rows: string[]) {

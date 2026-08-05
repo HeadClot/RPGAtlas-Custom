@@ -17,7 +17,7 @@ import { getCommand } from "./registry.js";
 import { ctx } from "../state/engine-context.js";
 import { G, Quests, invCount, currencyBalance } from "../state/game-state.js";
 import { compareVariable } from "../util.js";
-import { evalMzScript, mzGlobalsFromState } from "../../shared/mz-script.js";
+import { evalMzScript, mzGlobalsFromState } from "../../shared/events/mz-script.js";
 import type { InterpOrigin } from "../../shared/sim/directives.js";
 
 export type { InterpOrigin };

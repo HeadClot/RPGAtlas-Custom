@@ -41,12 +41,12 @@ npm run build
 
 ## Source map
 
-- `src/editor/` — editor boot, workspace, dock panels, map tools, database, event editor,
-  importers, project manager, and authoring tools.
+- `src/editor/` — editor boot/composition roots, `core/` shell infrastructure, map tools, database,
+  event editor, importers, project manager, export, and feature-grouped authoring tools.
 - `src/engine/` — player boot, scenes, interpreter, menus, saves, plugins, co-op sessions, and
   client-side network runtime.
-- `src/shared/` — schema, project migration, map algorithms, rendering data, networking protocol,
-  and deterministic simulation including action combat.
+- `src/shared/` — stable contract primitives plus feature groups for project persistence, maps,
+  assets, audio, events, presentation, networking protocol, and deterministic simulation.
 - `src/renderer/` — Three.js HD-2D renderer and render planning.
 - `src/platform/` — browser storage plus Tauri project and asset adapters.
 - `js/` — compatibility globals, procedural assets/audio/data, legacy project I/O, and standalone
@@ -67,7 +67,7 @@ npm run docs:check
 
 `docs-site/` is committed because it is ready to serve from GitHub Pages, but its HTML and CSS
 should be regenerated rather than edited by hand. The in-app `Help ▸ Detailed Tutorials` content
-lives in `src/editor/tutorials-data.ts`; keep its terminology and command examples aligned with
+lives in `src/editor/core/tutorials-data.ts`; keep its terminology and command examples aligned with
 the wiki and `server/README.md`.
 
 ## Historical specifications

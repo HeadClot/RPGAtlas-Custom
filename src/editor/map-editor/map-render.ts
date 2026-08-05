@@ -8,13 +8,13 @@
    Copyright (C) 2026 RPGAtlas contributors - GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, TILE, LAYER_ORDER, editorState as S, curMap } from "../editor-state";
-import { drawLayerCell } from "../../shared/autotile-draw";
-import { isAutotileId, anyAutotileAnimated, autotilePassable } from "../../shared/autotile-registry";
-import { frameAt } from "../../shared/autotile-anim";
-import { tileId } from "../../shared/tile-flags";
-import { layerView, shadowIndex, entryArray, BLEND_COMPOSITE } from "../../shared/layer-view";
-import { drawEntryTiles } from "../../shared/layer-composite";
+import { Assets, TILE, LAYER_ORDER, editorState as S, curMap } from "../core/editor-state";
+import { drawLayerCell } from "../../shared/map/autotile-draw";
+import { isAutotileId, anyAutotileAnimated, autotilePassable } from "../../shared/map/autotile-registry";
+import { frameAt } from "../../shared/map/autotile-anim";
+import { tileId } from "../../shared/map/tile-flags";
+import { layerView, shadowIndex, entryArray, BLEND_COMPOSITE } from "../../shared/map/layer-view";
+import { drawEntryTiles } from "../../shared/map/layer-composite";
 
   // ============================ map rendering ============================
   /** Everything renderMapView reads besides the map itself: the classic

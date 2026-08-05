@@ -86,7 +86,7 @@ function requiredKeys(): Set<string> {
     keys.add(m[1]);
   }
   // 2. Registered commands + menu names (localized via actionLabel()/t()).
-  for (const file of ["src/editor/workspace.ts", "src/editor/dock/panels.ts"]) {
+  for (const file of ["src/editor/core/workspace.ts", "src/editor/dock/panels.ts"]) {
     for (const m of read(file).matchAll(/label: "([^"]+)"/g)) {
       if (!LABEL_EXCLUDES.has(m[1])) keys.add(m[1]);
     }
@@ -98,7 +98,7 @@ function requiredKeys(): Set<string> {
   // 3. Tool/layer label tables (menu items + status line fragments).
   // editor-state.ts is window-bound (reads RPGAtlasDeps at import), so pull
   // the two constant tables out of the source text.
-  const editorState = read("src/editor/editor-state.ts");
+  const editorState = read("src/editor/core/editor-state.ts");
   const tables = editorState.match(/(?:LAYER|TOOL)_LABELS[^=]*= \{[^}]+\}/g) || [];
   expect(tables.length).toBe(2);
   for (const table of tables) {

@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
-const workspaceSource = fs.readFileSync("src/editor/workspace.ts", "utf8");
+const workspaceSource = fs.readFileSync("src/editor/core/workspace.ts", "utf8");
 const mapRenderSource = fs.readFileSync("src/editor/map-editor/map-render.ts", "utf8");
 const indexSource = fs.readFileSync("index.html", "utf8");
 

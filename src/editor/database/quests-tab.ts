@@ -7,8 +7,8 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA, editorState as S } from "../editor-state";
-import { h, tIn, nIn, sel, chk, field, row, dbOpts, switchOpts, varOpts, stringSelOpts } from "../dom";
+import { RA, editorState as S } from "../core/editor-state";
+import { h, tIn, nIn, sel, chk, field, row, dbOpts, switchOpts, varOpts, stringSelOpts } from "../core/dom";
 import { touch } from "../persistence";
 import { listFormTab, nameRefresher, subTabs } from "./shared";
 

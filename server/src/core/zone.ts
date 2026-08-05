@@ -55,7 +55,7 @@ import {
   DIR_OFFSET,
   type MapCollision,
 } from "../../../src/shared/sim/collision.js";
-import { resolveBoundaryCrossing } from "../../../src/shared/map-connections.js";
+import { resolveBoundaryCrossing } from "../../../src/shared/map/map-connections.js";
 import type { GameMap } from "../../../src/shared/schema.js";
 import type { Project } from "../../../src/shared/schema.js";
 import type { PlayerCombatSnapshot } from "../../../src/shared/sim/combat-persistence.js";

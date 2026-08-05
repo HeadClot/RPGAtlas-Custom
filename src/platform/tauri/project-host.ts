@@ -9,8 +9,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import type { ProjectErrorCode } from "../../shared/project-errors";
-import { parseRecents, type Recent } from "../../shared/recents";
+import type { ProjectErrorCode } from "../../shared/project/project-errors";
+import { parseRecents, type Recent } from "../../shared/project/recents";
 
 /** A created/opened project (mirrors the Rust `ProjectBundle`, §3). */
 export interface ProjectBundle {

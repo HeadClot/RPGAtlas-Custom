@@ -50,7 +50,7 @@ Editor: Loop/Break Loop CMD_DEFS entries (classic lists get them too); the
 command tree renders a "▸ Repeat" branch; every list walker learned
 loop.body (command-list walkCommands/buildCmdRows/ownsArray, world-graph
 walk, js/assets.js export scan — assets.js?v=13). Pure core
-`src/shared/event-graph.ts`: outPortLabels (if=[Then,Else,After],
+`src/shared/events/event-graph.ts`: outPortLabels (if=[Then,Else,After],
 choices=[…options,After], loop=[Body,After] — the **After port** is the
 design keystone: structured compile, no join heuristics), normalizeOut,
 addNode/connect/deleteNode (single-out deletes heal the flow through),
@@ -183,7 +183,7 @@ if/choices/loop in the parent list". That makes compilation structured and
 gives `commands → graph → commands` **identity round-trip** with no
 join-detection heuristics.
 
-### Compiler (`src/shared/event-graph.ts`, pure)
+### Compiler (`src/shared/events/event-graph.ts`, pure)
 
 `compileGraph(graph) → { commands, issues }`, deterministic:
 

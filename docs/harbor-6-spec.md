@@ -93,7 +93,7 @@ crash-recovery copy (H3).
 
 ### 1.2 The pure core
 
-`src/shared/folder-migration.ts` (env=node, vitest — trap 3):
+`src/shared/project/folder-migration.ts` (env=node, vitest — trap 3):
 - `planFolderMigration(mirror, hasMeta, isProjectLike) → { title, documentJson } | null` —
   null when there is no mirror, when meta is present (already a folder game), or when the
   mirror isn't a recognizable project (cleared / junk storage). `isProjectLike` is injected
@@ -141,7 +141,7 @@ never mounts the manager, so the 70 originals are untouched.
 folder" wizard instead of an empty launcher; the old localStorage-only game becomes a real,
 self-contained folder game.
 
-- **Pure core `src/shared/folder-migration.ts` (new, vitest):** `planFolderMigration(mirror,
+- **Pure core `src/shared/project/folder-migration.ts` (new, vitest):** `planFolderMigration(mirror,
   hasMeta, isProjectLike)` — the legacy signal is "mirror is a project **and** no folder
   meta"; returns `{ title, documentJson }` (document passed through verbatim) or null. Meta
   present → null (already a folder game); no mirror / junk / non-project → null.
@@ -202,7 +202,7 @@ gains a gentle "your folders live in the desktop app" note in its File menu.
   folder tree, autosave, drop-in assets, zip/move/back-up, Export, migration) with the
   double-click section demoted under it; a desktop `assets/` pointer in "Custom assets"; and a
   desktop-folder note in "Project format". (README version badge stays 1.1.0 → bumps at H6·C.)
-- **Browser File-menu note (`src/editor/workspace.ts`):** a new `desktop-folders` command
+- **Browser File-menu note (`src/editor/core/workspace.ts`):** a new `desktop-folders` command
   (**"Where's my game saved?…"** → a kid-friendly modal naming the desktop app + folders),
   registered and shown in the File menu **only when `!managerActive()`** — i.e. the pure web
   build. Desktop (`isTauri`) and the `?fakehost` e2e host, whose games already live in
@@ -241,7 +241,7 @@ release gate signs the roadmap header first, then `harbor-6` + `v1.2.0` are tagg
   `C:\Users\Zatara\.cargo\bin` (prepended to PATH; trap 7).
 - **Version → 1.2.0 across all sites (trap 8):** `package.json`, `package-lock.json` (root +
   `packages[""]`), `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`
-  (the `rpgatlas` crate), the `README.md` badge, and `src/editor/help.ts`'s About box.
+  (the `rpgatlas` crate), the `README.md` badge, and `src/editor/core/help.ts`'s About box.
   **FORMAT_VERSION stays 2**; the plugin API stays frozen for 1.x.
 - **Cache-busters:** `patch-notes.js?v=65 → 66` (`help.ts` import + `shims.d.ts` module
   declaration) for the new note; `editor.css?v=61 → 62` (`index.html`) for the H6·A wizard/

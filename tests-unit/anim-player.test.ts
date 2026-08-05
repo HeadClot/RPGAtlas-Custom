@@ -12,8 +12,8 @@ import {
   animDurationTicks,
   itemDurationTicks,
   anchorPoints,
-} from "../src/shared/anim-player";
-import type { AnimEnv } from "../src/shared/anim-player";
+} from "../src/shared/presentation/anim-player";
+import type { AnimEnv } from "../src/shared/presentation/anim-player";
 import type { BattleAnimation } from "../src/shared/schema";
 
 function fakeEl(): any {

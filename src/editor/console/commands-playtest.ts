@@ -6,8 +6,8 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S } from "../editor-state";
-import { runAct } from "../workspace";
+import { editorState as S } from "../core/editor-state";
+import { runAct } from "../core/workspace";
 import { registerConsoleCommand, done, fail, text } from "./registry";
 
 // Mirrors src/engine/playtest-bridge.ts — keep in sync.

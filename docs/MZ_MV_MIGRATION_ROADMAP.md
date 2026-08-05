@@ -195,7 +195,7 @@ M1·A (DB conversion) is COMPLETE and merged. You are starting M1·B of the
 MZ/MV migration: tileset + map conversion. Read
 docs/MZ_MV_MIGRATION_ROADMAP.md (M1·B), docs/mig-1-spec.md, and the tileset/
 map tables in docs/mz-mv-parity-matrix.md. Key existing code:
-src/shared/autotile*.ts, tile-flags.ts, layer-composite.ts, and the 48px
+src/shared/map/autotile*.ts, tile-flags.ts, layer-composite.ts, and the 48px
 slicer in src/editor/importers/. When done: tests green (0 e2e failures
 baseline), git ritual (branch mig-1b), stage-log entry, then print the M1·C
 kick-off prompt verbatim from the roadmap.
@@ -387,7 +387,7 @@ map-feature gaps from the matrix (terrain tags, counters, bush/ladder,
 damage floors, region encounters, looping maps, battlebacks — exact list is
 whatever the matrix assigned to M4). Read docs/MZ_MV_MIGRATION_ROADMAP.md
 (phase M4), those matrix rows, and src/engine/scenes/map-runtime.ts +
-src/shared/tile-flags.ts. Create docs/mig-4-spec.md with a stage log. Flip
+src/shared/map/tile-flags.ts. Create docs/mig-4-spec.md with a stage log. Flip
 translate/convert entries. When done: tests green, patch notes, git ritual
 (branch mig-4a), stage-log, then print the M4·B kick-off prompt verbatim.
 ```
@@ -405,7 +405,7 @@ M4·A (map features) is COMPLETE and merged. You are starting M4·B:
 MV animation-sheet conversion + audio semantics parity. Read
 docs/MZ_MV_MIGRATION_ROADMAP.md (M4·B), animation/audio matrix rows, the
 Effekseer fallback decision in docs/mig-0-spec.md, docs/mig-4-spec.md, and
-src/shared/anim-player.ts + audio-deck.ts. When done: tests green, patch
+src/shared/presentation/anim-player.ts + audio-deck.ts. When done: tests green, patch
 notes, git ritual (branch mig-4b), tag mig-4, stage-log, then print the
 M5·A kick-off prompt verbatim.
 ```

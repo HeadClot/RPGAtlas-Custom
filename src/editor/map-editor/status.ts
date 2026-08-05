@@ -6,11 +6,11 @@
    Copyright (C) 2026 RPGAtlas contributors - GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, TOOL_LABELS, LAYER_LABELS, t, editorState as S, curMap } from "../editor-state";
-import { $ } from "../dom";
+import { Assets, TOOL_LABELS, LAYER_LABELS, t, editorState as S, curMap } from "../core/editor-state";
+import { $ } from "../core/dom";
 import { effectivePass } from "./map-render";
 import { topLayerAt, getCell, eventAt } from "./painting";
-import { tileId } from "../../shared/tile-flags";
+import { tileId } from "../../shared/map/tile-flags";
 
   export function setStatus() {
     const m = curMap();

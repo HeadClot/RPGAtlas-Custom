@@ -3,18 +3,18 @@
    editor. Left: the standard list scaffold. Right, per animation: name +
    default anchor, a timeline strip (items as draggable chips on a tick
    ruler), the item table with per-type parameter forms, and a live preview
-   arena driven by the REAL runtime (src/shared/anim-player.ts over a
+   arena driven by the REAL runtime (src/shared/presentation/anim-player.ts over a
    battle-fx pool), so what plays here is what plays in battle.
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, Sfx, editorState as S } from "../editor-state";
-import { h, nIn, sel, chk, field, row, SE_OPTS, stringSelOpts } from "../dom";
+import { Assets, Sfx, editorState as S } from "../core/editor-state";
+import { h, nIn, sel, chk, field, row, SE_OPTS, stringSelOpts } from "../core/dom";
 import { touch } from "../persistence";
 import { listFormTab, nameRefresher } from "./shared";
-import { createBattleFx } from "../../shared/battle-fx";
-import { playAnimation, animDurationTicks } from "../../shared/anim-player";
-import { libraryMetas, resolvePlaybackSheet } from "../../shared/asset-library";
+import { createBattleFx } from "../../shared/presentation/battle-fx";
+import { playAnimation, animDurationTicks } from "../../shared/presentation/anim-player";
+import { libraryMetas, resolvePlaybackSheet } from "../../shared/assets/asset-library";
 
 const ITEM_TYPES = [
   { v: "particles", l: "Particles" },

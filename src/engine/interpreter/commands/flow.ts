@@ -7,7 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { registerCommand, type InterpContext } from "../registry.js";
-import { runMzScript, mzGlobalsFromState } from "../../../shared/mz-script.js";
+import { runMzScript, mzGlobalsFromState } from "../../../shared/events/mz-script.js";
 import { MESSAGE_BG_NAMES, MESSAGE_POS_NAMES } from "../../../shared/net/protocol.js";
 
 export function registerFlowCommands(): void {

@@ -1,12 +1,12 @@
 /* RPGAtlas — tests-unit/world-graph.test.ts
-   The pure World-View graph core (src/shared/world-graph.ts, Phase 3 Stage E):
+   The pure World-View graph core (src/shared/map/world-graph.ts, Phase 3 Stage E):
    transfer collection through nested branches, directed-edge aggregation,
    deterministic layout, and drag-to-relink retargeting. GPL-3.0-or-later. */
 
 import { describe, expect, it } from "vitest";
 import {
   collectTransfers, buildWorldGraph, autoLayout, retargetEdge,
-} from "../src/shared/world-graph";
+} from "../src/shared/map/world-graph";
 
 // A tiny fixture: three maps. Map 1 → 2 (twice, one nested in an if), 1 → 3,
 // 2 → 1, plus a self-transfer on 2 and a dangling transfer to a missing map 9.

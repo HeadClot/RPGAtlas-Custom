@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { AdvLayer } from "../src/shared/schema";
-import { CORE_ROLES } from "../src/shared/layer-view";
+import { CORE_ROLES } from "../src/shared/map/layer-view";
 import {
   ensureLayersAdv, findLayer, addTileLayer, addGroup, groupLayer,
   ungroupLayer, deleteLayer, moveLayer, patchLayer,

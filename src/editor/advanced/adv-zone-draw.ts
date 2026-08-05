@@ -11,7 +11,7 @@
    GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { TILE, curMap } from "../editor-state";
+import { TILE, curMap } from "../core/editor-state";
 import { touch } from "../persistence";
 import { renderMap } from "../map-editor/map-render";
 import { pushUndo } from "../map-editor/history";

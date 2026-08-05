@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/terrain-kinds.test.ts
-   Per-kind terrain resolvers (src/shared/terrain-kinds.ts, Phase 8 Stage C).
+   Per-kind terrain resolvers (src/shared/map/terrain-kinds.ts, Phase 8 Stage C).
    Every resolver must map its neighbour situation to an in-bounds source tile
    and (for blob47/a1) four in-bounds corner minitiles, matching the RM-derived
    arrangement the Studio importer writes. Fixture-grid style, like autotile.ts.
@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveTile, edgeMask, cornerMask, pickVariant, cellHash, detectKind,
   requiredTileCount, frameTileGrid, type TerrainKind,
-} from "../src/shared/terrain-kinds";
+} from "../src/shared/map/terrain-kinds";
 
 // A "same group?" predicate over a tiny fixture grid centred on (cx,cy). `1` in
 // the grid means same-group; out-of-bounds counts as connected (map-edge blend),

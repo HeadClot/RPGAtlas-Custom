@@ -12,8 +12,8 @@
 
 import { Assets, RA } from "../../shared/deps.js";
 import { clamp, rnd, rndf, sysSe } from "../util.js";
-import { findPath } from "../../shared/pathfind.js";
-import { eventMayStep } from "../../shared/move-route.js";
+import { findPath } from "../../shared/map/pathfind.js";
+import { eventMayStep } from "../../shared/map/move-route.js";
 import { ctx, fns } from "../state/engine-context.js";
 import { G, actorEffCarrier, param } from "../state/game-state.js";
 import { defaultWorld } from "../state/default-world.js";
@@ -73,7 +73,7 @@ import {
 } from "./map-runtime.js";
 import { counterAt, damageFloorAt } from "./tile-behavior.js";
 import { autosaveNow } from "../state/save.js";
-import { resolveBoundaryCrossing } from "../../shared/map-connections.js";
+import { resolveBoundaryCrossing } from "../../shared/map/map-connections.js";
 import { knockbackStep } from "../../shared/sim/action-combat-adapter.js";
 
 let frameWaiters: any[] = [];

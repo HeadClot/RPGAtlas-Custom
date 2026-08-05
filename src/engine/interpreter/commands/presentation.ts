@@ -8,7 +8,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { registerCommand, type InterpContext } from "../registry.js";
-import { panGainForTile } from "../../../shared/audio-math.js";
+import { panGainForTile } from "../../../shared/audio/audio-math.js";
 import {
   showPicture, movePicture, rotatePicture, tintPicture, erasePicture, pictureBusy,
   tintScreen, tintBusy, startTimer, stopTimer, scrollMap, scrollBusy,

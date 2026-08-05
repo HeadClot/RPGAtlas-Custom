@@ -11,7 +11,7 @@
    a 90° turn flips the on-screen horizontal axis) via the pure tile-flags
    helpers. Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later. */
 
-import { toggleH, toggleV, rotateCW } from "../../shared/tile-flags";
+import { toggleH, toggleV, rotateCW } from "../../shared/map/tile-flags";
 import { advState, advHooks } from "./adv-state";
 
 /** Panel-focus predicate the key bindings gate on (bound on mount so boot.ts's

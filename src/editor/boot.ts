@@ -11,9 +11,9 @@
 
 import {
   Assets, DataDefaults, RA, TILE, editorI18n, editorState as S, editorHooks,
-} from "./editor-state";
-import { $ } from "./dom";
-import { modalRoot } from "./modals";
+} from "./core/editor-state";
+import { $ } from "./core/dom";
+import { modalRoot } from "./core/modals";
 import { loadStored, saveNow, importProject, openFolderRoot } from "./persistence";
 import { renderMap, renderPalette } from "./map-editor/map-render";
 import { undo, redo } from "./map-editor/history";
@@ -29,16 +29,16 @@ import {
   buildMenubar, buildToolbar, refreshToolbar, runAct,
   setMode, setTool, setLayer, setZoom, zoomStep, cycleMode,
   closeMenus, isMenuOpen,
-} from "./workspace";
-import { applyEditorFontScale, openKeyboardShortcuts } from "./help";
-import { dispatchKey, type KeyBinding } from "./keymap";
-import { activeEditScope } from "./edit-scope";
+} from "./core/workspace";
+import { applyEditorFontScale, openKeyboardShortcuts } from "./core/help";
+import { dispatchKey, type KeyBinding } from "./core/keymap";
+import { activeEditScope } from "./core/edit-scope";
 import { initDockWorkspace } from "./dock/panels";
 import { advFocus } from "./advanced/adv-transform";
 import { initAutotileUI, renderAutotileBar, stepBrush } from "./map-editor/autotile-ui";
-import { syncAutotileRegistry } from "./autotile-store";
+import { syncAutotileRegistry } from "./map-editor/autotile-store";
 import { initRmImport } from "./importers/rm-import-wizard";
-import { consumeEmbeddedAssets, initAssetLibrary } from "../shared/asset-library";
+import { consumeEmbeddedAssets, initAssetLibrary } from "../shared/assets/asset-library";
 import { createDefaultAssetStore } from "../platform/default-asset-store";
 import { ProjectAssetStore } from "../platform/project-asset-store";
 // Project Harbor H2: the desktop Project Manager launcher. managerActive() gates
@@ -49,10 +49,10 @@ import { markEditorBooted } from "./project-manager/project-context";
 // Project Harbor H4·A: when a folder game is open, rescope the asset library to it.
 import { migrateGlobalLibraryAssets, showLegacyMigrationNotice } from "./project-manager/legacy-assets";
 // Project Harbor H4·B: auto-discover files copied into the project's assets/ folder.
-import { installProjectScanFocus, runProjectScan } from "./tools/project-scan";
+import { installProjectScanFocus, runProjectScan } from "./tools/assets/project-scan";
 // Side effect: registers window.AtlasAudioDeck so imported audio previews
 // (Audio Manager, command "▶ test" buttons) play in the editor too.
-import "../shared/audio-deck";
+import "../shared/audio/audio-deck";
 
 // The editor's global key bindings (Phase 3 Stage A). This table replaces the
 // old hardcoded keydown cascade one branch per binding, IN ORDER — the order

@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/autotile.test.ts
-   The pure 47-blob autotile core (src/shared/autotile.ts, Phase 3 Stage D).
+   The pure 47-blob autotile core (src/shared/map/autotile.ts, Phase 3 Stage D).
    Autotiles only look right if every one of the 256 neighbour masks resolves to
    four in-bounds minitiles, and the canonical cases match RPG Maker MV's
    FLOOR_AUTOTILE_TABLE (which the per-corner coordinates were derived from).
@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   cornerSources, neighborMask,
   N, E, S, W, NE, SE, SW, NW,
-} from "../src/shared/autotile";
+} from "../src/shared/map/autotile";
 
 const flat = (mask: number) => cornerSources(mask).map((m) => [m.cx, m.cy]);
 

@@ -135,7 +135,7 @@ as pure cache: it carries tags/slicer payloads not present in the raw files.
 
 A new `ProjectAssetStore` implements the existing `AssetStore` interface
 (`list/get/getAllBlobs?/put/remove/setMeta`) over a small **`ProjectAssetHost`** — the
-same real-vs-fake split H3 used for `save`. So `src/shared/asset-library.ts` is
+same real-vs-fake split H3 used for `save`. So `src/shared/assets/asset-library.ts` is
 **unchanged in shape**; only its store implementation differs when a folder game is
 open.
 
@@ -204,7 +204,7 @@ library but **absent from the project's `.atlas/library.json`**, copy those blob
 the project (in place, via the store's normal write path) once, and report it in plain
 language ("Brought N pictures/sounds into your game's folder"). Pure planning —
 `planLegacyMigration(usedKeys, projectMetas, globalMetas)` → the keys to copy — lives in
-`src/shared/asset-scan.ts` and is vitest-tested; the copy itself is a thin desktop-only
+`src/shared/assets/asset-scan.ts` and is vitest-tested; the copy itself is a thin desktop-only
 loop over the global `FsAssetStore` (constructed only for the migration, only when
 `isTauri`). Under `?fakehost` the fake host exposes a **seedGlobalLibrary** control so
 the bridge is e2e-drivable in the browser.
@@ -213,7 +213,7 @@ the bridge is e2e-drivable in the browser.
 
 ## 3. Auto-discovery (H4·B)
 
-A pure planner `planScan(scanned, index)` (`src/shared/asset-scan.ts`, env=node) turns
+A pure planner `planScan(scanned, index)` (`src/shared/assets/asset-scan.ts`, env=node) turns
 a scan snapshot + the current index into a plan:
 
 ```
@@ -333,7 +333,7 @@ one `runProjectScan()` with a re-entrancy guard (the existing `scanning` flag pa
   optional `globalAssetList`/`globalAssetRead` (real host → the existing app-data
   `library_list`/`library_read` — no new Rust for the legacy read side).
 - **Legacy bridge** (`legacy-assets.ts` + pure `planLegacyMigration` in
-  `src/shared/asset-scan.ts`): opening a project whose document references global-library
+  `src/shared/assets/asset-scan.ts`): opening a project whose document references global-library
   assets not yet in the project copies them into `assets/` (idempotent), then shows a
   kid-friendly "We tidied up your game" notice after boot (never before `#save-ind` — the
   gate). Gated on `folderRoot`, so the browser build never runs it.
@@ -358,14 +358,14 @@ one `runProjectScan()` with a re-entrancy guard (the existing `scanning` flag pa
 
 ### H4·B — Auto-discovery — 2026-07-09
 
-- **New pure planner `planScan`** (`src/shared/asset-scan.ts`, env=node): diffs an
+- **New pure planner `planScan`** (`src/shared/assets/asset-scan.ts`, env=node): diffs an
   `assets/` scan snapshot (`{type, relPath, size, mtimeMs}`) against the index into
   `{ newFiles, changedFiles, missing }`. A known file whose size **and** mtime match is
   skipped (no read, no hash — a focus-scan stays cheap); anything else is a candidate; an
   index source relPath the scan didn't see → its keys are missing. Reads a whole-file
   entry's `relPath`/`bytes`/`mtimeMs` and a sliced tile's `meta.sourceRel`/`sourceBytes`/
   `sourceMtime`, so all tiles of one sheet miss/change together.
-- **New orchestrator `src/editor/tools/project-scan.ts`:** `runProjectScan()` reads
+- **New orchestrator `src/editor/tools/assets/project-scan.ts`:** `runProjectScan()` reads
   `activeManagerHost().assetsScan`, runs `planScan`, and for new/changed files reads the
   bytes, hashes, and routes them through **the same import wizard** (48px slicer default,
   overslice warning, `putMany` batch — trap 5) with `{relPath, hash, bytes, mtimeMs}` so
@@ -443,7 +443,7 @@ one `runProjectScan()` with a re-entrancy guard (the existing `scanning` flag pa
   the never-move/never-delete promise, the friendly "missing" state, the zip→move→reopen
   self-containment + Open Project Folder, and the one-time tidy-up when opening an older
   desktop game; notes the web version is unchanged). Cache-buster bumped
-  `patch-notes.js?v=63 → 64` in **both** `src/editor/help.ts` and `src/editor/shims.d.ts`;
+  `patch-notes.js?v=63 → 64` in **both** `src/editor/core/help.ts` and `src/editor/shims.d.ts`;
   `css/editor.css?v=60 → 61` in `index.html` for the H4·B/C `.ab-missing*` + project-banner
   styles (per AGENTS.md / trap 8). Product **version stays 1.1.0** (bumps to 1.2.0 at H6);
   `data.js` stays `?v=31`; **FORMAT_VERSION stays 2**.

@@ -6,9 +6,9 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, RA, Sfx, editorState as S } from "../editor-state";
-import { h, tIn, nIn, sel, chk, rangeIn, field, row, dbOpts, charsetOpts, DIR_OPTS, SE_OPTS, MUSIC_OPTS } from "../dom";
-import { modal, confirmBox } from "../modals";
+import { Assets, RA, Sfx, editorState as S } from "../core/editor-state";
+import { h, tIn, nIn, sel, chk, rangeIn, field, row, dbOpts, charsetOpts, DIR_OPTS, SE_OPTS, MUSIC_OPTS } from "../core/dom";
+import { modal, confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 import { subTabs } from "./shared";
 import { openHudDesigner } from "./hud-designer";

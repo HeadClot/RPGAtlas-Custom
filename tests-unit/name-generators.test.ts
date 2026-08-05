@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   GENERATOR_DEFINITIONS, estimatePossibilities, generateNames,
-} from "../src/editor/tools/name-generator-data";
+} from "../src/editor/tools/generators/name-generator-data";
 
 function seededRandom(seed = 0x5eed1234): () => number {
   let state = seed >>> 0;

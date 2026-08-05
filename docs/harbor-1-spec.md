@@ -240,7 +240,7 @@ filesystem layer, and mirrors the proven `save_project` contract. **Flagged for 
 
 All four live in `src/shared` with **no `window`/DOM imports** (vitest runs env=node — trap 3).
 
-### 5.1 Project-name sanitizer — `src/shared/project-name.ts`
+### 5.1 Project-name sanitizer — `src/shared/project/project-name.ts`
 
 `sanitizeFolderName(raw: string): string` produces a cross-platform-safe folder leaf. Rules, in
 order:
@@ -262,7 +262,7 @@ parent folder surface as `FOLDER_EXISTS` (§6), not a silent `-2` suffix, so the
 control of the name. Unit tests cover: illegal chars, trailing dot/space, reserved names,
 empty/whitespace, over-length, unicode preserved, idempotence.
 
-### 5.2 Recents registry — `src/shared/recents.ts`
+### 5.2 Recents registry — `src/shared/project/recents.ts`
 
 On-disk file: **`<app-config>/projects.json`** (Windows: `%APPDATA%\com.rpgatlas.editor\`),
 a JSON array of `{ name: string, path: string, lastOpened: number /*epoch ms*/ }`. Rust stores
@@ -284,7 +284,7 @@ the single source of truth):
 Unit tests: upsert moves-to-front, dedupe by path, cap enforced, remove, annotate splits
 present/missing, order stable.
 
-### 5.3 Template descriptors — `src/shared/project-templates.ts`
+### 5.3 Template descriptors — `src/shared/project/project-templates.ts`
 
 Pure descriptor list for the manager (no document bytes here — those are built by existing TS at
 wire-up time, §3.1):
@@ -304,7 +304,7 @@ Copy (kid-friendly, final):
 Unit tests: every `TemplateId` has a descriptor with non-empty label/description; `isTemplateId`
 accepts the three ids and rejects others.
 
-### 5.4 Error copy — `src/shared/project-errors.ts`
+### 5.4 Error copy — `src/shared/project/project-errors.ts`
 
 The kid-friendly taxonomy §6, as tested code:
 

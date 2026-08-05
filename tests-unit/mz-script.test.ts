@@ -1,6 +1,6 @@
 /* RPGAtlas — tests-unit/mz-script.test.ts
    Project Compass M5·B: the read-only RPG Maker Script-command adapter
-   (src/shared/mz-script.ts, mig-0 D5). Two surfaces under test — the
+   (src/shared/events/mz-script.ts, mig-0 D5). Two surfaces under test — the
    import-time gate (analyzeMzScript) and the runtime shim (mzGlobalsFromState +
    runMzScript/evalMzScript). Pure module, so it runs in the vitest node env
    with no engine/DOM stubs. GPL-3.0-or-later. */
@@ -12,7 +12,7 @@ import {
   runMzScript,
   evalMzScript,
   type MzReadState,
-} from "../src/shared/mz-script";
+} from "../src/shared/events/mz-script";
 
 describe("analyzeMzScript — the import-time gate (D5 read-only subset)", () => {
   it("admits the supported read expressions", () => {

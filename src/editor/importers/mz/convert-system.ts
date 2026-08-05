@@ -9,7 +9,7 @@
    GPL-3.0-or-later (see LICENSE). */
 
 import type { IdType, Params, SystemData, VehicleDef } from "../../../shared/schema";
-import { assetKeyOf, slugName } from "../../../shared/asset-library";
+import { assetKeyOf, slugName } from "../../../shared/assets/asset-library";
 import type { ImportReport } from "./report";
 import type { RmSystem, RmVehicle } from "./raw-types";
 import { slugKey, synthKeyedTypes } from "./slug";

@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { test, expect } from "@playwright/test";
 import { atlasQuestJson } from "./fixtures/atlas-quest.mjs";
 
-/** Minimal STORE-zip reader (mirrors the writer in src/editor/export-web.ts). */
+/** Minimal STORE-zip reader (mirrors the writer in src/editor/export/export-web.ts). */
 function unzipStore(bytes) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const eocdAt = bytes.length - 22;

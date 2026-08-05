@@ -1,6 +1,6 @@
 /* RPGAtlas — tests-unit/tutorials.test.ts
    Anti-rot gate for the Detailed Tutorials guides (Help ▸ Detailed Tutorials,
-   src/editor/tutorials-data.ts). Asserts the guide set is complete and
+   src/editor/core/tutorials-data.ts). Asserts the guide set is complete and
    well-formed (unique ids, every field filled, balanced HTML), that the
    multiplayer-server guide teaches the same commands the Beacon server's own
    README documents (so the two can't drift apart silently), and that the
@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { TUTORIALS } from "../src/editor/tutorials-data";
+import { TUTORIALS } from "../src/editor/core/tutorials-data";
 
 const root = join(__dirname, "..");
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -60,7 +60,7 @@ describe("detailed tutorials", () => {
   });
 
   it("is reachable: registered as a command and on the Help menu", () => {
-    const workspace = read("src/editor/workspace.ts");
+    const workspace = read("src/editor/core/workspace.ts");
     expect(workspace).toMatch(/act\("tutorials", \{ label: "Detailed Tutorials"/);
     const helpMenu = workspace.match(/\{ label: "Help", items: \[([^\]]+)\] \}/);
     expect(helpMenu, "Help menu row exists").toBeTruthy();

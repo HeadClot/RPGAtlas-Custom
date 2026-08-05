@@ -29,10 +29,10 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { rasterizeZones } from "../../shared/zone-raster.js";
-import { zonesAtTile, distanceToZoneTile } from "../../shared/zone-geom.js";
-import { setAmbience } from "../../shared/audio-deck.js";
-import { mergeCommandBgs } from "../../shared/audio-math.js";
+import { rasterizeZones } from "../../shared/map/zone-raster.js";
+import { zonesAtTile, distanceToZoneTile } from "../../shared/map/zone-geom.js";
+import { setAmbience } from "../../shared/audio/audio-deck.js";
+import { mergeCommandBgs } from "../../shared/audio/audio-math.js";
 import { G } from "../state/game-state.js";
 import { defaultWorld } from "../state/default-world.js";
 

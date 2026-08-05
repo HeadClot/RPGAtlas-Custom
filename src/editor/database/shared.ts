@@ -6,12 +6,12 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, RA, editorState as S } from "../editor-state";
-import { h, tIn, sel, nIn, field, dbOpts, elementSelOpts } from "../dom";
-import { modal, confirmBox } from "../modals";
+import { Assets, RA, editorState as S } from "../core/editor-state";
+import { h, tIn, sel, nIn, field, dbOpts, elementSelOpts } from "../core/dom";
+import { modal, confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 import { flashStatus } from "../map-editor/status";
-import { addProjectIcons } from "../icon-import";
+import { addProjectIcons } from "../core/icon-import";
 import {
   sharedNumericFields, applyBulk, cloneEntries, writeDbClip, readDbClip, type BulkOp,
 } from "./bulk";

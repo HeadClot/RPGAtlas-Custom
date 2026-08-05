@@ -12,7 +12,7 @@ import { clamp } from "./util.js";
 import { ctx } from "./state/engine-context.js";
 import { G, Quests, evaluateQuestFailures } from "./state/game-state.js";
 import { Interp } from "./interpreter/interp.js";
-import { zonesAtTile } from "../shared/zone-geom.js";
+import { zonesAtTile } from "../shared/map/zone-geom.js";
 
 export const scriptApi: any = {
   setSwitch(id: any, v: any) {

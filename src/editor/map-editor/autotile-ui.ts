@@ -8,17 +8,17 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S } from "../editor-state";
-import { h } from "../dom";
-import { confirmBox } from "../modals";
+import { editorState as S } from "../core/editor-state";
+import { h } from "../core/dom";
+import { confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 import { renderMap, renderPalette } from "./map-render";
 import { setStatus } from "./status";
 import { pushUndo } from "./history";
 import {
   ensureAutotiles, importAutotileSheet, deleteAutotile, autotileSwatch,
-} from "../autotile-store";
-import { tileIdOf, isAutotileId, groupIdOf } from "../../shared/autotile-registry";
+} from "./autotile-store";
+import { tileIdOf, isAutotileId, groupIdOf } from "../../shared/map/autotile-registry";
 
 export const BRUSH_SIZES = [1, 3, 5];
 const SWATCH = 40;

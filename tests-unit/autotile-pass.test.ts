@@ -9,8 +9,8 @@
 import { describe, expect, it } from "vitest";
 import {
   autotilePassable, tileIdOf, AUTOTILE_BASE,
-} from "../src/shared/autotile-registry";
-import { withFlags } from "../src/shared/tile-flags";
+} from "../src/shared/map/autotile-registry";
+import { withFlags } from "../src/shared/map/tile-flags";
 
 const GROUPS = [
   { id: 1, name: "Grass", pass: true },

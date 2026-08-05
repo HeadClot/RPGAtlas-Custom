@@ -165,8 +165,8 @@ export function getCommand(type: string): CommandHandler | undefined;
 *Owner: 2–3 Opus agents in git worktrees, partitioned by section with no file overlap;
 Fable integrates.*
 
-Package 1 — map editing: tiny DOM builder → `src/editor/dom.ts`; modal framework →
-`src/editor/modals.ts`; persistence → `src/editor/persistence.ts` (wraps project-io,
+Package 1 — map editing: tiny DOM builder → `src/editor/core/dom.ts`; modal framework →
+`src/editor/core/modals.ts`; persistence → `src/editor/persistence.ts` (wraps project-io,
 becomes `ProjectRepository` consumer in Stage D); map rendering, palette, painting,
 undo/redo, layers, clipboard, map list, HD-2D preview → `src/editor/map-editor/*`.
 
@@ -176,11 +176,11 @@ editor, quick-event builders → `src/editor/event-editor/*`.
 Package 3 — database & tools: database (one module per DB tab — the vertical-rail tabs),
 tilesets tab, plugin manager, audio manager, event searcher, resource manager, character
 generator, help/about, icons → `src/editor/database/*`, `src/editor/tools/*`; actions/
-menus/toolbar, modes/zoom, boot/wiring → `src/editor/workspace.ts`.
+menus/toolbar, modes/zoom, boot/wiring → `src/editor/core/workspace.ts`.
 
 The editor monolith is one big closure sharing mutable state (`proj`, `curMapId`, tool
 state, undo stacks…). **Seam design:** extract that shared state into
-`src/editor/editor-state.ts` (a plain mutable state object + change-notification hooks,
+`src/editor/core/editor-state.ts` (a plain mutable state object + change-notification hooks,
 no framework) *first*, as part of Package 1, and land it before packages 2/3 branch off.
 Fable reviews this seam before the fan-out starts.
 

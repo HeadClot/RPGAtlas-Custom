@@ -13,7 +13,7 @@ import {
   exportWindowsExecutable as writeWindowsExecutable,
   loadStandaloneTemplate,
 } from "../../js/editor/project-io.js";
-import { buildWebZipEntries, buildZip, renderGameIcon } from "./export-web";
+import { buildWebZipEntries, buildZip, renderGameIcon } from "./export/export-web";
 import * as host from "../../js/editor/host.js";
 import { isProjectLike, validateProject } from "../shared/schema";
 import { BrowserProjectRepository } from "../platform/browser/project-repository";
@@ -22,10 +22,10 @@ import {
   embedUsedAssets,
   exportUsedAudioAssets,
   libraryImageEntries,
-} from "../shared/asset-library";
-import { Assets, RA, t, editorState as S, editorHooks } from "./editor-state";
-import { $, h } from "./dom";
-import { modal } from "./modals";
+} from "../shared/assets/asset-library";
+import { Assets, RA, t, editorState as S, editorHooks } from "./core/editor-state";
+import { $, h } from "./core/dom";
+import { modal } from "./core/modals";
 import { flashStatus } from "./map-editor/status";
 // Project Harbor H3: desktop folder saving. The active host (real project_save, or
 // the ?fakehost test host) writes <root>/game.rpgatlas; the mirror bookkeeping lets a
@@ -38,12 +38,12 @@ import {
   parseMirrorMeta,
   decideExternalChange,
   type MirrorMeta,
-} from "../shared/folder-sync";
+} from "../shared/project/folder-sync";
 import { viewportDirty } from "./map-editor/hd-viewport";
 import { worldDirty } from "./map-editor/world-view";
 import { connectionsDirty } from "./map-editor/connections-view";
 import { advDirty } from "./advanced/adv-panel";
-import { noteEdit } from "./edit-scope";
+import { noteEdit } from "./core/edit-scope";
 
 // The editor's project store over localStorage. The migrator runs the project
 // through RA.migrateProject then the load-boundary schema guard, so both

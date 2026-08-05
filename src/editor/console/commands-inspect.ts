@@ -4,8 +4,8 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S } from "../editor-state";
-import { setMode } from "../workspace";
+import { editorState as S } from "../core/editor-state";
+import { setMode } from "../core/workspace";
 import { rebuildMapList } from "../map-editor/map-list";
 import { renderMap } from "../map-editor/map-render";
 import { setStatus } from "../map-editor/status";
@@ -13,7 +13,7 @@ import { walkCommands } from "../event-editor/command-list";
 import { openDatabase } from "../database";
 import {
   assetUrlSync, isAssetKey, libraryCatalog, libraryMetas, usedAssetKeys,
-} from "../../shared/asset-library";
+} from "../../shared/assets/asset-library";
 import { validateCombatProject } from "../../shared/sim/combat-profiles";
 import {
   registerConsoleCommand, listConsoleCommands, getConsoleCommand,

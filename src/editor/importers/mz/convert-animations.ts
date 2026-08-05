@@ -20,7 +20,7 @@
    Pure — no DOM. Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later. */
 
 import type { AnimItem, BattleAnimation } from "../../../shared/schema";
-import { assetKeyOf, slugName } from "../../../shared/asset-library";
+import { assetKeyOf, slugName } from "../../../shared/assets/asset-library";
 import type { ImportReport } from "./report";
 import type { MzRawData, RmAnimation, RmMvAnimTiming, RmMzAnimTiming } from "./raw-types";
 

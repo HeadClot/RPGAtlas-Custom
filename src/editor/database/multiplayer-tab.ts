@@ -9,8 +9,8 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA, editorState as S } from "../editor-state";
-import { h, tIn, nIn, sel, chk, field, row, dbOpts } from "../dom";
+import { RA, editorState as S } from "../core/editor-state";
+import { h, tIn, nIn, sel, chk, field, row, dbOpts } from "../core/dom";
 import { touch } from "../persistence";
 
 // Display-only mirror of the engine's co-op.ts DEFAULT_RELAY_URL (Driftwood's

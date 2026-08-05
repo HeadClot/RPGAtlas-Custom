@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/zone-geom.test.ts
-   The pure zone geometry (src/shared/zone-geom.ts, Phase 8 Stage D): bbox
+   The pure zone geometry (src/shared/map/zone-geom.ts, Phase 8 Stage D): bbox
    precompute, point-in-shape (rect/ellipse/point/poly even-odd), tile-center
    queries, distance-to-shape (sound falloff), and zonesAtTile. Edge cases
    (degenerate poly, zero-radius ellipse, points on borders) are exercised so
@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   bboxOf, pointInShape, pointInPoly, pointInZoneTile,
   distanceToZoneTile, zonesAtTile,
-} from "../src/shared/zone-geom";
+} from "../src/shared/map/zone-geom";
 import type { MapZone, ZoneShape } from "../src/shared/schema";
 
 describe("bboxOf", () => {

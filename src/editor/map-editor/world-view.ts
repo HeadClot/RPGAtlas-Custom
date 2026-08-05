@@ -2,7 +2,7 @@
    World View (Phase 3 Stage E): a dockable bird's-eye panel (dock id "world")
    that draws the whole project as a map-connection graph. Nodes are maps; the
    arrows between them are parsed live from every event's Transfer-Player
-   command by the pure core (src/shared/world-graph.ts). It is an editor
+   command by the pure core (src/shared/map/world-graph.ts). It is an editor
    surface, not a passive diagram:
 
    - drag a map node to arrange the world; its position persists on
@@ -19,14 +19,14 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S, curMap } from "../editor-state";
-import { h } from "../dom";
+import { editorState as S, curMap } from "../core/editor-state";
+import { h } from "../core/dom";
 import { touch } from "../persistence";
 import { renderMap } from "./map-render";
 import { setStatus, flashStatus } from "./status";
 import { rebuildMapList, openMapProps } from "./map-list";
 import { focusPanel, isPanelVisible, getFocusedPanel, togglePanel } from "../dock/dock";
-import { buildWorldGraph, autoLayout, retargetEdge, type WorldGraph } from "../../shared/world-graph";
+import { buildWorldGraph, autoLayout, retargetEdge, type WorldGraph } from "../../shared/map/world-graph";
 
 export const WORLD_PANEL = "world";
 

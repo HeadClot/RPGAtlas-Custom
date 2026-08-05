@@ -71,7 +71,7 @@ import { withdrawParticipant } from "../../shared/sim/coop-battle.js";
 import { createHeadlessBattle } from "./battle-runtime.js";
 import { pumpTickTimers, waitTicks, tickTweenTicks } from "../../shared/sim/timers.js";
 import { DIR_OFFSET, isPassable, type MapCollision } from "../../shared/sim/collision.js";
-import { advanceRoute, eventMayStep, type RouteOps } from "../../shared/move-route.js";
+import { advanceRoute, eventMayStep, type RouteOps } from "../../shared/map/move-route.js";
 import {
   applyHurt,
   attackIsActive,
@@ -419,7 +419,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     };
   }
   /** This zone's RouteOps. Move routes run through the SAME step machine the
-   *  map scene uses (src/shared/move-route.ts) — this driver used to carry its
+   *  map scene uses (src/shared/map/move-route.ts) — this driver used to carry its
    *  own cut-down copy that understood four of the twelve steps that existed,
    *  which is exactly the drift the shared module exists to stop. What is
    *  genuinely different here is listed on each capability: a server has no
@@ -743,7 +743,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
               const ny = rt.y + DIR_OFFSET[d][1];
               if (world.rnd(4) === 0) rt.dir = d;
               // Wander leash (page.maxDistance) — the same rule the map scene
-              // applies, from the same shared module (see shared/move-route.ts).
+              // applies, from the same shared module (see shared/map/move-route.ts).
               else if (canEntityPass(rt, nx, ny) && eventMayStep(rt, nx, ny)) startMove(rt, d);
             }
           }

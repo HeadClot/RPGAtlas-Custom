@@ -3,7 +3,7 @@
    skipping, tint scratch sizing, draw order, and blend state. */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { composeAdvBuffers, drawEntryTiles } from "../src/shared/layer-composite";
+import { composeAdvBuffers, drawEntryTiles } from "../src/shared/map/layer-composite";
 
 const TILE = 4;
 

@@ -69,7 +69,7 @@ export interface AssetMeta {
 /** The per-device binary asset library (Phase 6): IndexedDB in the browser
  *  (src/platform/browser/idb-asset-store.ts), app-data files under the Tauri
  *  desktop wrapper (src/platform/tauri/fs-asset-store.ts). Async by nature —
- *  consumers go through src/shared/asset-library.ts, never the store
+ *  consumers go through src/shared/assets/asset-library.ts, never the store
  *  directly (mirroring the StorageDriver/repository split above). */
 export interface AssetStore {
   list(): Promise<AssetMeta[]>;

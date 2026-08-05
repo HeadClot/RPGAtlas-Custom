@@ -29,8 +29,8 @@ consciously re-scoped with a report line."
 This matrix was written against the RPGAtlas codebase at `main` (commit `6cb48a9`) —
 `src/shared/schema.ts` (the `Project`/`AnyCommand`/`Trait` vocabulary),
 `src/editor/event-editor/command-defs.ts` (the 33 built-in commands + move-route steps +
-text-code legend), `src/shared/tile-flags.ts` + `src/engine/scenes/map-runtime.ts`
-(passability/`passOv` model), `src/shared/autotile-registry.ts` (autotile kinds), and
+text-code legend), `src/shared/map/tile-flags.ts` + `src/engine/scenes/map-runtime.ts`
+(passability/`passOv` model), `src/shared/map/autotile-registry.ts` (autotile kinds), and
 `src/editor/importers/sheet-math.ts` (48px slicer) — and against RPG Maker MV 1.6.x /
 MZ 1.x data formats (`rmmv_*` / `rmmz_*` core). MV≈MZ unless a **[MV≠MZ]** note says
 otherwise.

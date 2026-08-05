@@ -63,15 +63,15 @@ is byte-identical to today.
    `map-list.ts`, `hd-viewport.ts`, `sample-maps.ts`, `location-picker.ts`), engine
    (`map-runtime.ts` `prerenderMap` — ground+decor+decor2 → lowerBuf, over →
    upperBuf), renderer (`three-renderer.ts` — water reads ground, overhead reads
-   over). `LAYER_ORDER`/`LAYER_LABELS` live in `src/editor/editor-state.ts`.
+   over). `LAYER_ORDER`/`LAYER_LABELS` live in `src/editor/core/editor-state.ts`.
 2. **All four tile draw paths route through one primitive** —
-   `src/shared/autotile-draw.ts` `drawLayerCell` (Phase 3 Stage D consolidation).
+   `src/shared/map/autotile-draw.ts` `drawLayerCell` (Phase 3 Stage D consolidation).
    Any per-tile decode (autotile resolve today; flip/rotate flags tomorrow) has a
    single seam.
-3. **The 47-blob autotile engine already exists**: pure core `src/shared/autotile.ts`
+3. **The 47-blob autotile engine already exists**: pure core `src/shared/map/autotile.ts`
    (256-mask corner rule, 16 unit tests), registry + assembled-canvas cache
    (`autotile-registry.ts`, reserved ids from `AUTOTILE_BASE = 1_000_000`), A2 sheet
-   import (`src/editor/autotile-store.ts`), palette strip + brush sizes
+   import (`src/editor/map-editor/autotile-store.ts`), palette strip + brush sizes
    (`map-editor/autotile-ui.ts`), shared engine/editor/HD-2D resolution. The Studio
    is a front-end + generalization of this, not a new engine.
 4. **The dock workspace, command registry, palette, and unified undo are done**
@@ -152,7 +152,7 @@ Invariants (enforced by a pure `layer-view` module with repair-on-open):
 ### Tile transform flags (Stage E)
 
 ```ts
-// src/shared/tile-flags.ts (pure, unit-tested)
+// src/shared/map/tile-flags.ts (pure, unit-tested)
 export const TILE_FLAG_H   = 1 << 28;  // horizontal flip
 export const TILE_FLAG_V   = 1 << 29;  // vertical flip
 export const TILE_FLAG_R   = 1 << 30;  // 90° clockwise rotation
@@ -235,12 +235,12 @@ Runtime semantics (all behind `map.zones` absence ⇒ zero change):
   picker offers spawn points and writes plain coordinates. Zero runtime cost.
 - **collision / nav**: rasterized once at map load into the pass grid
   (force-block / force-pass, same values as `passOv`), so the movement hot path
-  is untouched. Pure helper `src/shared/zone-raster.ts`.
+  is untouched. Pure helper `src/shared/map/zone-raster.ts`.
 - **Light** in the Objects palette edits the existing `map.lights` (no zone kind).
 - **custom**: inert to the engine; exposed to plugins/Script via
   `atlas.zonesAt(x, y)` — the plugin-facing win of the whole model.
 - Point-in-shape checks precompute bounding boxes; polygon test is the standard
-  even-odd rule in a pure, unit-tested module (`src/shared/zone-geom.ts`).
+  even-odd rule in a pure, unit-tested module (`src/shared/map/zone-geom.ts`).
 
 ### Stamps — `proj.stamps` (Stage E)
 
@@ -459,7 +459,7 @@ Shipped:
   / `map.folderId`, and the Phase 8 `Autotile` extensions (`kind`, `variants`,
   transform-completion flags, `preferOriginal`, `anim`, `props`). All optional,
   absent-is-meaningful; `FORMAT_VERSION` stays 2.
-- **`src/shared/layer-view.ts`** (pure, 13 unit tests in
+- **`src/shared/map/layer-view.ts`** (pure, 13 unit tests in
   `tests-unit/layer-view.test.ts`): `classicStack`, `repairLayersAdv`
   (one core per role — missing cores inserted in classic order, duplicate
   cores/unknown types dropped, ids uniqued), `flattenLayers` (group
@@ -511,7 +511,7 @@ parallax layers deferred to the post-phase list (not needed for the exit).
 
 Shipped:
 
-- **Shared composite** (`src/shared/layer-composite.ts`, pure-ish): `drawEntryTiles`
+- **Shared composite** (`src/shared/map/layer-composite.ts`, pure-ish): `drawEntryTiles`
   (per-layer draw with tint via a confined offscreen multiply) and
   `composeAdvBuffers` (folds the flattened stack into the engine's lower/upper
   buffers — `slot:"below"→lower`, `above→upper`, honoring opacity/blend/tint).
@@ -580,7 +580,7 @@ classic" e2e still passes 0-diff).
 
 Shipped:
 
-- **Pure per-kind resolvers** (`src/shared/terrain-kinds.ts`, 24 unit tests):
+- **Pure per-kind resolvers** (`src/shared/map/terrain-kinds.ts`, 24 unit tests):
   `resolveTile(kind, same, frame)` maps a neighbourhood to a source rect (+ optional
   corner minitiles). `blob47`/`a1`/`a4` route through the existing corner rule
   (`a1` offsets the block right by `frame`); `edge16`/`corner16`/`a3` are whole-tile
@@ -600,7 +600,7 @@ Shipped:
   optional `frame = 0` and now routes through `resolveAutotileCell`. Kept tightly
   scoped — one new default param, no signature reshuffle — so Stage E's flip/rotate
   flags drop into the same function without conflict.
-- **Animated-terrain runtime** (`src/shared/autotile-anim.ts`, 10 unit tests):
+- **Animated-terrain runtime** (`src/shared/map/autotile-anim.ts`, 10 unit tests):
   `scanAnimatedCells` records only the cells whose group animates (empty ⇒ the
   surfaces never enter the loop); `redrawAnimatedCells(cells, frameFn, prev,
   recompose)` re-composites just the cells whose frame changed, via a caller
@@ -688,7 +688,7 @@ with Stage C's separate registry/anim extension of the same seam.
 
 Shipped:
 
-- **`src/shared/tile-flags.ts`** (pure, 14 unit tests in
+- **`src/shared/map/tile-flags.ts`** (pure, 14 unit tests in
   `tests-unit/tile-flags.test.ts`): `TILE_FLAG_H/V/R` at bits 28/29/30,
   `TILE_ID_MASK = (1<<28)-1`, `tileId` / `tileFlags` / `hasFlags` / `withFlags`
   / `setFlags`, the interactive `toggleH` / `toggleV` / `rotateCW` composers
@@ -696,7 +696,7 @@ Shipped:
   the Tiled way), and `flagTransform(flags, size)` → the per-cell affine
   (identity / H mirror / V mirror / 90° CW verified by geometry tests). The
   autotile-adjacent fixture proves id checks stay flag-safe.
-- **Central transform decode in `drawLayerCell`** (`src/shared/autotile-draw.ts`):
+- **Central transform decode in `drawLayerCell`** (`src/shared/map/autotile-draw.ts`):
   the stored value is split raw→`{id, flags}` once, at the top, so **all four
   draw paths** (2D editor `renderMapView`, live HD-2D `buildBuffers`, paste
   preview, engine `prerenderMap`) get flip/rotate together. Autotile groups
@@ -714,7 +714,7 @@ Shipped:
   Standard-editor meanings (cut chord / shadow / circle) everywhere else, and
   are ordered before the Map-mode tool bindings. Toolbar buttons + a transform
   indicator (↔↕⟳) sit in the Advanced tool strip.
-- **Stamps** (`src/shared/stamp-ops.ts` pure + `src/editor/advanced/adv-stamps.ts`
+- **Stamps** (`src/shared/map/stamp-ops.ts` pure + `src/editor/advanced/adv-stamps.ts`
   editor wrapper, 6 unit tests in `tests-unit/stamp-ops.test.ts`):
   `captureStampData` reads a rect out of the four role arrays + shadows (same
   shape as the tile clipboard, transform-flag bits preserved verbatim);
@@ -726,7 +726,7 @@ Shipped:
   scatters the stamp across the brush footprint with a per-stamp probability
   (`props.prob`, default 0.5, round-trips in the save), a per-cell LCG salted per
   click so repeated clicks fill in gradually.
-- **Categorized & searchable palette** (`src/shared/tile-categories.ts` pure, 13
+- **Categorized & searchable palette** (`src/shared/map/tile-categories.ts` pure, 13
   unit tests + `src/editor/advanced/adv-rail.ts`): the Advanced right rail's
   Tiles tab derives categories from tile metadata (`key` + Assets-derived
   `terrain`) into Terrain / Water / Floor / Walls / Nature / Objects / Other,
@@ -815,12 +815,12 @@ byte-identical (engine + export) and pays zero per-step cost.
 
 Shipped — pure shared cores (one impl for editor + engine, vitest-covered):
 
-- **`src/shared/zone-geom.ts`** (14 tests): `bboxOf`, `pointInShape`
+- **`src/shared/map/zone-geom.ts`** (14 tests): `bboxOf`, `pointInShape`
   (rect/ellipse/point/`poly` even-odd ray-cast), `pointInZoneTile` (tile sampled
   at its CENTER so a 1×1 rect == exactly its tile), `distanceToZoneTile` (0
   inside, nearest-edge outside — backs the sound falloff), and `zonesAtTile`
   (every covering zone, author order). Bbox pre-filter before the real test.
-- **`src/shared/zone-raster.ts`** (7 tests): `rasterizeZones` bakes collision
+- **`src/shared/map/zone-raster.ts`** (7 tests): `rasterizeZones` bakes collision
   (force-block=2) and nav (force-pass=1) zones into a passOv-compatible
   `Int8Array` at load, iterating only each shape's clamped bbox. Returns **null**
   when the map has no collision/nav zones (the engine then keeps its verbatim

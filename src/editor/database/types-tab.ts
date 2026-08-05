@@ -7,8 +7,8 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA, editorState as S } from "../editor-state";
-import { h, field } from "../dom";
+import { RA, editorState as S } from "../core/editor-state";
+import { h, field } from "../core/dom";
 import { touch } from "../persistence";
 
 // A unique string key for a new element / skill type, kept stable so that

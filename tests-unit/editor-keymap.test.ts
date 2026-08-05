@@ -1,12 +1,12 @@
 /* RPGAtlas — tests-unit/editor-keymap.test.ts
    The pure key-dispatch rules behind the editor's global binding table
-   (src/editor/keymap.ts, Phase 3 Stage A). The semantics under test are the
+   (src/editor/core/keymap.ts, Phase 3 Stage A). The semantics under test are the
    ones the old boot.ts cascade encoded positionally: first-match-wins order,
    tri-state modifiers, the bare-Ctrl barrier, and `when` guards that fall
    through to later bindings. GPL-3.0-or-later. */
 
 import { describe, expect, it } from "vitest";
-import { dispatchKey, matchBinding, type KeyBinding, type KeyEventLike } from "../src/editor/keymap";
+import { dispatchKey, matchBinding, type KeyBinding, type KeyEventLike } from "../src/editor/core/keymap";
 
 function ev(over: Partial<KeyEventLike>): KeyEventLike & { defaultPrevented: boolean } {
   const e = {

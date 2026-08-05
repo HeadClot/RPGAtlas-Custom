@@ -157,12 +157,12 @@ assigned them M2·C-or-report; their TODO rows stay).
 
 - `BattleAnimation`/`AnimItem` (schema, Phase 5) already model everything MV sheets need:
   `flipbook` (sheet/cols/rows/from/to/fps/scale), `flash`, `sound`, `shake`; the player
-  (`src/shared/anim-player.ts`) resolves non-"icons" sheets through `env.resolveSheet` →
+  (`src/shared/presentation/anim-player.ts`) resolves non-"icons" sheets through `env.resolveSheet` →
   the asset library, and `onSound` routes through `Sfx.play` → asset keys reach the deck.
 - `Animations.json` is read at intake for SNIFFING only — `MzRawData` never stored it;
   `assembleProject` keeps the 3 engine-default animations (1 Slash · 2 Fire Burst ·
   3 Healing Light). `animationId` refs are already preserved on skills/weapons (M1·A).
-- The audio deck (`src/shared/audio-deck.ts`) has BGM crossfade slots, BGS ambience
+- The audio deck (`src/shared/audio/audio-deck.ts`) has BGM crossfade slots, BGS ambience
   layers (`setAmbience` + pure `ambienceDiff`), an ME bus (duck-BGM-to-20%), and a
   buffered SE path with pan/vol (`playSound`). `js/sfx.js` `Music.play(name, fadeMs)` and
   `Sfx.playAt(name, pan, vol)` route "asset:" refs to the deck.
@@ -333,7 +333,7 @@ Animations tab already edits imported animations (flipbook items included) — n
   errors on main (tile-behavior-core `any`s) left untouched.
 
 - **2026-07-05 — M4·A complete (branch `mig-4a`).** Shipped, per the locked design:
-  **engine** — pure `src/shared/tile-behavior-core.ts` + glue
+  **engine** — pure `src/shared/map/tile-behavior-core.ts` + glue
   `src/engine/scenes/tile-behavior.ts` (flag/terrain cache, painted-presence gate, wrap
   math); ladder facing on arrival/jump-land; bush 12px feet-fade in both render paths;
   counter third-probe in `checkActionTrigger`; damage floors (10 × floorDamage sp-param,
