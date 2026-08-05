@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 5, 2026",
+    title: "Restored standard Playwright output",
+    summary:
+      "Removed Playwright API-level debug tracing while retaining the normal list and HTML test reporters.",
+    items: [
+      "E2E runs no longer emit pw:api browser-action diagnostics by default.",
+      "Existing failure traces, screenshots, videos, and importer verbose logs remain unchanged.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
     title: "Parallel CI e2e workers",
     summary:
       "Remote Playwright runs now use the same two-worker cap as local runs instead of being forced to a single worker.",

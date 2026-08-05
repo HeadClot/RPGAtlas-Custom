@@ -18,14 +18,6 @@
 
 import { defineConfig, devices } from "@playwright/test";
 
-// Keep Playwright's API-level diagnostics visible alongside the list/HTML
-// reporters. This is the runner's verbose mode (`DEBUG=pw:api`) and is
-// inherited by worker processes, so navigation, locator, expectation, and
-// browser lifecycle calls are visible in both local and CI logs.
-process.env.DEBUG = process.env.DEBUG
-  ? `${process.env.DEBUG},pw:api`
-  : "pw:api";
-
 // Overridable so parallel checkouts/worktrees (Phase 1 multi-agent work) can
 // run their own preview server instead of silently reusing another checkout's
 // (reuseExistingServer below is keyed on the URL).
