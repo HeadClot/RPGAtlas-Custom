@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Project-wide documentation refresh",
+    summary:
+      "Aligned creator, contributor, desktop, asset, and Beacon documentation with the current shipped architecture and added reproducible documentation checks.",
+    items: [
+      "Added the contributor workflow, current architecture index, runtime boundary guide, and historical roadmap status index.",
+      "Added npm run docs:build and npm run docs:check for generated-site freshness, page parity, internal links, and heading anchors.",
+      "Refreshed the README, wiki runtime/multiplayer guidance, server and Tauri guides, and public source-contract comments.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Advanced-map CI readiness",
     summary:
       "Large advanced maps now prerender more efficiently and report useful browser diagnostics when CI cannot finish loading them.",

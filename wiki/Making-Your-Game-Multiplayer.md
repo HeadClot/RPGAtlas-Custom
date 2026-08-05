@@ -181,8 +181,10 @@ A player who isn't in a party gets their **own** private battle, exactly as in a
 > - **Driftwood's free relay** is live — but it runs on Cloudflare, so its demo rooms are
 >   walk-and-chat only for now (next line). Your own game's battles run on a
 >   server hosting *your* project — the one-liner in the demo section.
-> - **Cloudflare-hosted rooms** are walk-and-chat only for now; parties and battles need the
->   Node server. A temporary limit we'll close after 2.0.
+> - **Cloudflare-hosted friend rooms** are walk-and-chat only for now; parties and shared battles
+>   need the Node engine-room server. Cloudflare persistent worlds provide durable world storage but
+>   do not use the Node worker-per-room engine adapter. Check `server/README.md` for the current
+>   deployment boundary before choosing a host.
 > - **Online battles start from Battle *events*** — fights you place with the Battle command
 >   (an action-trigger monster, a boss, a cutscene fight). Random step encounters (a map's
 >   walk-around encounter list) **don't fire on a server yet** — they stay single-player for

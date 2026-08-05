@@ -437,7 +437,12 @@ export type ServerMessage =
 
 /* ── Codec ─────────────────────────────────────────────────────────────── */
 
-/** Encode a message for the wire. Plain JSON by design (v1). */
+/**
+ * Encode a validated client/server message for transport. Plain JSON is
+ * intentional in protocol v1: it keeps browser, Node, Cloudflare, and test
+ * loopback paths identical. Callers must not use this function as a validator;
+ * inbound frames go through the matching strict decoder first.
+ */
 export function encodeMessage(msg: ClientMessage | ServerMessage): string {
   return JSON.stringify(msg);
 }

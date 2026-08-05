@@ -21,12 +21,12 @@ finishes, double-click `RPGAtlas.exe` again. See
 [Installation & Setup](Installation-and-Setup#running-from-a-source-checkout-git-clone).
 
 ### "RPGAtlas could not start Node.js (is it installed?)"
-Running from a source checkout needs [Node.js](https://nodejs.org/) **18 or newer** on your computer.
+Running from a source checkout needs [Node.js](https://nodejs.org/) **20 or newer** on your computer.
 Install the LTS version from nodejs.org (one-time), then run `RPGAtlas.exe` again.
 
 ### "Windows protected your PC" / unknown publisher
 Expected — the launcher is **unsigned**. Click **More info ▸ Run anyway**. It only starts a local
-server and opens your browser. See [Installation & Setup](Installation-and-Setup#windows-protected-your-pc--unknown-publisher).
+server and opens your browser. See [Installation & Setup](Installation-and-Setup#windows-protected-your-pc-unknown-publisher).
 
 ### "Could not find a free local port (8080-8099)"
 Other programs are using all of those ports — usually other copies of RPGAtlas. Close other RPGAtlas
@@ -47,13 +47,15 @@ address yourself.
 ## My work
 
 ### Where is my project saved? Will I lose it?
-The editor **auto-saves to your browser** (`localStorage`). That's convenient but fragile: it's tied
-to one browser on one computer, and clearing browser data erases it. **Always keep a `.json` backup**
-via **File ▸ Save Project**. Treat the `.json` as your real save file.
+In the **desktop app**, your project is the visible folder containing `game.rpgatlas`; edits are
+written there atomically and recent backups live under `.atlas/backup/`. Back up or zip the whole
+folder, including its `assets/` directory. In the **browser build**, autosave uses browser storage,
+so use **File ▸ Export Project As File…** for a portable `.json` backup.
 
 ### I switched browsers/computers and my game is gone
-The auto-save doesn't travel between browsers. Use the **`.json`** you exported (**File ▸ Open
-Project** to load it). If you never saved one, the work only exists in the original browser's storage.
+Desktop projects travel with their folders. Browser autosaves do not travel between browsers or
+computers; use the exported **`.json`** with **File ▸ Open Project**. If you never exported one,
+the work only exists in the original browser's storage.
 
 ### Undo only goes back so far
 Undo/redo is generous (full-map history for tiles, shadows, heights, passability, and events) but not
@@ -77,7 +79,7 @@ infinite. Save `.json` checkpoints at milestones.
 Passability comes from the topmost tile, but you can fix any cell directly: switch to
 **Passability mode** and click the tile to cycle auto → block → pass. For custom tiles, filename
 suffixes like `.pass` and `.terrain` set defaults. See
-[Maps & Tiles](Maps-and-Tiles#passability--where-the-player-can-walk).
+[Maps & Tiles](Maps-and-Tiles#passability-where-the-player-can-walk).
 
 ### My HD-2D map looks flat / like normal 2D
 HD-2D is **opt-in per map** (enable it in Map Properties) and **falls back to flat 2D** on devices
@@ -97,7 +99,7 @@ that can't run WebGL2. Heights only extrude in HD-2D maps. See
 ### The game froze during a cutscene
 An **Autorun** page with no end condition runs forever. Make the page flip a **switch/self-switch** at
 its end, and add an empty page whose condition is that flag, so the event stops. See
-[Events](Events#triggers--what-starts-an-event).
+[Events](Events#triggers-what-starts-an-event).
 
 ### A chest gives its item every time
 You're missing the **self-switch**. Set Self-Switch A = ON after the reward, and add a second page

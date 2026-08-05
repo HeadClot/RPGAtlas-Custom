@@ -16,6 +16,8 @@
     "test:unit": "vitest run",
     "test:net": "vitest run --config vitest.net.config.mjs",
     "test:e2e": "playwright test --config=playwright.config.mjs",
+    "docs:build": "node scripts/build-docs-site.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
     "stage": "node scripts/stage-frontend.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

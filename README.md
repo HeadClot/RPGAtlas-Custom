@@ -13,7 +13,7 @@
   <img alt="Self-contained exports" src="https://img.shields.io/badge/exports-self--contained-brightgreen.svg">
 </p>
 
-**RPGAtlas 2.0** is a complete, original, **free and open source** RPG making engine in the spirit of
+**RPGAtlas** is a complete, original, **free and open source** RPG making engine in the spirit of
 classic 2D RPG makers — with a modern **HD-2D renderer** (tilted perspective, dynamic lights and
 shadows, animated water, day/night, weather, full post-processing) layered on top. No copyrighted
 assets, nothing to install for creators or players — everything (code, tiles, sprites, monsters,
@@ -21,7 +21,7 @@ sound effects, even the music) is generated procedurally, imports are welcome wh
 and exported games are single self-contained files. (Only working from a *source checkout* needs
 free [Node.js](https://nodejs.org/); downloaded copies ship the editor pre-built.)
 
-🕹️ **New in 2.0 — Play Together (online multiplayer).** Tick one checkbox and friends join your game
+🕹️ **Play Together (online multiplayer).** Tick one checkbox and friends join your game
 online with a short **room code**: they walk the same maps, wave and chat, party up, and fight
 battles side by side. It's kid-safe by construction — **no accounts, no email, no personal
 information**, players connect only to a server (never to each other, so no one's location is ever
@@ -45,14 +45,14 @@ report of what came along and what to touch up. See
 
 ## Quick start
 
-**Windows — just double-click `RPGAtlas.exe`.** On a downloaded copy (which ships the pre-built
+**Windows browser launcher — just double-click `RPGAtlas.exe`.** On a downloaded copy (which ships the pre-built
 editor) it starts a tiny local server and opens the editor in your browser — no Python, no Node, no
 install, no admin rights. Keep the little black window open while you work; close it to stop.
 (Windows may show an "unknown publisher" warning the first time — the launcher is unsigned; choose
 *More info → Run anyway*.)
 
 Working from a **source checkout** (git clone) instead? The editor source is TypeScript, which needs
-the Vite dev server: install [Node.js](https://nodejs.org/) 18 or newer, run `npm install` once in
+the Vite dev server: install [Node.js](https://nodejs.org/) 20 or newer, run `npm install` once in
 the RPGAtlas folder, and the same double-click then works — the launcher detects the tooling and
 boots Vite automatically.
 
@@ -139,7 +139,7 @@ plus an icon toolbar with everything one click away.
 | **Event mode** | Double-click a cell to create/edit an event; drag events to move them |
 | **Passability mode** | See ○/✕ for every tile and click to override (auto → force block → force pass) |
 | **Height mode (HD-2D)** | Paint per-tile elevation with the same Pen/Rectangle/Circle/Fill tools (keys 0–9 set the value); raised tiles extrude into 3D blocks in HD-2D rendering |
-| **HD-2D rendering** | Per-map opt-in WebGL2 mode: tilted perspective camera, extruded terrain, billboard sprites, bloom, depth of field, distance fog and point lights (events named `light #rrggbb radius`); live preview panel in the editor; falls back to the classic 2D renderer automatically |
+| **HD-2D rendering** | Per-map opt-in WebGL2 mode: tilted perspective camera, extruded terrain, billboard sprites, bloom, depth of field, distance fog and point lights (events named `light #rrggbb radius`); live preview panel in the editor; unsupported WebGL2 features use the engine's supported 2D presentation path |
 | **Cut / Copy / Paste** | Shift+drag selects a tile region (all layers + shadows + heights); events copy/paste too |
 | **Undo / Redo** | Full-map history for tiles, shadows, heights, passability and events |
 | **Database** | Actors, Classes, Skills, Items, Weapons, Armors, Enemies, Troops, Common Events, States, Switches, Variables, System |
@@ -238,8 +238,8 @@ every new project:
 
 ## Developing the engine
 
-Using RPGAtlas needs no tooling at all — the sections above work by serving the folder as
-static files. Contributing to the engine uses a modern toolchain (Node 20+):
+Using RPGAtlas needs no tooling at all — the creator workflow above works from a downloaded build.
+Contributing to the engine uses Node 20+ locally; CI currently verifies the repository on Node 24:
 
 ```
 npm install
@@ -248,14 +248,15 @@ npm test           # engine test suites (node --test)
 npm run test:unit  # vitest unit tests
 npm run test:e2e   # Playwright smoke + golden-image render tests
 npm run build      # production build in dist/ (verbatim runtime passthrough)
+npm run docs:build # regenerate docs-site/ from wiki/
+npm run docs:check # verify generated docs and internal links without writing files
 npm run typecheck  # TypeScript (new code is TS; legacy JS migrates per phase)
 npm run lint
 ```
 
-The eight-phase "Atlas HD" overhaul that produced 1.0 is documented in
-[`docs/PRODUCTION_ROADMAP.md`](docs/PRODUCTION_ROADMAP.md) (with per-phase specs beside it) —
-see [`docs/architectural_overview.md`](docs/architectural_overview.md) for how the codebase
-fits together.
+Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) for the contributor workflow. The current system
+architecture is in [`docs/architectural_overview.md`](docs/architectural_overview.md), and
+[`docs/README.md`](docs/README.md) indexes the completed roadmaps and historical phase specs.
 
 ## Code structure
 
@@ -267,6 +268,12 @@ generators remain classic scripts under `js/` (`assets.js`, `sfx.js`, `data.js`)
 `js/editor/project-io.js` (persistence/export) and `js/standalone-template.mjs` +
 `js/build-manifest.mjs` (the shared export/packaging pipeline). Shared engine services such
 as `Assets`, `RA`, and the plugin bridge remain stable globals for plugin compatibility.
+
+The browser entrypoints are `index.html` (editor) and `play.html` (player). Vite bundles only the
+TypeScript entry modules and copies the classic runtime files, CSS, images, and HTML through the
+build manifest unchanged. The Tauri desktop app embeds that same staged frontend; it is a native
+shell and project-folder host, not a second engine implementation. Beacon is a separate,
+server-authoritative multiplayer runtime under `server/`.
 
 ## Publishing a game
 

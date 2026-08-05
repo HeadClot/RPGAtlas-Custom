@@ -3,7 +3,7 @@
 This folder packages the existing static RPGAtlas editor as a native desktop
 app using [Tauri 2](https://tauri.app). The web/local-server build (run
 `RPGAtlas.exe`) is unaffected — the desktop wrapper is an additional target,
-not a replacement.
+not a replacement. Both targets use the same editor and player frontend.
 
 ## How it works
 
@@ -13,16 +13,16 @@ not a replacement.
 - That step also writes `img/assets.json`, the manifest `js/assets.js` already
   prefers over HTTP directory-listing discovery — so custom art works inside the
   app, which has no directory listings.
-- `src-tauri/src/lib.rs` adds three native commands: `save_project` /
-  `open_project` (native file dialogs) and `open_playtest` (dedicated window).
-  The frontend reaches them through `js/editor/host.js`; on the plain web build
-  `host.isTauri` is false and callers fall back to browser behavior.
-- Autosave keeps using `localStorage`, which works normally because Tauri serves
-  the app from a real origin (unlike `file://`).
+- `src-tauri/src/lib.rs` exposes native file/project, asset-library, project-folder,
+  and playtest commands. The frontend reaches them through the host/platform adapters;
+  on the plain web build `host.isTauri` is false and callers use browser repositories instead.
+- Desktop project autosave writes `game.rpgatlas` in the project folder atomically and keeps
+  bounded backups under `.atlas/backup/`. The shared app-data asset library remains separate from
+  project-scoped assets, while `project_assets.rs` scans the visible `assets/` folders in place.
 
 ## Prerequisites
 
-- **Node.js** (for the staging script and the Tauri CLI) — already used here.
+- **Node.js 20+** (for the staging script and the Tauri CLI) — already used here.
 - **Rust toolchain** — install via <https://rustup.rs>. Tauri compiles a small
   native shell in Rust.
 - **Platform WebView + build tools:**
@@ -59,3 +59,9 @@ npm run tauri icon path/to/logo-1024.png
 ```
 
 then add the generated files to the `bundle.icon` array in `tauri.conf.json`.
+
+The shell deliberately contains no separate gameplay implementation. `src-tauri/src/project.rs`
+owns folder creation/open/save, atomic writes, recent projects, and reveal-in-file-manager;
+`src-tauri/src/project_assets.rs` owns project asset discovery; `src-tauri/src/lib.rs` registers the
+commands and window lifecycle. See [`docs/architectural_overview.md`](../docs/architectural_overview.md)
+for the frontend-to-shell boundary.

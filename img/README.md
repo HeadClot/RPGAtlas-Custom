@@ -1,6 +1,13 @@
 # Custom Assets
 
-Copy image files into these shared engine folders, then reload the editor:
+There are two asset locations:
+
+- In the **desktop app**, put project assets in the game's visible `assets/` folder. Files stay in
+  place and are discovered on project open/focus or with **Tools ▸ Asset Browser ▸ Scan**.
+- In a **source checkout**, the shared `img/` folders below are the engine library used by the
+  bundled samples and projects that reference shared assets.
+
+Copy image files into the appropriate shared engine folder, then reload the editor:
 
 - `characters/` - walking sprite sheets
 - `facesets/` - actor portraits
@@ -11,9 +18,10 @@ Copy image files into these shared engine folders, then reload the editor:
 Projects store references to these files rather than copying the images. Standalone exports embed only
 the custom images referenced by the project.
 
-The editor automatically scans these folders when RPGAtlas is run with the documented
-`python -m http.server` workflow. On a web host that disables folder listings, run
-`tools/update-assets.ps1` after changing the folders to generate `img/assets.json`.
+The editor scans these folders when RPGAtlas is served by the launcher or a directory-listing static
+server such as `python -m http.server`. Vite does not expose directory listings; after changing
+shared `img/` files in a source checkout, run `tools/update-assets.ps1` to generate `img/assets.json`.
+Project-folder assets are indexed through the desktop asset store and do not need this shared manifest.
 
 ## Characters
 
@@ -48,3 +56,5 @@ Each file is one tile and is scaled to 48x48.
 - `meadow.terrain.png` - passable terrain tile for Auto Layer
 
 Do not rename or delete a custom tile after painting it onto maps unless you also replace its usages.
+Projects store stable asset references rather than copying source images. Standalone exports embed
+only referenced assets; keep the source files available when reopening or re-exporting a project.

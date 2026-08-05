@@ -33,9 +33,9 @@
 <h3 id="rpgatlas-needs-its-one-time-setup-first">"RPGAtlas needs its one-time setup first"</h3>
 <p>This only appears when running from a <strong>source checkout</strong> (downloaded copies are pre-built and never need it). The editor's tooling has to be downloaded once: open a terminal in the RPGAtlas folder (in File Explorer, click the address bar, type <code>cmd</code>, press Enter) and run <code>npm install</code>. When it finishes, double-click <code>RPGAtlas.exe</code> again. See <a href="Installation-and-Setup.html#running-from-a-source-checkout-git-clone">Installation & Setup</a>.</p>
 <h3 id="rpgatlas-could-not-start-nodejs-is-it-installed">"RPGAtlas could not start Node.js (is it installed?)"</h3>
-<p>Running from a source checkout needs <a href="https://nodejs.org/">Node.js</a> <strong>18 or newer</strong> on your computer. Install the LTS version from nodejs.org (one-time), then run <code>RPGAtlas.exe</code> again.</p>
+<p>Running from a source checkout needs <a href="https://nodejs.org/">Node.js</a> <strong>20 or newer</strong> on your computer. Install the LTS version from nodejs.org (one-time), then run <code>RPGAtlas.exe</code> again.</p>
 <h3 id="windows-protected-your-pc-unknown-publisher">"Windows protected your PC" / unknown publisher</h3>
-<p>Expected — the launcher is <strong>unsigned</strong>. Click <strong>More info ▸ Run anyway</strong>. It only starts a local server and opens your browser. See <a href="Installation-and-Setup.html#windows-protected-your-pc--unknown-publisher">Installation & Setup</a>.</p>
+<p>Expected — the launcher is <strong>unsigned</strong>. Click <strong>More info ▸ Run anyway</strong>. It only starts a local server and opens your browser. See <a href="Installation-and-Setup.html#windows-protected-your-pc-unknown-publisher">Installation & Setup</a>.</p>
 <h3 id="could-not-find-a-free-local-port-8080-8099">"Could not find a free local port (8080-8099)"</h3>
 <p>Other programs are using all of those ports — usually other copies of RPGAtlas. Close other RPGAtlas windows and try again; the launcher picks the first free port in the 8080–8099 range automatically.</p>
 <h3 id="i-opened-indexhtml-directly-and-its-broken">I opened <code>index.html</code> directly and it's broken</h3>
@@ -45,9 +45,9 @@
 <hr>
 <h2 id="my-work">My work</h2>
 <h3 id="where-is-my-project-saved-will-i-lose-it">Where is my project saved? Will I lose it?</h3>
-<p>The editor <strong>auto-saves to your browser</strong> (<code>localStorage</code>). That's convenient but fragile: it's tied to one browser on one computer, and clearing browser data erases it. <strong>Always keep a <code>.json</code> backup</strong> via <strong>File ▸ Save Project</strong>. Treat the <code>.json</code> as your real save file.</p>
+<p>In the <strong>desktop app</strong>, your project is the visible folder containing <code>game.rpgatlas</code>; edits are written there atomically and recent backups live under <code>.atlas/backup/</code>. Back up or zip the whole folder, including its <code>assets/</code> directory. In the <strong>browser build</strong>, autosave uses browser storage, so use <strong>File ▸ Export Project As File…</strong> for a portable <code>.json</code> backup.</p>
 <h3 id="i-switched-browserscomputers-and-my-game-is-gone">I switched browsers/computers and my game is gone</h3>
-<p>The auto-save doesn't travel between browsers. Use the <strong><code>.json</code></strong> you exported (<strong>File ▸ Open Project</strong> to load it). If you never saved one, the work only exists in the original browser's storage.</p>
+<p>Desktop projects travel with their folders. Browser autosaves do not travel between browsers or computers; use the exported <strong><code>.json</code></strong> with <strong>File ▸ Open Project</strong>. If you never exported one, the work only exists in the original browser's storage.</p>
 <h3 id="undo-only-goes-back-so-far">Undo only goes back so far</h3>
 <p>Undo/redo is generous (full-map history for tiles, shadows, heights, passability, and events) but not infinite. Save <code>.json</code> checkpoints at milestones.</p>
 <hr>
@@ -55,7 +55,7 @@
 <h3 id="my-custom-art-doesnt-appear-in-the-editor">My custom art doesn't appear in the editor</h3>
 <ul><li>Confirm files are in the <strong>correct <code>img</code> subfolder</strong> (<code>characters</code>, <code>facesets</code>, <code>enemies</code>, <code>tilesets</code>, <code>system</code>) and are valid PNG/WebP/JPG. See <a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a>.</li><li><strong>Reload the editor</strong> after adding files.</li><li>On a <strong>source checkout</strong> the Vite dev server (what <code>RPGAtlas.exe</code> and <code>npm run dev</code> run there) doesn't provide the directory listings the scan reads — run <code>tools/update-assets.ps1</code> to write a manifest (<code>img/assets.json</code>), then reload. Downloaded copies aren't affected: the launcher's built-in server (and <code>python -m http.server</code>) provide listings, so the scan just works.</li></ul>
 <h3 id="the-player-can-walk-through-a-wall-or-cant-cross-a-bridge">The player can walk through a wall (or can't cross a bridge)</h3>
-<p>Passability comes from the topmost tile, but you can fix any cell directly: switch to <strong>Passability mode</strong> and click the tile to cycle auto → block → pass. For custom tiles, filename suffixes like <code>.pass</code> and <code>.terrain</code> set defaults. See <a href="Maps-and-Tiles.html#passability--where-the-player-can-walk">Maps & Tiles</a>.</p>
+<p>Passability comes from the topmost tile, but you can fix any cell directly: switch to <strong>Passability mode</strong> and click the tile to cycle auto → block → pass. For custom tiles, filename suffixes like <code>.pass</code> and <code>.terrain</code> set defaults. See <a href="Maps-and-Tiles.html#passability-where-the-player-can-walk">Maps & Tiles</a>.</p>
 <h3 id="my-hd-2d-map-looks-flat-like-normal-2d">My HD-2D map looks flat / like normal 2D</h3>
 <p>HD-2D is <strong>opt-in per map</strong> (enable it in Map Properties) and <strong>falls back to flat 2D</strong> on devices that can't run WebGL2. Heights only extrude in HD-2D maps. See <a href="Maps-and-Tiles.html#hd-2d-heights">Maps & Tiles</a>.</p>
 <hr>
@@ -63,7 +63,7 @@
 <h3 id="my-event-does-nothing-the-wrong-page-runs">My event does nothing / the wrong page runs</h3>
 <ul><li>Check the <strong>trigger</strong> — Action Button needs the player to face it and press Z/Enter; Player Touch needs them to step on it.</li><li>Remember pages resolve <strong>last-match-wins</strong>. If a later page's conditions are met, it overrides earlier ones. See <a href="Events.html#pages-and-conditions">Events</a>.</li></ul>
 <h3 id="the-game-froze-during-a-cutscene">The game froze during a cutscene</h3>
-<p>An <strong>Autorun</strong> page with no end condition runs forever. Make the page flip a <strong>switch/self-switch</strong> at its end, and add an empty page whose condition is that flag, so the event stops. See <a href="Events.html#triggers--what-starts-an-event">Events</a>.</p>
+<p>An <strong>Autorun</strong> page with no end condition runs forever. Make the page flip a <strong>switch/self-switch</strong> at its end, and add an empty page whose condition is that flag, so the event stops. See <a href="Events.html#triggers-what-starts-an-event">Events</a>.</p>
 <h3 id="a-chest-gives-its-item-every-time">A chest gives its item every time</h3>
 <p>You're missing the <strong>self-switch</strong>. Set Self-Switch A = ON after the reward, and add a second page conditioned on Self-Switch A being ON. See <a href="Events.html#recipes">Events</a>.</p>
 <hr>

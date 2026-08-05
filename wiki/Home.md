@@ -9,7 +9,8 @@ ready, you export it as a single file anyone can play.
 
 This wiki is the friendly manual. If you've never made a game before, **start at the top and work
 down** — each page builds on the last. If you already know RPG makers, jump straight to whatever
-you need from the sidebar.
+you need from the sidebar. The downloaded Windows build needs no developer tools; contributors
+working from a source checkout should use Node 20+.
 
 ---
 
@@ -58,15 +59,27 @@ you need from the sidebar.
 
 ---
 
+## Choosing a runtime
+
+- **Browser launcher (`RPGAtlas.exe`)** serves the editor locally and is the simplest Windows
+  creator workflow.
+- **Desktop app (`RPGAtlas-Desktop.exe`)** opens a Project Manager and stores each game in a visible
+  folder containing `game.rpgatlas`, `assets/`, and RPGAtlas helper data.
+- **Browser/source mode** keeps projects in browser storage unless you explicitly export a project
+  file; it is useful for trying the editor or developing the engine.
+- **Beacon** is optional. Enable Play Together only when you want online rooms or worlds, then use a
+  server hosting your project. See [Making Your Game Multiplayer](Making-Your-Game-Multiplayer).
+
 ## What makes RPGAtlas different
 
 - **Everything is generated.** Tiles, sprites, monsters, sound effects, and even the music are
   created procedurally in plain JavaScript. Nothing is copied from another game, so anything you
   make is free of asset licensing worries.
-- **No dependencies, no build step.** It's just HTML, CSS, and JavaScript that runs in your browser.
+- **No creator dependencies.** Downloaded builds are ready to run; only source-checkout contributors
+  need Node and the repository build tools.
 - **Your games are yours.** The engine is GPL-licensed, but the maps, story, and content you create
   are entirely yours to sell or share, no credit required. See [Resources & Glossary](Resources-and-Glossary#licensing-in-plain-language).
 
-> **A note for parents, teachers, and younger creators:** RPGAtlas needs nothing installed and runs
-> entirely on your own computer — there are no accounts, no cloud, and no internet required once you
-> have the folder. It's a friendly first step into game design.
+> **A note for parents, teachers, and younger creators:** RPGAtlas needs nothing installed for
+> offline creation and play. Online multiplayer is optional, uses a server rather than peer-to-peer
+> connections, and has chat disabled by default. See [Online Safety](Online-Safety) for details.

@@ -8,7 +8,7 @@ passability, shadows, map properties, encounters, and the optional HD-2D height 
 ## Creating and managing maps
 
 - **Add a map** from the map list. A project can have as many maps as you like, connected by
-  [Transfer Player](Events#movement--the-world) events.
+  [Transfer Player](Events#movement-the-world) events.
 - **Map Properties** (the **Map** menu, or right-click a map in the list) lets you:
   - Rename and **resize** the map.
   - Set the map's **music**.

@@ -13,18 +13,19 @@ It is **server-authoritative** (Project Beacon D1): clients send input intents,
 the server owns the world and streams back positions. No P2P, no player-visible
 IPs (D6). Room codes are unguessable capability tokens; empty rooms expire.
 
-> **Scope (MP5).** The server simulates the *player layer* — movement with static
-> **wall collision**, presence, emotes, late-join, resume. Autonomous NPCs,
-> events, and encounters run in the browser today and become a headless per-zone
-> runtime in a later phase (MP8). See [`docs/mp-5-spec.md`](../docs/mp-5-spec.md).
+Clients send input intents. Beacon owns movement, collisions, room/world state, authored event
+runtime where enabled, co-op parties and battles in Node engine rooms, and the state snapshots,
+deltas, and presentation directives sent back to clients. No peer-to-peer connection is used and
+player IP addresses never cross the wire.
 
 ---
 
 ## Node (self-host in one command)
 
 ```bash
-# from the repo root (needs `ws` — already a dev dependency there)
+# from the repo root
 cd server
+npm install
 npm run build                       # → dist/beacon.mjs (esbuild bundle)
 node dist/beacon.mjs --project ../Atlas_Quest.json --port 8787
 ```
@@ -38,6 +39,12 @@ for `wss://`, which the browser client requires off localhost). Options:
 | `--port <n>` | listen port (default 8787) |
 | `--host <addr>` | bind address (default all interfaces) |
 | `--max-players <n>` | players per room (default 16) |
+| `--world` | persistent-world mode instead of coded friend rooms |
+| `--data <dir>` | persist world snapshots to JSON files in world mode |
+| `--engine-events` | run authored NPCs/events/cutscenes server-side in world mode |
+| `--zone-workers` | run engine-world maps on worker threads |
+| `--no-engine-rooms` | opt friend rooms out of the default full engine runtime |
+| `--max-rooms <n>` | cap simultaneous friend-room engine workers |
 | `--trust-proxy` | read `X-Forwarded-For` for the rate-limit source (only behind a proxy you control) |
 
 `GET /` returns a JSON health snapshot (`{ ok, rooms, connections, players }`).
@@ -82,10 +89,9 @@ Client routes on the deployed Worker:
 
 `npx wrangler dev` runs it locally against a real Workers runtime (miniflare).
 
-> **MP5→MP8 note.** A Durable Object that is *evicted while idle* (hibernation)
-> currently rebuilds an empty room on the next connection — world-state
-> persistence across eviction (per-zone snapshots to DO storage) is MP8. Active
-> friend rooms keep the isolate warm, so this is rare in practice.
+Cloudflare uses Durable Object storage for world persistence, but its target does not run the Node
+worker-per-room engine-room adapter. Host games that require Node's full co-op battle/event path on
+Node until the deployment capabilities converge.
 
 ---
 
@@ -97,14 +103,19 @@ direction (Project Beacon D3/D6). The rate-limit source (an IP) is held
 transiently in memory for abuse control and never crosses the wire or a log line
 tied to a player.
 
-## Development
+## Development and contracts
 
 ```bash
 npm run typecheck    # Node target (tsconfig.json) + CF target (tsconfig.cf.json)
 ```
 
 The core's behaviour is covered from the repo root: `npx vitest run
-tests-unit/collision.test.ts tests-unit/beacon-server.test.ts
-tests-unit/beacon-ws.test.ts`.
+tests-unit/collision.test.ts tests-unit/beacon-server.test.ts tests-unit/beacon-ws.test.ts`.
+
+The shared contracts live in `src/shared/net/protocol.ts` (wire messages and limits),
+`server/src/core/` (transport-agnostic room/world lifecycle), and `server/src/node/` / `src/cf/`
+(deployment adapters). See [Hosting a World](../wiki/Hosting-a-World.md),
+[Making Your Game Multiplayer](../wiki/Making-Your-Game-Multiplayer.md), and the
+[architecture overview](../docs/architectural_overview.md) for the surrounding system.
 
 Licensed GPL-3.0-or-later (see [`LICENSE`](../LICENSE)).

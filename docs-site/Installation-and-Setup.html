@@ -35,10 +35,10 @@
 <pre><code>RPGAtlas.exe --no-browser</code></pre>
 <h3 id="running-from-a-source-checkout-git-clone">Running from a source checkout (git clone)</h3>
 <p>The editor's <em>source</em> is TypeScript, which browsers can't run directly — it needs the Vite dev server. That means two one-time steps before the double-click works:</p>
-<ol><li><strong>Install <a href="https://nodejs.org/">Node.js</a></strong> (version 18 or newer) — take the big green "LTS" download and click through the installer.</li><li>Open a terminal in the RPGAtlas folder (in File Explorer, click the address bar, type <code>cmd</code>, press Enter) and run:</li></ol>
+<ol><li><strong>Install <a href="https://nodejs.org/">Node.js</a></strong> (version 20 or newer) — take the big green "LTS" download and click through the installer.</li><li>Open a terminal in the RPGAtlas folder (in File Explorer, click the address bar, type <code>cmd</code>, press Enter) and run:</li></ol>
 <p>``<code> npm install </code>``</p>
 <p>Wait for it to finish — this downloads the editor's tooling into a <code>node_modules</code> folder.</p>
-<p><code>RPGAtlas.exe</code> then detects the tooling and boots the dev server automatically. If you skip a step, the launcher tells you: it asks you to run <code>npm install</code> if the setup is missing, or to install Node.js if it can't find it.</p>
+<p><code>RPGAtlas.exe</code> then detects the tooling and boots the dev server automatically. If you skip a step, the launcher tells you: it asks you to run <code>npm install</code> if the setup is missing, or to install Node.js if it can't find it. The repository's CI currently runs Node 24; Node 20 is the local development baseline.</p>
 <h3 id="put-rpgatlas-on-your-desktop">Put RPGAtlas on your Desktop</h3>
 <p>Want to launch it like any other app? Double-click <strong><code>Create Desktop Shortcut.cmd</code></strong> once. An RPGAtlas icon appears on your Desktop — use it any time to start the engine.</p>
 <h3 id="windows-protected-your-pc-unknown-publisher">"Windows protected your PC" / unknown publisher</h3>

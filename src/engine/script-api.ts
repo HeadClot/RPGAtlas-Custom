@@ -14,6 +14,16 @@ import { G, Quests, evaluateQuestFailures } from "./state/game-state.js";
 import { Interp } from "./interpreter/interp.js";
 import { zonesAtTile } from "../shared/zone-geom.js";
 
+/**
+ * The stable `game` object injected into Script event commands and plugins.
+ *
+ * Methods intentionally operate on the live engine singleton rather than on a
+ * copied snapshot: a successful write immediately affects the current scene,
+ * and switch/variable writes re-evaluate quest failure conditions. The object
+ * is kept as an untyped compatibility surface because old projects call it
+ * from JavaScript; the creator-facing contract is documented in
+ * wiki/Plugin-and-Script-API.md.
+ */
 export const scriptApi: any = {
   setSwitch(id: any, v: any) {
     G.switches[id] = !!v;

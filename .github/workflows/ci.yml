@@ -30,6 +30,8 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
+      - name: Documentation freshness and link check
+        run: npm run docs:check
       - name: Build (editor + player + passthrough runtime)
         run: npm run build
       - name: Upload build

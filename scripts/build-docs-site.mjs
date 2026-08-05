@@ -8,13 +8,18 @@
    GPL-3.0-or-later. */
 
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderMarkdown, resolveHref } from "./md-render.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const wikiDir = join(root, "wiki");
-const outDir = join(root, "docs-site");
+// The normal destination is the committed docs-site/. Checks can point this
+// at a temporary directory so freshness is verified without mutating the
+// working tree.
+const outDir = process.env.RPGATLAS_DOCS_OUT
+  ? resolve(process.env.RPGATLAS_DOCS_OUT)
+  : join(root, "docs-site");
 
 const pages = readdirSync(wikiDir)
   .filter((f) => f.endsWith(".md") && !f.startsWith("_") && f !== "README.md")

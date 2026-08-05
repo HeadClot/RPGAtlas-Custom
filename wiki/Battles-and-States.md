@@ -10,7 +10,7 @@ are built, the battle views and systems, status effects, and how to keep combat 
 A battle always pits the party against a **troop** (a group of enemies defined in the
 [Database](The-Database#troops)). You start one in two ways:
 
-- **A fixed battle:** a **Start Battle** [event command](Events#battle-shops--audio) — for bosses and
+- **A fixed battle:** a **Start Battle** [event command](Events#battle-shops-audio) — for bosses and
   scripted fights.
 - **Random encounters:** turn them on in **Map Properties** with a list of troops and a rate. See
   [Maps & Tiles](Maps-and-Tiles#random-encounters).

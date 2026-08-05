@@ -30,6 +30,13 @@ import * as THREE from "three";
 // space and the classic renderer never color-converted anything.
 THREE.ColorManagement.enabled = false;
 
+/**
+ * Create the process-local renderer adapter used by both the player and the
+ * editor's HD-2D preview. The returned object keeps the legacy renderer
+ * surface (`available`, `setMap`, `renderFrame`, and `isLost`) so callers do
+ * not depend on Three.js scene objects. Construction reads the classic asset
+ * globals that the HTML entrypoints load before this module.
+ */
 export function createThreeRenderer(): any {
   // Resolved from the classic assets script like js/renderer.js did (both HTML
   // pages load assets.js before any module code runs).

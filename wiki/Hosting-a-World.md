@@ -138,7 +138,8 @@ This is the part worth reading carefully, and worth showing a parent or teacher.
 
 ## Moderation (running your own world)
 
-When you host a world, you have the tools to keep it friendly:
+When you host a world, you have the tools to keep it friendly. Friend-room moderation is owned by
+the room creator; persistent-world moderation is owned by the server operator:
 
 - **Every player** can **mute** anyone instantly (private, on their own screen) and **report**
   a problem to you.
