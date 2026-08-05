@@ -22,18 +22,55 @@
 
 import { test, expect } from "@playwright/test";
 import { gotoWithAtlasQuest } from "./fixtures/atlas-quest.mjs";
-import { measureFrames } from "./fixtures/perf.mjs";
+import { makeRand, measureFrameStats, measureFrames } from "./fixtures/perf.mjs";
 
 const BUDGET_MS = Number(process.env.RPGATLAS_PERF_BUDGET_MS) || (process.env.CI ? 800 : 300);
 const WARMUP_FRAMES = 30;
 const MEASURE_FRAMES = 90;
+const CLASSIC_BUDGET_MS = Number(process.env.RPGATLAS_CLASSIC2D_PERF_BUDGET_MS) || 100;
 
 test.use({ viewport: { width: 1920, height: 1080 } });
+
+function classicStress(project) {
+  const W = 160, H = 160, size = W * H;
+  const rand = makeRand(20260805);
+  const m = project.maps[0];
+  m.width = W;
+  m.height = H;
+  m.layers = {
+    ground: new Array(size).fill(1),
+    decor: new Array(size).fill(0),
+    decor2: new Array(size).fill(0),
+    over: new Array(size).fill(0),
+  };
+  for (let i = 0; i < size; i++) {
+    const r = rand();
+    if (r < 0.12) m.layers.ground[i] = 2;
+    else if (r < 0.17) m.layers.decor[i] = 6;
+    else if (r < 0.19) m.layers.over[i] = 15;
+  }
+  const page = JSON.parse(JSON.stringify(m.events[0].pages[0]));
+  page.commands = [];
+  page.moveType = "fixed";
+  m.events = [];
+  for (let i = 0; i < 240; i++) {
+    m.events.push({
+      id: i + 1,
+      name: "classic-perf-" + i,
+      x: 1 + Math.floor(rand() * (W - 2)),
+      y: 1 + Math.floor(rand() * (H - 2)),
+      pages: [JSON.parse(JSON.stringify(page))],
+    });
+  }
+  m.hd2d = { enabled: false };
+  m.lights = [];
+  return project;
+}
 
 test.describe("renderer performance budget", () => {
   test("all-features HD-2D frame time at 1080p stays inside the budget", async ({ page }) => {
     test.setTimeout(120_000);
-    await gotoWithAtlasQuest(page, "/play.html?hd2d=1", {
+    await gotoWithAtlasQuest(page, "/play.html?hd2d=1&perf=renderer", {
       transformProject: (project) => {
         project.system.screenWidth = 1920;
         project.system.screenHeight = 1080;
@@ -59,10 +96,35 @@ test.describe("renderer performance budget", () => {
     await expect(page.locator(".titlewin")).toHaveCount(0, { timeout: 15_000 });
 
     const avgMs = await measureFrames(page, { warmup: WARMUP_FRAMES, frames: MEASURE_FRAMES });
+    const stats = await page.evaluate(() => window.RPGATLAS_RENDERER_STATS());
 
     console.log(
       `[perf] all-features 1080p: ${avgMs.toFixed(2)} ms/frame avg over ${MEASURE_FRAMES} frames (budget ${BUDGET_MS} ms, SwiftShader)`,
     );
     expect(avgMs).toBeLessThan(BUDGET_MS);
+    expect(stats).not.toBeNull();
+    expect(stats.timings).toMatchObject({
+      setupMs: expect.any(Number),
+      sunShadowMs: expect.any(Number),
+      pointShadowMs: expect.any(Number),
+      reflectionMs: expect.any(Number),
+      sceneMs: expect.any(Number),
+      postMs: expect.any(Number),
+    });
+  });
+
+  test("classic 2D frame cadence on a large map stays inside the budget", async ({ page }) => {
+    test.setTimeout(120_000);
+    await gotoWithAtlasQuest(page, "/play.html?hd2d=0", { transformProject: classicStress });
+    await expect(page.getByText("New Game", { exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByText("New Game", { exact: true }).click();
+    await expect(page.locator(".titlewin")).toHaveCount(0, { timeout: 15_000 });
+
+    const stats = await measureFrameStats(page, { warmup: 30, frames: 90 });
+    console.log(
+      `[perf] classic 2D 160x160/240 events: ${stats.avgMs.toFixed(2)} ms/frame avg, ${stats.p95Ms.toFixed(2)} ms p95 (budget ${CLASSIC_BUDGET_MS} ms)`,
+    );
+    await expect(page.locator("#glcanvas")).toHaveCount(0);
+    expect(stats.avgMs).toBeLessThan(CLASSIC_BUDGET_MS);
   });
 });

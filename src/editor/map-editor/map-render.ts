@@ -326,9 +326,19 @@ import { drawEntryTiles } from "../../shared/layer-composite";
    *  under view-state `v`. The canvas is resized to fit the map at v.zoom. */
   export function renderMapView(g: any, m: any, v: MapView) {
     if (!m) return;
-    g.canvas.width = Math.max(1, Math.round(m.width * TILE * v.zoom));
-    g.canvas.height = Math.max(1, Math.round(m.height * TILE * v.zoom));
+    const canvasW = Math.max(1, Math.round(m.width * TILE * v.zoom));
+    const canvasH = Math.max(1, Math.round(m.height * TILE * v.zoom));
+    // Resizing a canvas reallocates its backing store and clears all state.
+    // Mouse hover/selection redraws keep the same dimensions, so only resize
+    // when the map or zoom actually changed.
+    if (g.canvas.width !== canvasW) g.canvas.width = canvasW;
+    if (g.canvas.height !== canvasH) g.canvas.height = canvasH;
     g.setTransform(v.zoom, 0, 0, v.zoom, 0, 0);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = "source-over";
+    g.textAlign = "start";
+    g.textBaseline = "alphabetic";
+    g.setLineDash([]);
     g.imageSmoothingEnabled = v.zoom >= 1;
     g.fillStyle = "#15151d";
     g.fillRect(0, 0, m.width * TILE, m.height * TILE);
@@ -341,8 +351,11 @@ import { drawEntryTiles } from "../../shared/layer-composite";
         const arr = m.layers[LAYER_ORDER[li]];
         g.globalAlpha = layerAlpha(v, li);
         for (let y = 0; y < m.height; y++) {
+          const row = y * m.width;
           for (let x = 0; x < m.width; x++) {
-            drawLayerCell(g, arr, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, v.frame || 0);
+            if (arr[row + x]) {
+              drawLayerCell(g, arr, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, v.frame || 0);
+            }
           }
         }
         if (li === 2) { // shadows sit under the overhead layer, as in-game
