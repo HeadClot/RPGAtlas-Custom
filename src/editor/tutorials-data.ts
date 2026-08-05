@@ -40,7 +40,7 @@ rules, your persistent world. (See the <b>Turn On Multiplayer</b> tutorial for t
 
 <h3>What you need</h3>
 <ul>
-<li><b>Node.js 18 or newer</b> — free from <code>nodejs.org</code>. Already have it? Open a
+<li><b>Node.js 20 or newer</b> — free from <code>nodejs.org</code>. Already have it? Open a
 terminal and type <code>node --version</code> to check.</li>
 <li><b>The RPGAtlas source folder</b> — the folder RPGAtlas came from. It has a
 <code>server</code> folder inside; that folder <i>is</i> the Beacon server.</li>
@@ -124,6 +124,22 @@ A tiny cloud machine (a $5 VPS) is often less fuss than home networking.</div>
 <tr><td><code>--no-engine-rooms</code></td><td>Lighter walk-and-chat rooms with no server-side events or battles. (Full engine rooms — with co-op battles — are the default.)</td></tr>
 <tr><td><code>--trust-proxy</code></td><td>Behind your TLS proxy only: read the real player address for rate-limiting.</td></tr>
 </table>
+
+<h3>Optional — deploy Beacon to Cloudflare</h3>
+<p>Cloudflare Durable Objects provide the same authoritative room/world runtime without keeping a
+computer running. From the <code>server</code> folder:</p>
+<ol>
+<li>Run <code>npx wrangler kv namespace create GAME</code> and put the returned id in
+<code>server/wrangler.jsonc</code>.</li>
+<li>Upload the hosted project with
+<code>npx wrangler kv key put --binding=GAME project --path ../MyGame.rpgatlas --remote</code>.
+The <code>--remote</code> flag is required for the deployed Worker.</li>
+<li>Run <code>npx wrangler deploy</code> and copy the deployed <code>wss://</code> address into
+<b>Database ▸ Multiplayer ▸ Play server address</b>.</li>
+</ol>
+<div class="tut-tip">💡 Use the Node target when you want local project files, file-backed
+<code>--data</code> snapshots, worker-thread controls, or the interactive operator console. Both
+targets use the shared authoritative movement and action-combat rules.</div>
 
 <h3>Going bigger — a persistent world</h3>
 <p>Friend rooms vanish when everyone leaves. A <b>world</b> is different: one shared, always-on
@@ -335,6 +351,59 @@ game, and exports are unchanged by having them.</div>
 `,
   },
   {
+    id: "action-combat",
+    icon: "⚔️",
+    title: "Author an Action-Combat Encounter",
+    blurb: "Create a readable real-time enemy with a reusable attack profile, telegraph, knockback, and defeat state.",
+    meta: "About 10 minutes · Easy — test one enemy first",
+    html: `
+<p>This guide creates one real-time enemy on a map. Turn-based battles still use <b>Troops</b> and
+the <b>Start Battle</b> event command; Action Combat is for enemies that live on the map.</p>
+
+<h3>Part 1 — Make an attack profile</h3>
+<ol>
+<li>Open <b>Tools ▸ Database…</b> (<kbd>F1</kbd>) and choose <b>Attack Profiles</b>.</li>
+<li>Add a profile named <b>Sword slash</b>. Keep the default wind-up, active, and recovery frames
+for your first test.</li>
+<li>Set a small <b>Damage</b>, <b>Range</b> 1, one <b>Knockback tile</b>, and a short
+<b>Stagger</b>. The timeline is measured at 60 frames per second.</li>
+<li>Choose optional attack, telegraph, hit, hurt, defeat, and revive VFX/SFX. The directional
+preview shows where a cardinal attack can hit.</li>
+</ol>
+
+<h3>Part 2 — Configure the enemy</h3>
+<ol>
+<li>Open <b>Enemies</b>, select an enemy, and choose its <b>Action Combat</b> tab.</li>
+<li>Choose the attack profile, set HP, and pick <b>Chase player</b> or <b>None</b> for AI.</li>
+<li>Set <b>Touch damage</b>, attack range, telegraph/active/recovery frames, invulnerability,
+respawn delay, and defeat behavior. Start with a generous telegraph and recovery.</li>
+</ol>
+
+<h3>Part 3 — Place and enable the event</h3>
+<ol>
+<li>Return to the map, switch to <b>Event Mode</b>, and create an event on a clear tile.</li>
+<li>Open the event page's <b>Action Combat</b> section and tick <b>Enabled</b>.</li>
+<li>Pick the enemy and choose whether the page inherits its database defaults. Page settings
+override inherited values.</li>
+<li>Choose a <b>Defeat Self-Switch</b> if the defeated page should reveal a chest or open a path.
+Use <b>Persistent Defeat</b> when it should stay defeated after reloads.</li>
+</ol>
+<div class="tut-done">✅ <b>Checkpoint:</b> press <b>▶ Playtest</b> (<kbd>F5</kbd>), face the enemy,
+and press the remappable <b>Attack</b> action. You should see the telegraph, hit, knockback, and
+defeat effects.</div>
+
+<h3>Part 4 — Make it fair</h3>
+<ul>
+<li>Increase wind-up frames when players need more warning.</li>
+<li>Reduce chase range so the enemy does not follow players across the whole map.</li>
+<li>Remember that knockback stops at blocked destination tiles.</li>
+<li>For online games, Node Beacon friend rooms run full engine combat by default. Use
+<code>--no-engine-rooms</code> only for walk/emote/chat rooms; Cloudflare uses the shared combat
+runtime.</li>
+</ul>
+`,
+  },
+  {
     id: "map-properties",
     icon: "⚙️",
     title: "Configure Map Properties",
@@ -406,6 +475,47 @@ entry</b> pins the hour when the player arrives (blank keeps the current time).<
 <div class="tut-tip">💡 A good recipe for a first HD-2D map: Enabled + tilt 50, Point lights on,
 Sun shadows on, Bloom on, everything else off. Add one effect at a time and check it in the
 <kbd>F2</kbd> viewport.</div>
+`,
+  },
+  {
+    id: "connected-world",
+    icon: "🧭",
+    title: "Build a Connected World",
+    blurb: "Arrange maps in World View, align spatial borders, and verify transfers in playtest.",
+    meta: "About 10 minutes · Easy",
+    html: `
+<p>World View and Map Connections solve two different problems. World View follows authored
+<b>Transfer Player</b> commands; Map Connections places maps in absolute tile-space so touching
+borders can behave like a continuous world.</p>
+
+<h3>Part 1 — Create the route</h3>
+<ol>
+<li>Create three maps such as <b>Town</b>, <b>Road</b>, and <b>Cave</b>.</li>
+<li>On each map, use <b>Event Mode</b> and a Quick Event transfer, doorway, or sign to send the
+player to the next map. Choose a clear landing tile.</li>
+<li>Playtest one transfer in each direction before arranging the full world.</li>
+</ol>
+
+<h3>Part 2 — Arrange the story graph</h3>
+<ol>
+<li>Press <kbd>F3</kbd> or choose <b>View ▸ World View</b>.</li>
+<li>Drag map nodes into a readable layout. The arrows are parsed from your Transfer Player
+commands, so broken destinations are visible.</li>
+<li>Double-click a node to open that map. Add notes in the inspector when you need a reminder.</li>
+</ol>
+
+<h3>Part 3 — Align spatial borders</h3>
+<ol>
+<li>Choose <b>View ▸ Map Connections</b>.</li>
+<li>Drag each map into absolute tile-space. Align the right edge of one map with the left edge of
+the next, or align matching top/bottom borders.</li>
+<li>Use keyboard nudges for precise placement. Read the panel warnings for gaps, overlaps, and
+unplaced maps.</li>
+<li>Walk off each connected edge in <b>▶ Playtest</b> (<kbd>F5</kbd>), then test explicit door
+transfers separately.</li>
+</ol>
+<div class="tut-done">✅ <b>Checkpoint:</b> World View shows the intended story links, Map Connections
+shows the intended spatial links, and the player can cross every border you meant to join.</div>
 `,
   },
   {

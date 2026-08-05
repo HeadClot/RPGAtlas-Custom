@@ -21,7 +21,7 @@ describe("detailed tutorials", () => {
     expect(TUTORIALS[0].id).toBe("multiplayer-server");
     const ids = TUTORIALS.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
-    for (const wanted of ["play-together", "advanced-map-editor", "map-properties", "first-events", "share-your-game"]) {
+    for (const wanted of ["play-together", "advanced-map-editor", "action-combat", "connected-world", "map-properties", "first-events", "share-your-game"]) {
       expect(ids).toContain(wanted);
     }
   });

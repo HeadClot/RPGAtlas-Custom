@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Documentation synchronization pass",
+    summary:
+      "Refreshed creator, contributor, multiplayer, action-combat, and deployment documentation for RPGAtlas 2.1.0 and added generated-doc consistency checks.",
+    items: [
+      "Added the Action Combat guide plus step-by-step connected-world, hosting, asset, migration, and publishing guidance across the wiki and in-app Detailed Tutorials.",
+      "Synchronized Beacon, Cloudflare, Tauri, plugin/script API, architecture, and development references with the current TypeScript and server implementations.",
+      "Added npm run docs:build and npm run docs:check so the committed docs-site mirror and internal wiki links stay aligned.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Action-combat sprint bug fixes",
     summary:
       "Closed multiplayer authority, persistence handoff, client ordering, Cloudflare restore, and equipment-stat regressions found during the action-combat sprint.",

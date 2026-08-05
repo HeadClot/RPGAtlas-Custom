@@ -2,10 +2,11 @@
 
 <p align="center"><i>Chart your world. Tell your story.</i></p>
 
-**RPGAtlas** is a free, open-source RPG-making engine in the spirit of the classic 2D RPG
-makers. You paint maps, place characters, write events, design battles, and hit **▶ Playtest** —
-no programming required, no copyrighted assets, no install, and no build step. When your game is
-ready, you export it as a single file anyone can play.
+**RPGAtlas 2.1** is a free, open-source RPG-making engine in the spirit of the classic 2D RPG
+makers. You paint maps, place characters, write events, design turn-based or real-time battles,
+and hit **▶ Playtest** — no programming required for the creator workflow. Downloaded builds need
+no install or build step; source checkouts use Node.js for development, server hosting, and docs.
+When your game is ready, you export it as a single file anyone can play.
 
 This wiki is the friendly manual. If you've never made a game before, **start at the top and work
 down** — each page builds on the last. If you already know RPG makers, jump straight to whatever
@@ -34,6 +35,8 @@ you need from the sidebar.
 - **[Dialogue & Cutscenes](Dialogue-and-Cutscenes)** — reusable conversation trees with speakers, portraits, voice, conditions, localization keys, and preview.
 - **[The Database](The-Database)** — actors, classes, skills, items, and everything that defines your world.
 - **[Battles & States](Battles-and-States)** — enemies, troops, side-view vs. front-view, and status effects.
+- **[Action Combat](Action-Combat)** — real-time attack profiles, telegraphs, enemy AI, knockback,
+  defeat, respawn, and authoritative multiplayer combat.
 - **[Characters & Custom Assets](Characters-and-Custom-Assets)** — the Character Generator and adding your own art.
 - **[Generators](Generators)** — 20 name and story-hook generators for worldbuilding, encounters, treasure, and adventures.
 - **[Audio](Audio)** — the procedural music and sound effects, and how to assign them.
@@ -63,10 +66,12 @@ you need from the sidebar.
 - **Everything is generated.** Tiles, sprites, monsters, sound effects, and even the music are
   created procedurally in plain JavaScript. Nothing is copied from another game, so anything you
   make is free of asset licensing worries.
-- **No dependencies, no build step.** It's just HTML, CSS, and JavaScript that runs in your browser.
+- **No runtime dependency for players.** Exported games run from the bundled HTML/EXE and a modern
+  browser; contributors can use the Node/Vite toolchain when working from source.
 - **Your games are yours.** The engine is GPL-licensed, but the maps, story, and content you create
   are entirely yours to sell or share, no credit required. See [Resources & Glossary](Resources-and-Glossary#licensing-in-plain-language).
 
 > **A note for parents, teachers, and younger creators:** RPGAtlas needs nothing installed and runs
-> entirely on your own computer — there are no accounts, no cloud, and no internet required once you
-> have the folder. It's a friendly first step into game design.
+> entirely on your own computer for single-player work — there are no accounts or cloud service
+> required, and no internet is needed once you have the folder. Play Together is an optional online
+> mode. It's a friendly first step into game design.

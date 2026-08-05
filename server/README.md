@@ -1,7 +1,8 @@
 # RPGAtlas Beacon Server
 
 The open-source multiplayer server for [RPGAtlas](../README.md) games — Project
-Beacon. Host friend rooms (2–16 players) or your own persistent world. One
+Beacon. Host full-engine friend rooms (2–16 players) or your own persistent
+world. One
 TypeScript core (`src/core`, shared with the game engine's `src/shared/`), two
 deploy targets:
 
@@ -9,9 +10,10 @@ deploy targets:
 - **Cloudflare Durable Objects** (`src/cf`) — one room per DO, WebSocket
   hibernation, free-tier friendly.
 
-It is **server-authoritative** (Project Beacon D1): clients send input intents,
-the server owns the world and streams back positions. No P2P, no player-visible
-IPs (D6). Room codes are unguessable capability tokens; empty rooms expire.
+It is **server-authoritative**: clients send input intents, the server owns the
+world and streams back validated movement and combat outcomes. No P2P, no
+player-visible IPs. Room codes are unguessable capability tokens; empty rooms
+expire.
 
 > **Scope.** The server simulates the player layer and the shared action-combat
 > runtime — movement/collision, presence, late-join, resume, enemy chase AI,
@@ -44,7 +46,10 @@ respawn, and a map transfer. `Atlas_Quest_Coop.json` remains the turn-based
 co-op compatibility fixture.
 
 Players connect over `ws://<host>:8787` (put it behind a TLS-terminating proxy
-for `wss://`, which the browser client requires off localhost). Options:
+for `wss://`, which the browser client requires off localhost). Friend rooms
+run the full engine by default: parties, authored events, shared battles, and
+action combat. Use `--no-engine-rooms` for the lighter walk/emote/chat mode.
+Options:
 
 | flag | meaning |
 |------|---------|
@@ -52,6 +57,12 @@ for `wss://`, which the browser client requires off localhost). Options:
 | `--port <n>` | listen port (default 8787) |
 | `--host <addr>` | bind address (default all interfaces) |
 | `--max-players <n>` | players per room (default 16) |
+| `--max-rooms <n>` | simultaneous room cap (default 1000) |
+| `--no-engine-rooms` | disable full engine workers for friend rooms |
+| `--world` | serve one shared persistent-world endpoint instead of code rooms |
+| `--data <dir>` | persist Node world snapshots to this directory |
+| `--engine-events` | run authored NPCs/events/cutscenes server-side in world mode |
+| `--zone-workers` | shard world maps across worker threads |
 | `--trust-proxy` | read `X-Forwarded-For` for the rate-limit source (only behind a proxy you control) |
 
 `GET /` returns a JSON health snapshot (`{ ok, rooms, connections, players }`).
@@ -93,23 +104,22 @@ Client routes on the deployed Worker:
 - `GET /new` → `{ "code": "BCDFGHJKM" }` — mint a fresh room code (a "create").
 - `GET /rt?code=XXXXXXXXX` — WebSocket upgrade into that room.
 - `GET /health` → `{ ok: true }`.
+- `GET /wrt?world=main` — WebSocket connection to a persistent world.
 
 `npx wrangler dev` runs it locally against a real Workers runtime (miniflare).
 
-> **MP5→MP8 note.** A Durable Object that is *evicted while idle* (hibernation)
-> currently rebuilds an empty room on the next connection — world-state
-> persistence across eviction (per-zone snapshots to DO storage) is MP8. Active
-> friend rooms keep the isolate warm, so this is rare in practice.
+Durable Object storage preserves persistent-world state across hibernation and
+eviction. Friend rooms still expire when empty according to the room policy.
 
 ---
 
 ## What ships on the wire (privacy)
 
 Only what the game needs: a player is a server-assigned id + display name +
-position + appearance key. No IP, no account, no PII — ever — in either
-direction (Project Beacon D3/D6). The rate-limit source (an IP) is held
-transiently in memory for abuse control and never crosses the wire or a log line
-tied to a player.
+position + appearance key, plus validated gameplay state such as party presence,
+HP, defeat/revive state, and action-combat events. No account or PII is sent in
+either direction. The rate-limit source (an IP) is held transiently in memory
+for abuse control and never crosses the wire or a log line tied to a player.
 
 ## Development
 

@@ -53,6 +53,22 @@ the picture always matches the game.
 - **Re-link connections** — **drag** the small **↻** handle on an arrow onto another map to retarget every
   Transfer command behind that link at once. Arrows to a deleted map are flagged as broken.
 
+## Map Connections
+
+Open **View ▸ Map Connections** to arrange maps in absolute tile-space. This is different from
+World View: World View follows authored **Transfer Player** commands, while Map Connections makes
+touching map borders behave like a continuous world.
+
+- Drag map cards into place; the canvas reports how many maps are placed and how many borders touch.
+- Touching borders become walkable transitions when the player leaves one map at the matching edge.
+- Use the selected-map inspector to check its world origin and diagnose overlaps, gaps, or maps that
+  have not been placed.
+- Nudge a selected map with the keyboard for precise alignment. Layout changes are saved with the
+  project and are included in playtest/export behavior.
+
+Use **World View** to understand authored story transfers and **Map Connections** to lay out a
+seamless spatial overworld. They can be used together.
+
 ---
 
 ## The Advanced Map Editor

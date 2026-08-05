@@ -85,7 +85,7 @@ hand every time:
 | `meadow.terrain.png` | **Passable** *and* treated as **terrain** by Auto Layer |
 
 You can always override any individual cell later in **Passability mode** — see
-[Maps & Tiles](Maps-and-Tiles#passability--where-the-player-can-walk).
+[Maps & Tiles](Maps-and-Tiles#passability-where-the-player-can-walk).
 
 ---
 

@@ -15,7 +15,7 @@
 <p><strong>Getting started</strong></p>
 <ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
 <p><strong>Building your world</strong></p>
-<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
+<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
 <p><strong>Play together (online)</strong></p>
 <ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a class="active" href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
 <p><strong>Polish & ship</strong></p>
@@ -51,9 +51,16 @@ node dist/beacon.mjs --project path/to/game.rpgatlas --port 8787</code></pre>
 <h3 id="option-2-cloudflare-free-tier-no-server-to-babysit">Option 2 — Cloudflare (free tier, no server to babysit)</h3>
 <p>Beacon also runs on <strong>Cloudflare Durable Objects</strong> — one room per object, with hibernation so idle rooms cost nothing. Deploy with Cloudflare's <code>wrangler</code> tool from the same <code>server/</code> folder:</p>
 <pre><code>cd server
+npm install
+npx wrangler kv namespace create GAME
+# Put the returned namespace id in server/wrangler.jsonc.
+npx wrangler kv key put --binding=GAME project --path ../MyGame.rpgatlas --remote
 npx wrangler deploy</code></pre>
 <p>The live deploy runs in <strong>your</strong> Cloudflare account (Driftwood never sees it). Your game connects to your <code>wss://…workers.dev</code> address.</p>
-<blockquote><p><strong>Co-op battles need the Node server for now.</strong> Cloudflare rooms run the walk-and-chat layer; the engine rooms above — parties and shared battles — run on the Node target today. If your game leans on co-op battles, host the Node server; bringing engine rooms to Cloudflare is a post-2.0 step.</p></blockquote>
+<p>The project is loaded from the <code>GAME</code> KV binding. Keep <code>--remote</code> on the KV upload: without it, Wrangler writes only to local development storage and the deployed Worker cannot load the game. Cloudflare Durable Objects use the shared authoritative room/world and action-combat runtime.</p>
+<p>The Worker routes are:</p>
+<ul><li><code>GET /new</code> — mint a friend-room code.</li><li><code>GET /rt?code=…</code> — upgrade a friend-room connection to WebSocket.</li><li><code>GET /health</code> — return a health response.</li><li><code>GET /wrt?world=main</code> — connect to a persistent world Durable Object.</li></ul>
+<p>Use Node when you need a local project path, file-backed world snapshots, worker-thread controls, or the interactive operator console. Cloudflare world state persists in Durable Object storage; Node world state persists with <code>--data</code>.</p>
 <blockquote><p>The server shares the exact same world code the game uses — the same movement, collision, and rules — so what runs on your server behaves like what runs in the editor.</p></blockquote>
 <hr>
 <h2 id="what-crosses-the-network-kid-safety-details">What crosses the network (kid-safety details)</h2>

@@ -15,7 +15,7 @@
 <p><strong>Getting started</strong></p>
 <ul><li><a href="index.html">Home</a></li><li><a class="active" href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
 <p><strong>Building your world</strong></p>
-<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
+<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
 <p><strong>Play together (online)</strong></p>
 <ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
 <p><strong>Polish & ship</strong></p>
@@ -35,7 +35,7 @@
 <pre><code>RPGAtlas.exe --no-browser</code></pre>
 <h3 id="running-from-a-source-checkout-git-clone">Running from a source checkout (git clone)</h3>
 <p>The editor's <em>source</em> is TypeScript, which browsers can't run directly — it needs the Vite dev server. That means two one-time steps before the double-click works:</p>
-<ol><li><strong>Install <a href="https://nodejs.org/">Node.js</a></strong> (version 18 or newer) — take the big green "LTS" download and click through the installer.</li><li>Open a terminal in the RPGAtlas folder (in File Explorer, click the address bar, type <code>cmd</code>, press Enter) and run:</li></ol>
+<ol><li><strong>Install <a href="https://nodejs.org/">Node.js</a></strong> (version 20 or newer) — take the big green "LTS" download and click through the installer.</li><li>Open a terminal in the RPGAtlas folder (in File Explorer, click the address bar, type <code>cmd</code>, press Enter) and run:</li></ol>
 <p>``<code> npm install </code>``</p>
 <p>Wait for it to finish — this downloads the editor's tooling into a <code>node_modules</code> folder.</p>
 <p><code>RPGAtlas.exe</code> then detects the tooling and boots the dev server automatically. If you skip a step, the launcher tells you: it asks you to run <code>npm install</code> if the setup is missing, or to install Node.js if it can't find it.</p>
@@ -49,7 +49,7 @@
 <p>If you're on macOS or Linux, or you'd rather not use the <code>.exe</code>:</p>
 <ul><li><strong>Downloaded (pre-built) copy</strong> — any static file server works, e.g. with <a href="https://www.python.org/">Python</a> (most Macs and Linux machines already have it):</li></ul>
 <p>``<code> cd RPGAtlas python -m http.server 8080 </code>``</p>
-<ul><li><strong>Source checkout</strong> — you need <a href="https://nodejs.org/">Node.js</a> 18 or newer:</li></ul>
+<ul><li><strong>Source checkout</strong> — you need <a href="https://nodejs.org/">Node.js</a> 20 or newer:</li></ul>
 <p>``<code> cd RPGAtlas npm install   # one-time setup npm run dev </code>``</p>
 <p>Then open the printed <strong>http://localhost:…</strong> address in your browser. That page <em>is</em> the editor.</p>
 <blockquote><p><strong>Why a server at all?</strong> Browsers refuse to let a page saved on your disk (<code>file://...</code>) use <code>localStorage</code> (where your work is auto-saved) or scan folders for custom art — and a source checkout's TypeScript editor additionally needs the dev server (Vite) to translate it on the fly. Serving over <code>http://localhost</code> solves all of it. Nothing leaves your computer; "localhost" means "this machine."</p></blockquote>

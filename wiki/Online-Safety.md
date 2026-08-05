@@ -48,10 +48,11 @@ room, joins a friend's room with a short code, or connects to a world by address
   information** (no name-beyond-the-nickname, no email, no location, nothing about the
   person). It's a random cryptographic key, like a house key that only fits one lock.
 
-**What actually travels over the network** is only: the player's display name, where their
-character is standing on the map, and the emotes / phrases (or, if the creator enabled it,
-filtered chat) they choose to send. Never an address, never a browsing history, never
-anything private.
+**What actually travels over the network** is gameplay data needed for the shared session: the
+player's display name and appearance, movement/input intent, map position, party presence,
+action-combat outcomes such as HP and defeat/revive state, and the emotes / phrases (or, if the
+creator enabled it, filtered chat) they choose to send. Never a browsing history, never a profile,
+and never anything private beyond the game session.
 
 The **free relay** keeps a player's network address (IP) only briefly and only to stop abuse
 (like blocking someone who floods it) — it is never shown to anyone and never stored
