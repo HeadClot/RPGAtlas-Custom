@@ -288,7 +288,7 @@ export type RuleAction =
 ```
 
 Editor-only: evaluation is a pure function `(map, rules, seed) → cell edits`
-(`src/shared/automap.ts`, fixture-grid unit tests); **Preview** renders the diff as
+(`src/shared/map/automap.ts`, fixture-grid unit tests); **Preview** renders the diff as
 an overlay; **Apply** commits it as one labeled undo entry. Zero runtime/export cost.
 
 ### Map tree folders (Stage A shell, editor-only)
@@ -950,7 +950,7 @@ exports byte-identically (a project that never opens the drawer keeps NO
 
 Shipped:
 
-- **Pure evaluator** (`src/shared/automap.ts`, 15 unit tests in
+- **Pure evaluator** (`src/shared/map/automap.ts`, 15 unit tests in
   `tests-unit/automap.test.ts`): `evaluateAutomap(map, rules, opts) → { edits,
   changed }` and `applyAutomapEdits(map, edits)`. Predicates (`terrainIs`,
   `tileIs`, `near`, `notNear`, `regionIs`, `passable`) are ANDed; actions
