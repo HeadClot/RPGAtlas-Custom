@@ -82,8 +82,9 @@ wiki, this contributor guide, the architecture overview, or the specialized serv
 - Do not use WebGPU APIs; the renderer uses Three.js and WebGL2.
 - Keep new shared rules pure where possible so they can run in browser, Node, and Cloudflare tests.
 - Add or update tests for behavior changes.
-- Add a newest-first entry to `js/patch-notes.js` for substantial user-facing changes, including
-  major documentation updates.
+- Append an independent `PATCH_NOTES.push({...})` entry to the end of `js/patch-notes.js` for
+  substantial user-facing changes, including major documentation updates. Include an immutable
+  ISO-8601 `timestamp` with the author’s local UTC offset; the editor sorts entries newest-first.
 - Run the relevant verification gates before handing off a change.
 
 RPGAtlas is licensed under GPL-3.0-or-later. See [`../LICENSE`](../LICENSE).

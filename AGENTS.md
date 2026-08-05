@@ -31,7 +31,9 @@ WebGPU-based skills or WebGPU APIs for this project.
 Every AI-assisted feature addition or substantial project change must include a short, descriptive
 entry in `js/patch-notes.js`.
 
-- Prepend the new entry to the top of the `PATCH_NOTES` array so the newest update appears first.
+- Append the new entry as an independent `PATCH_NOTES.push({...})` block at the end of
+  `js/patch-notes.js`; include a `timestamp` in ISO-8601 format with the author’s local UTC offset
+  (for example, `2026-08-05T16:11:53-06:00`). The editor sorts entries newest-first at display time.
 - Never overwrite, remove, reorder, or summarize away previous patch notes.
 - Include the date, a concise title, a one-sentence summary, and a short list of notable user-facing
   additions or changes.

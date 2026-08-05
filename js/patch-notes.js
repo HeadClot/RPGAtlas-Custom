@@ -1995,3 +1995,16 @@ export const PATCH_NOTES = [
     ],
   },
 ];
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T16:16:58-06:00",
+  title: "Conflict-resistant patch note timestamps",
+  summary:
+    "Patch notes now accept immutable local timestamps and can be appended safely without changing the existing history.",
+  items: [
+    "New patch-note entries can be added as independent append-only blocks with the author’s local UTC offset.",
+    "The Help → Patch Notes dialog sorts timestamped entries newest-first and formats them in the viewer’s local date and time.",
+    "Legacy date-only entries remain supported and continue to appear in the historical list.",
+  ],
+});

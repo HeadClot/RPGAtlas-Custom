@@ -15,6 +15,7 @@ import { $, h, field } from "./dom";
 import { modal } from "./modals";
 import { setStatus } from "../map-editor/status";
 import { ACT, actionLabel, buildMenubar, buildToolbar, refreshToolbar } from "./workspace";
+import { formatPatchNoteDate, sortPatchNotes } from "./patch-notes";
 
 const t = editorI18n.t;
 
@@ -77,7 +78,7 @@ export function openLanguageSettings() {
 }
 export function openPatchNotes() {
   const list = h("div", { class: "patch-notes" });
-  PATCH_NOTES.forEach((note: any) => {
+  sortPatchNotes(PATCH_NOTES).forEach((note: any) => {
     const items = h("ul");
     (note.items || []).forEach((item: any) => items.appendChild(h("li", null, item)));
     list.appendChild(h("article", { class: "patch-note" },
@@ -86,7 +87,8 @@ export function openPatchNotes() {
         // Release entries carry the version they shipped in, so "am I on the
         // one with move routes?" is answerable from this list.
         note.version ? h("span", { class: "patch-note-version" }, "v" + note.version) : null,
-        h("time", null, note.date)),
+        h("time", note.timestamp ? { datetime: note.timestamp } : null,
+          formatPatchNoteDate(note))),
       h("p", null, note.summary),
       items));
   });
