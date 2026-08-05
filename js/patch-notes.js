@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 5, 2026",
+    title: "Uncapped remote CI e2e workers",
+    summary:
+      "Remote Playwright builds now use the runner's CPU-based worker default while local runs retain their two-worker cap.",
+    items: [
+      "GitHub Actions is no longer constrained to two Playwright workers.",
+      "RPGATLAS_E2E_WORKERS remains available for explicit CI or local tuning.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
     title: "Restored standard Playwright output",
     summary:
       "Removed Playwright API-level debug tracing while retaining the normal list and HTML test reporters.",
