@@ -46,6 +46,9 @@ export interface CombatState {
   attackCooldown: number;
   dead: boolean;
   respawn: number;
+  /** Remaining authoritative knockback steps and their direction. */
+  knockback?: number;
+  knockbackDir?: number;
 }
 
 export interface CombatNetState {
@@ -107,6 +110,8 @@ export function createCombatState(): CombatState {
     attackCooldown: 0,
     dead: false,
     respawn: 0,
+    knockback: 0,
+    knockbackDir: 0,
   };
 }
 
@@ -169,6 +174,8 @@ export function respawnIfReady(state: CombatState): boolean {
   state.hurtFlash = 0;
   state.stagger = 0;
   state.attackCooldown = 0;
+  state.knockback = 0;
+  state.knockbackDir = 0;
   state.hitIds.clear();
   return true;
 }
@@ -187,6 +194,8 @@ export function markDead(state: CombatState, respawnFrames = 0): void {
   state.framesLeft = 0;
   state.totalFrames = 0;
   state.respawn = Math.max(0, respawnFrames | 0);
+  state.knockback = 0;
+  state.knockbackDir = 0;
 }
 
 export function toCombatNetState(state: CombatState): CombatNetState {

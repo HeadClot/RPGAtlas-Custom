@@ -21,7 +21,7 @@
    job (Assets lives on the DOM side). Nothing here imports Assets, the DOM, or
    any engine module. GPL-3.0-or-later (see LICENSE). */
 
-import type { PlayerId } from "../net/protocol.js";
+import type { PlayerId, PlayerLoadout } from "../net/protocol.js";
 import type { World } from "./world.js";
 import { DIR_OFFSET } from "./collision.js";
 import { createCombatState, toCombatNetState, type CombatNetState, type CombatState } from "./action-combat.js";
@@ -59,6 +59,8 @@ export interface PlayerEntity {
   animT: number;
   /** Authoritative field-combat state. Idle state is omitted from the wire. */
   combat: CombatState;
+  /** Server-validated lead actor/equipment claim used by field combat. */
+  loadout: PlayerLoadout;
   /** Authoritative runtime HP; omitted from network state until HUD support is added. */
   hp?: number;
   maxHp?: number;
@@ -95,6 +97,7 @@ export interface Spawn {
   y?: number;
   dir?: number;
   charset?: string;
+  loadout?: Partial<PlayerLoadout>;
 }
 
 /** Grid direction (DIRD key) for a Dir string / numeric value, defaulting to
@@ -125,7 +128,7 @@ export function gridDirOf(dir: unknown): number {
  *  (`system.multiplayer.spawns[mapId]`) and the caller didn't pin x/y/dir, the
  *  spawn point overrides the project start. Absent (or an unmigrated project)
  *  falls straight through to the start position — byte-identical to pre-MP7. */
-export function resolveSpawn(world: World, spawn: Spawn = {}): Required<Spawn> {
+export function resolveSpawn(world: World, spawn: Spawn = {}): Required<Omit<Spawn, "loadout">> & { loadout?: Partial<PlayerLoadout> } {
   const sys = (world.proj && world.proj.system) || {};
   const mapId = spawn.mapId != null ? spawn.mapId : Number(sys.startMapId) || 0;
   const mp = sys.multiplayer as { spawns?: Record<number, { x?: number; y?: number; dir?: unknown }> } | undefined;
@@ -161,6 +164,14 @@ export function addPlayer(world: World, id: PlayerId, name: string, spawn: Spawn
     moving: false,
     animT: 0,
     combat: createCombatState(),
+    loadout: {
+      actorId: Math.max(1, Number(s.loadout?.actorId) || 1),
+      level: Math.max(1, Math.min(99, Number(s.loadout?.level) || 1)),
+      ...(Number(s.loadout?.weaponId) > 0 ? { weaponId: Number(s.loadout?.weaponId) } : {}),
+      ...(Number(s.loadout?.weapon2Id) > 0 ? { weapon2Id: Number(s.loadout?.weapon2Id) } : {}),
+      ...(Number(s.loadout?.armorId) > 0 ? { armorId: Number(s.loadout?.armorId) } : {}),
+      ...(s.loadout?.row === "back" ? { row: "back" as const } : { row: "front" as const }),
+    },
     hp: 100,
     maxHp: 100,
     revive: 0,

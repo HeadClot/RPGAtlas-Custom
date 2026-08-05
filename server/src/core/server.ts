@@ -20,6 +20,7 @@ import {
   encodeMessage,
   type ClientMessage,
   type ErrorCode,
+  type PlayerLoadout,
 } from "../../../src/shared/net/protocol.js";
 import { generateRoomCode } from "../../../src/shared/net/room-code.js";
 import { BeaconRoom, type Clock, type RoomMember, type RoomOptions } from "./room.js";
@@ -61,6 +62,7 @@ interface ConnState {
   conn: ServerConnection;
   phase: "new" | "in-room";
   name: string;
+  loadout?: PlayerLoadout;
   room: BeaconRoom | null;
   member: RoomMember | null;
   /** Message token bucket. */
@@ -232,6 +234,7 @@ export class BeaconServer {
         return;
       }
       st.name = String(msg.name || "").slice(0, MAX_NAME_LEN);
+      st.loadout = msg.loadout;
       return;
     }
     if (!st.name) {
@@ -329,7 +332,7 @@ export class BeaconServer {
       this.sendError(st, "not-allowed", true);
       return;
     }
-    const member = room.admit(st.conn, st.name, "");
+    const member = room.admit(st.conn, st.name, "", st.loadout);
     if (!member) {
       this.sendError(st, "room-full");
       return;

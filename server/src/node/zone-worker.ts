@@ -17,12 +17,12 @@ import { parentPort, workerData } from "node:worker_threads";
 import { Zone, type ZoneOutbox } from "../core/zone.js";
 import { createZoneEventRuntime, engineDefaultWorld } from "./engine-zone.js";
 import type { WorldLimits } from "../core/config.js";
-import type { ClientMessage, JsonValue, PlayerId } from "../../../src/shared/net/protocol.js";
+import type { ClientMessage, JsonValue, PlayerId, PlayerLoadout } from "../../../src/shared/net/protocol.js";
 import type { PlayerCombatSnapshot } from "../../../src/shared/sim/combat-persistence.js";
 
 /** Parent → worker ops (mirror ZoneApi, all fire-and-forget). */
 export type ZoneWorkerIn =
-  | { op: "admit"; pid: PlayerId; name: string; charset: string; x: number; y: number; dir: number; snapshot: boolean; combat?: PlayerCombatSnapshot }
+  | { op: "admit"; pid: PlayerId; name: string; charset: string; x: number; y: number; dir: number; snapshot: boolean; combat?: PlayerCombatSnapshot; loadout?: PlayerLoadout }
   | { op: "remove"; pid: PlayerId; announce: boolean }
   | { op: "frame"; pid: PlayerId; msg: ClientMessage }
   | { op: "snap"; pid: PlayerId }
@@ -60,7 +60,10 @@ function main(): void {
   const outbox: ZoneOutbox = {
     send: (pid, frame) => post({ op: "send", pid, frame }),
     sendMany: (pids, frame) => post({ op: "sendMany", pids, frame }),
-    transferOut: (pid, mapId, x, y, dir) => post({ op: "transferOut", pid, mapId, x, y, dir }),
+    transferOut: (pid, mapId, x, y, dir) => {
+      posPatch(pid);
+      post({ op: "transferOut", pid, mapId, x, y, dir });
+    },
     sharedSet: (key, value) => post({ op: "sharedSet", key, value }),
     recordPatch: (pid, patch) => post({ op: "recordPatch", pid, patch }),
   };
@@ -78,7 +81,14 @@ function main(): void {
   // stale one that lands after the player transferred away (the async race).
   const posPatch = (pid: PlayerId) => {
     const pos = zone.positionOf(pid);
-    if (pos) post({ op: "recordPatch", pid, patch: { x: pos.x, y: pos.y, dir: pos.dir, mapId: init.mapId } });
+    if (pos) {
+      const combat = zone.combatOf?.(pid);
+      const loadout = zone.loadoutOf?.(pid);
+      post({ op: "recordPatch", pid, patch: {
+        x: pos.x, y: pos.y, dir: pos.dir, mapId: init.mapId,
+        ...(combat ? { combat } : {}), ...(loadout ? { loadout } : {}),
+      } });
+    }
   };
   let ticks = 0;
   // Drift-compensated 60 Hz: Windows quantizes a worker's setInterval(16.7ms)
@@ -110,7 +120,7 @@ function main(): void {
   port.on("message", (msg: ZoneWorkerIn) => {
     if (msg.op === "admit") {
       pids.add(msg.pid);
-      zone.admit(msg.pid, msg.name, msg.charset, msg.x, msg.y, msg.dir, msg.snapshot, msg.combat);
+      zone.admit(msg.pid, msg.name, msg.charset, msg.x, msg.y, msg.dir, msg.snapshot, msg.combat, msg.loadout);
     } else if (msg.op === "remove") {
       // Mirror the exit position BEFORE the entity goes (transfer/leave both
       // want the final tile in the record; the mapId stamp keeps a late

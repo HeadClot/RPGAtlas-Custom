@@ -13,7 +13,7 @@ import { Worker } from "node:worker_threads";
 import type { ZoneApi, ZoneOutbox } from "../core/zone.js";
 import type { ZoneWorkerIn, ZoneWorkerOut } from "./zone-worker.js";
 import type { WorldLimits } from "../core/config.js";
-import type { ClientMessage, JsonValue, PlayerId } from "../../../src/shared/net/protocol.js";
+import type { ClientMessage, JsonValue, PlayerId, PlayerLoadout } from "../../../src/shared/net/protocol.js";
 import type { PlayerCombatSnapshot } from "../../../src/shared/sim/combat-persistence.js";
 
 export interface WorkerZoneFactoryOptions {
@@ -62,8 +62,8 @@ class WorkerZone implements ZoneApi {
     if (!this.stopped) this.worker.postMessage(msg);
   }
 
-  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean, combat?: PlayerCombatSnapshot): void {
-    this.post({ op: "admit", pid, name, charset, x, y, dir, snapshot, combat });
+  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean, combat?: PlayerCombatSnapshot, loadout?: PlayerLoadout): void {
+    this.post({ op: "admit", pid, name, charset, x, y, dir, snapshot, combat, loadout });
   }
   remove(pid: PlayerId, announce: boolean): void {
     this.post({ op: "remove", pid, announce });

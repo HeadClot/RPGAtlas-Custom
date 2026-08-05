@@ -60,7 +60,8 @@ import type { GameMap } from "../../../src/shared/schema.js";
 import type { Project } from "../../../src/shared/schema.js";
 import type { PlayerCombatSnapshot } from "../../../src/shared/sim/combat-persistence.js";
 import type { CombatPersistence } from "../../../src/shared/sim/combat-persistence.js";
-import { resolveActorCombat } from "../../../src/shared/sim/combat-profiles.js";
+import type { CombatEvent } from "../../../src/shared/sim/combat-persistence.js";
+import { resolveActorCombat, sanitizePlayerLoadout } from "../../../src/shared/sim/combat-profiles.js";
 import { toCombatNetState } from "../../../src/shared/sim/action-combat.js";
 import { advanceStep, startStep, translateIntent, type PendingMove } from "./motion.js";
 import { buildChunkIndex, chunkKeyOf, interestSetOf } from "./interest.js";
@@ -79,7 +80,7 @@ export type { ZoneRuntime, ZoneRuntimeFactory, ZoneRuntimeContext, ZoneRuntimeOu
  *  the calls marshal across a worker/DO boundary unchanged. */
 export interface ZoneApi {
   readonly mapId: number;
-  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean, combat?: PlayerCombatSnapshot): void;
+  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean, combat?: PlayerCombatSnapshot, loadout?: import("../../../src/shared/net/protocol.js").PlayerLoadout): void;
   /** Remove a player. `announce` broadcasts the presence `leave` (false when
    *  the directory is moving them to another zone mid-transfer). */
   remove(pid: PlayerId, announce: boolean): void;
@@ -93,6 +94,11 @@ export interface ZoneApi {
   /** Advance one 60 Hz sim tick (in-process driver; a worker self-ticks). */
   tick(): void;
   stop(): void;
+  /** Read the live handoff state before a directory removes the entity. These
+   *  are optional because worker/DO adapters mirror the same fields through
+   *  recordPatch instead of exposing zone memory across the boundary. */
+  combatOf?(pid: PlayerId): PlayerCombatSnapshot | null;
+  loadoutOf?(pid: PlayerId): import("../../../src/shared/net/protocol.js").PlayerLoadout | null;
 }
 
 /** What a zone produces. All fire-and-forget; the directory (or a worker/DO
@@ -156,6 +162,8 @@ interface ZoneWorldPayload {
   /** MP9·E: the player-party table (additive — present only when parties
    *  exist / membership changed; the client mirror is applyPartyTable). */
   party?: PartyTableEntry[];
+  combatEvents?: CombatEvent[];
+  combatCursor?: number;
 }
 
 export class Zone implements ZoneApi {
@@ -173,6 +181,7 @@ export class Zone implements ZoneApi {
   /** The optional engine event runtime (D-8-0). Null ⇒ a bare player-layer zone
    *  (byte-identical to MP8·A); non-null ⇒ NPCs/events/interpreter run here. */
   private readonly runtime: ZoneRuntime | null;
+  private combatCursor = 0;
 
   constructor(mapId: number, project: unknown, outbox: ZoneOutbox, opts: ZoneOptions) {
     this.mapId = mapId;
@@ -227,9 +236,10 @@ export class Zone implements ZoneApi {
 
   /* ── membership ──────────────────────────────────────────────────────── */
 
-  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean, savedCombat?: PlayerCombatSnapshot): void {
-    const player = addPlayer(this.world, pid, name, { mapId: this.mapId, x, y, dir, charset });
-    const defaults = resolveActorCombat(this.world.proj as Project, 1);
+  admit(pid: PlayerId, name: string, charset: string, x: number, y: number, dir: number, snapshot: boolean, savedCombat?: PlayerCombatSnapshot, loadout?: import("../../../src/shared/net/protocol.js").PlayerLoadout): void {
+    const player = addPlayer(this.world, pid, name, { mapId: this.mapId, x, y, dir, charset, loadout });
+    player.loadout = sanitizePlayerLoadout(this.world.proj as Project, loadout || player.loadout);
+    const defaults = resolveActorCombat(this.world.proj as Project, player.loadout.actorId, player.loadout);
     player.maxHp = defaults.maxHp;
     player.hp = defaults.maxHp;
     const restored = savedCombat || this.restoredCombatByName.get(name);
@@ -305,6 +315,21 @@ export class Zone implements ZoneApi {
     if (this.runtime) this.runtime.noteExternalShared(key, value);
   }
 
+  combatOf(pid: PlayerId): PlayerCombatSnapshot | null {
+    const p = getPlayer(this.world, pid);
+    if (!p) return null;
+    return {
+      hp: Number(p.hp ?? 0), maxHp: Number(p.maxHp ?? 100),
+      dead: !!p.combat.dead, revive: Number(p.revive ?? p.combat.respawn ?? 0),
+      state: toCombatNetState(p.combat),
+    };
+  }
+
+  loadoutOf(pid: PlayerId): import("../../../src/shared/net/protocol.js").PlayerLoadout | null {
+    const p = getPlayer(this.world, pid);
+    return p?.loadout ? { ...p.loadout } : null;
+  }
+
   stop(): void {
     if (this.runtime) this.runtime.stop();
     this.members.clear();
@@ -342,6 +367,13 @@ export class Zone implements ZoneApi {
     // Restore event runtime state AFTER selfSw (pages resolve against selfSw).
     if (this.runtime && snap.data) {
       this.runtime.restoreData(snap.data);
+      const restoredLedger = snap.data && typeof snap.data === "object" && !Array.isArray(snap.data)
+        ? (snap.data as Record<string, JsonValue>).combatLedger : undefined;
+      if (Array.isArray(restoredLedger)) {
+        for (const row of restoredLedger) {
+          if (row && typeof row === "object" && !Array.isArray(row)) this.combatCursor = Math.max(this.combatCursor, Number((row as Record<string, JsonValue>).seq) || 0);
+        }
+      }
       const rows = snap.data && typeof snap.data === "object" && !Array.isArray(snap.data)
         ? (snap.data as Record<string, JsonValue>).players
         : undefined;
@@ -363,10 +395,22 @@ export class Zone implements ZoneApi {
   frame(pid: PlayerId, msg: ClientMessage): void {
     const member = this.members.get(pid);
     if (!member) return;
+    if (this.runtime?.ready && !this.runtime.ready()) return;
     if (msg.t === "input") {
       const isAttack = msg.intent.k === "attack";
       if (isAttack && msg.seq <= member.lastSeq) return;
       member.lastSeq = Math.max(member.lastSeq, msg.seq);
+      if (msg.intent.k === "loadout") {
+        const player = getPlayer(this.world, pid);
+        if (player) {
+          player.loadout = sanitizePlayerLoadout(this.world.proj as Project, msg.intent.loadout);
+          const actor = resolveActorCombat(this.world.proj as Project, player.loadout.actorId, player.loadout);
+          player.maxHp = actor.maxHp;
+          player.hp = Math.min(Number(player.hp ?? actor.maxHp), actor.maxHp);
+          this.outbox.recordPatch(member.pid, { loadout: player.loadout as unknown as JsonValue, mapId: this.mapId });
+        }
+        return;
+      }
       const pm = translateIntent(msg.intent);
       if (pm) member.pending = pm; // latest move/face wins for the next tick
       else if (this.runtime && msg.intent.k === "attack") {
@@ -498,6 +542,15 @@ export class Zone implements ZoneApi {
         for (const other of this.world.roster.players.values()) {
           if (other !== e && other.mapId === cross.toMapId && other.x === cross.toX && other.y === cross.toY) return;
         }
+        // Publish the complete live handoff before the directory re-homes the
+        // entity. This is also the cross-thread/DO path where combatOf() is not
+        // available synchronously to the directory.
+        this.outbox.recordPatch(e.id, {
+          x: e.x, y: e.y, dir,
+          mapId: this.mapId,
+          combat: this.combatOf(e.id) as unknown as JsonValue,
+          loadout: e.loadout as unknown as JsonValue,
+        });
         this.outbox.transferOut(e.id, cross.toMapId, cross.toX, cross.toY, dir);
       }
       return;
@@ -522,23 +575,17 @@ export class Zone implements ZoneApi {
   private broadcast(): void {
     const tick = this.world.tick;
     const events = this.eventsPayload();
+    const combatEvents = this.runtime?.drainCombatEvents?.() || [];
+    if (combatEvents.length) this.combatCursor = Math.max(this.combatCursor, ...combatEvents.map((e) => Number(e.seq) || 0));
     const table = consumePartyDirty(this.world) ? partyTable(this.world) : undefined;
     const battleByPid = this.drainBattle();
     const sendBucket = (pids: PlayerId[], players: PlayerState[]): void => {
-      const base = this.payload(players, events, table);
-      const shared: PlayerId[] = [];
+      const base = this.payload(players, events, table, combatEvents);
       for (const pid of pids) {
         const mine = battleByPid && battleByPid.get(pid);
-        if (!mine) {
-          shared.push(pid);
-          continue;
-        }
-        const changes = { ...base, battle: mine } as unknown as JsonValue;
-        this.outbox.send(pid, encodeMessage({ t: "delta", tick, changes }));
-      }
-      if (shared.length) {
-        const frame = encodeMessage({ t: "delta", tick, changes: base as unknown as JsonValue });
-        this.outbox.sendMany(shared, frame);
+        const changes = mine ? { ...base, battle: mine } : base;
+        const ack = this.members.get(pid)?.lastSeq;
+        this.outbox.send(pid, encodeMessage({ t: "delta", tick, ack, changes: changes as unknown as JsonValue }));
       }
     };
     if (this.members.size <= this.limits.aoiBypassMax) {
@@ -576,12 +623,15 @@ export class Zone implements ZoneApi {
     players: PlayerState[],
     events: EventNetState[] | undefined,
     party?: PartyTableEntry[],
+    combatEvents?: CombatEvent[],
   ): ZoneWorldPayload {
     const p: ZoneWorldPayload = { players, mapId: this.mapId, timeOfDay: this.world.g.timeOfDay };
     if (events && events.length) p.events = events;
     // An EMPTY table still rides when membership changed (the last party
     // dissolving must reach clients) — the RoomHost afterTick behavior.
     if (party) p.party = party;
+    if (combatEvents && combatEvents.length) p.combatEvents = combatEvents;
+    if (this.combatCursor > 0) p.combatCursor = this.combatCursor;
     return p;
   }
 

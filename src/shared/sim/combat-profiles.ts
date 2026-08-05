@@ -6,6 +6,7 @@
 import type {
   ActionCombat, Actor, AttackProfile, Enemy, Project, Weapon,
 } from "../schema.js";
+import type { PlayerLoadout } from "../net/protocol.js";
 
 export interface ResolvedAttackProfile {
   id: number;
@@ -186,25 +187,37 @@ export function resolveEnemyCombat(project: Partial<Project>, page: { combat?: A
   };
 }
 
-export function resolveActorCombat(project: Partial<Project>, actorId: number): ResolvedActorCombat {
+export function resolveActorCombat(project: Partial<Project>, actorId: number, requestedLoadout?: Partial<PlayerLoadout>): ResolvedActorCombat {
   const actor = (project.actors || []).find((a) => Number(a.id) === Number(actorId)) as Actor | undefined;
   const cls = (project.classes || []).find((c) => Number(c.id) === Number(actor?.classId));
-  const weaponIds = [actor?.weaponId, actor?.weapon2Id].filter((x): x is number => Number(x) > 0);
+  const weaponIds = [requestedLoadout?.weaponId ?? actor?.weaponId, requestedLoadout?.weapon2Id ?? actor?.weapon2Id]
+    .filter((x): x is number => Number(x) > 0);
   const weapons = weaponIds.map((id) => (project.weapons || []).find((w) => Number(w.id) === Number(id)) as Weapon | undefined).filter(Boolean) as Weapon[];
-  const armor = (project.armors || []).find((a) => Number(a.id) === Number(actor?.armorId));
+  const armorId = requestedLoadout?.armorId ?? actor?.armorId;
+  const armor = (project.armors || []).find((a) => Number(a.id) === Number(armorId));
   const ac: any = actor?.combat || {};
   const wc: any = weapons.find((w) => w.combat)?.combat || {};
   const arc: any = armor?.combat || {};
   const profileId = Number(ac.profileId ?? ac.attackProfileId ?? wc.profileId) || 0;
   const profile = resolveAttackProfile(project, profileId);
-  const weaponAtk = weapons.reduce((sum, w) => sum + n(w.params?.atk, 0), 0);
-  const classAtk = n(cls?.base?.atk, 0);
+  const level = Math.max(1, Math.min(99, Number(requestedLoadout?.level ?? (actor as any)?.level) || 1));
+  const classStat = (stat: string): number => {
+    const base = n((cls as any)?.base?.[stat], 0);
+    const growth = n((cls as any)?.growth?.[stat], 0);
+    return base + growth * (level - 1);
+  };
+  const equipmentStat = (stat: string): number =>
+    weapons.reduce((sum, w) => sum + n((w as any).params?.[stat], 0), 0) + n((armor as any)?.params?.[stat], 0);
+  const effectiveStat = (stat: string): number => classStat(stat) + equipmentStat(stat);
+  const classAtk = effectiveStat("atk");
+  const authoredHp = n(ac.maxHp, 0);
+  const maxHp = authoredHp > 0 ? authoredHp : Math.max(1, effectiveStat("mhp") || 100);
   // Legacy test projects and hand-authored prototypes often omit the actor
   // database entirely. Preserve the pre-profile action-combat feel with a
   // useful fallback strike instead of making every unconfigured swing deal 1.
-  const baseDamage = actor ? profile.damage + classAtk + weaponAtk : 10;
+  const baseDamage = actor ? profile.damage + classAtk : 10;
   return {
-    actorId, maxHp: n(ac.maxHp, n(cls?.base?.mhp, 100)),
+    actorId, maxHp,
     damage: n(ac.damage, baseDamage) * n(ac.damageScale ?? wc.damageScale ?? profile.damageScale, 1, 0, 100),
     profileId, windupFrames: n(ac.windupFrames ?? wc.windupFrames, profile.windupFrames, 0, 180),
     activeFrames: n(ac.activeFrames ?? wc.activeFrames, profile.activeFrames, 1, 180),
@@ -216,7 +229,7 @@ export function resolveActorCombat(project: Partial<Project>, actorId: number): 
     invulnFrames: n(ac.invulnFrames ?? arc.invulnFrames, 60, 0, 600),
     staggerResistance: n(ac.staggerResistance ?? arc.staggerResistance, 0, 0, 100),
     reviveFrames: n(ac.reviveFrames ?? arc.reviveFrames, 0, 0, 36000),
-    reviveHp: n(ac.reviveHp ?? arc.reviveHp, Math.max(1, n(cls?.base?.mhp, 100) / 2)),
+    reviveHp: n(ac.reviveHp ?? arc.reviveHp, Math.max(1, maxHp / 2)),
     defeatBehavior: String(ac.defeatBehavior || "checkpoint"),
     animationId: n(ac.animationId ?? wc.animationId, profile.animationId),
     hitAnimationId: n(ac.hitAnimationId ?? wc.hitAnimationId, profile.hitAnimationId),
@@ -226,6 +239,31 @@ export function resolveActorCombat(project: Partial<Project>, actorId: number): 
 }
 
 export interface CombatValidationIssue { where: string; message: string; severity: "error" | "warning"; mapId?: number; eventId?: number; }
+
+/** Clamp a client loadout to ids that exist in the project. Missing equipment
+ * is intentionally represented by omission so legacy actors keep their
+ * authored equipment defaults. */
+export function sanitizePlayerLoadout(project: Partial<Project>, raw: Partial<PlayerLoadout> | null | undefined): PlayerLoadout {
+  const actors = project.actors || [];
+  const actor = actors.find((a) => Number(a.id) === Number(raw?.actorId)) || actors[0];
+  const actorId = Number(actor?.id) || 1;
+  const valid = (kind: "weapons" | "armors", id: unknown): number | undefined => {
+    const nId = Number(id) || 0;
+    return nId > 0 && (project[kind] || []).some((x: any) => Number(x.id) === nId) ? nId : undefined;
+  };
+  const out: PlayerLoadout = {
+    actorId,
+    level: Math.max(1, Math.min(99, Number(raw?.level) || 1)),
+    row: raw?.row === "back" ? "back" : "front",
+  };
+  const weaponId = valid("weapons", raw?.weaponId);
+  const weapon2Id = valid("weapons", raw?.weapon2Id);
+  const armorId = valid("armors", raw?.armorId);
+  if (weaponId) out.weaponId = weaponId;
+  if (weapon2Id) out.weapon2Id = weapon2Id;
+  if (armorId) out.armorId = armorId;
+  return out;
+}
 
 export function validateCombatProject(project: Partial<Project>): CombatValidationIssue[] {
   const issues: CombatValidationIssue[] = [];

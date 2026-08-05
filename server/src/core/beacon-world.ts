@@ -36,6 +36,7 @@ import {
   type ErrorCode,
   type JsonValue,
   type PlayerId,
+  type PlayerLoadout,
 } from "../../../src/shared/net/protocol.js";
 import { generateRoomCode } from "../../../src/shared/net/room-code.js";
 import {
@@ -88,6 +89,7 @@ export interface WorldMember {
   resumeToken: string;
   mapId: number;
   disconnectedAt: number;
+  loadout?: PlayerLoadout;
 }
 
 /** One buffered player report for the operator inbox (MP9·A). Fingerprints let
@@ -109,6 +111,7 @@ interface ConnState {
   phase: "new" | "authing" | "ready" | "in-world";
   nonce: string;
   name: string;
+  loadout?: PlayerLoadout;
   fingerprint: string;
   member: WorldMember | null;
   queue: ClientMessage[];
@@ -235,6 +238,12 @@ export class BeaconWorld {
           else if (k === "dir" && typeof v === "number") rec.dir = v;
           else if (k === "combat" && v && typeof v === "object") rec.combat = v as unknown as PlayerCombatSnapshot;
           else if (k === "combatHistory" && Array.isArray(v)) rec.combatHistory = v as unknown as CombatEvent[];
+          else if (k === "loadout" && v && typeof v === "object") {
+            const loadout = v as unknown as PlayerLoadout;
+            rec.loadout = loadout;
+            const live = this.members.get(pid);
+            if (live) live.loadout = loadout;
+          }
           else rec.data[k] = v;
         }
         this.dirtyRecords.add(fingerprint);
@@ -339,7 +348,11 @@ export class BeaconWorld {
     if (!member) return false;
     if (this.zoneOccupancy(mapId) >= this.limits.maxPlayersPerZone) return false;
     const spawn = this.spawnOn(mapId, x, y, dir);
+    const rec = this.records.get(member.fingerprint);
     const from = this.zones.get(member.mapId);
+    const combat = from?.combatOf?.(pid) || rec?.combat;
+    const loadout = from?.loadoutOf?.(pid) || member.loadout || rec?.loadout;
+    if (loadout) member.loadout = loadout;
     if (from) {
       this.noteRecordPosition(member); // capture the exit position first
       from.remove(pid, true);
@@ -348,10 +361,9 @@ export class BeaconWorld {
     const to = this.zoneFor(mapId);
     member.mapId = mapId;
     this.bumpZone(mapId, +1);
-    const rec = this.records.get(member.fingerprint);
     // Admit pushes the fresh snapshot — the client renders the new map from
     // it exactly like a late join (the socket never moved: gateway model).
-    to.admit(pid, member.name, member.charset, spawn.x, spawn.y, spawn.dir, true, rec?.combat);
+    to.admit(pid, member.name, member.charset, spawn.x, spawn.y, spawn.dir, true, combat, member.loadout);
     if (rec) {
       rec.mapId = mapId;
       rec.x = spawn.x;
@@ -609,6 +621,7 @@ export class BeaconWorld {
       return;
     }
     const name = String(msg.name || "").slice(0, MAX_NAME_LEN);
+    st.loadout = msg.loadout;
     if (!this.requirePassport && (msg.pub === undefined || msg.sig === undefined)) {
       st.name = name;
       st.fingerprint = "anon:" + st.nonce; // test/tool mode: connection-scoped identity
@@ -700,14 +713,14 @@ export class BeaconWorld {
     }
     const pid = this.nextPid++;
     const member: WorldMember = {
-      pid, fingerprint: st.fingerprint, name: st.name || "Player " + pid, charset: "",
+      pid, fingerprint: st.fingerprint, name: st.name || "Player " + pid, charset: "", loadout: st.loadout || rec?.loadout,
       conn: st.conn, resumeToken: randomResumeToken(), mapId: spawn.mapId, disconnectedAt: 0,
     };
     this.members.set(pid, member);
     this.byFingerprint.set(st.fingerprint, member);
     this.records.set(st.fingerprint, {
       name: member.name, mapId: spawn.mapId, x: spawn.x, y: spawn.y, dir: spawn.dir,
-      data: rec ? rec.data : {}, combat: rec?.combat, combatHistory: rec?.combatHistory, lastSeen: this.clock(),
+      data: rec ? rec.data : {}, combat: rec?.combat, combatHistory: rec?.combatHistory, loadout: member.loadout, lastSeen: this.clock(),
     });
     this.dirtyRecords.add(st.fingerprint);
     st.member = member;
@@ -718,7 +731,7 @@ export class BeaconWorld {
     }));
     const zone = this.zoneFor(spawn.mapId);
     this.bumpZone(spawn.mapId, +1);
-    zone.admit(pid, member.name, member.charset, spawn.x, spawn.y, spawn.dir, true, rec?.combat);
+    zone.admit(pid, member.name, member.charset, spawn.x, spawn.y, spawn.dir, true, rec?.combat, member.loadout);
     this.log("info", "world-join", { pid, mapId: spawn.mapId, players: this.members.size });
   }
 
@@ -731,6 +744,7 @@ export class BeaconWorld {
     for (const m of this.members.values()) {
       if (m.conn === null && m.resumeToken === token && m.fingerprint === st.fingerprint) {
         m.conn = st.conn;
+        if (st.loadout) m.loadout = st.loadout;
         m.disconnectedAt = 0;
         m.resumeToken = randomResumeToken(); // rotate: a replayed token is dead
         st.member = m;

@@ -74,6 +74,18 @@ export type Dir = "up" | "down" | "left" | "right";
  *  it and the world reads the cardinal `dir` instead. */
 export type GridDir = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
+/** The one actor a network player contributes to field combat. Equipment is a
+ * claim only; the authority validates the ids and derives all combat numbers
+ * from the shared project database. */
+export type PlayerLoadout = {
+  actorId: number;
+  level: number;
+  weaponId?: number;
+  weapon2Id?: number;
+  armorId?: number;
+  row?: "front" | "back";
+};
+
 /** Equipment slot selector for the `equip` menu-verb intent (§C5). */
 export type EquipSlot = "weapon" | "weapon2" | "armor";
 
@@ -109,6 +121,8 @@ export type InputIntent =
   | { k: "act" }
   /** Action-RPG melee swing (the `attack` action button). */
   | { k: "attack" }
+  /** Replace the authoritative field-combat equipment claim. */
+  | { k: "loadout"; loadout: PlayerLoadout }
   /** Field-use a consumable `item` on a party member (`target` = actor id;
    *  omitted for whole-party / no-target items). §C5, defined at MP2·B. */
   | { k: "useItem"; id: number; target?: number }
@@ -287,7 +301,7 @@ export type DirectiveReplyValue =
  *  signature over the server's `challenge` nonce (domain-separated — see
  *  passport.ts signChallenge). A friend-room relay sends no challenge and
  *  ignores both fields; a world server requires them (else `auth-failed`). */
-export type ClientHello = { t: "hello"; proto: number; name: string; pub?: string; sig?: string };
+export type ClientHello = { t: "hello"; proto: number; name: string; pub?: string; sig?: string; loadout?: PlayerLoadout };
 /** Join a room by code, or — with `code` omitted — create a fresh room and
  *  become its owner. `code` must be canonical (client normalizes user typing
  *  via normalizeRoomCode before sending). */
@@ -487,6 +501,8 @@ function checkIntent(v: unknown): string | null {
       return null;
     case "attack":
       return null;
+    case "loadout":
+      return checkPlayerLoadout(v.loadout, "loadout");
     case "useItem":
       if (!isUint(v.id)) return "useItem: bad id";
       if (v.target !== undefined && !isUint(v.target)) return "useItem: bad target";
@@ -507,6 +523,17 @@ function checkIntent(v: unknown): string | null {
     default:
       return "unknown intent kind";
   }
+}
+
+function checkPlayerLoadout(v: unknown, label: string): string | null {
+  if (!isObj(v)) return `${label}: must be an object`;
+  if (!isUint(v.actorId) || v.actorId === 0) return `${label}: bad actorId`;
+  if (!isUint(v.level) || v.level === 0 || v.level > 99) return `${label}: bad level`;
+  for (const k of ["weaponId", "weapon2Id", "armorId"] as const) {
+    if (v[k] !== undefined && !isUint(v[k])) return `${label}: bad ${k}`;
+  }
+  if (v.row !== undefined && v.row !== "front" && v.row !== "back") return `${label}: bad row`;
+  return null;
 }
 
 function checkReplyValue(v: unknown): string | null {
@@ -715,6 +742,10 @@ export function decodeClientMessage(text: string): DecodeResult<ClientMessage> {
       // server's job (verifyChallenge).
       if (m.pub !== undefined && !isB64url(m.pub, 40, 200)) return fail("hello: bad pub");
       if (m.sig !== undefined && !isB64url(m.sig, 40, 200)) return fail("hello: bad sig");
+      if (m.loadout !== undefined) {
+        const err = checkPlayerLoadout(m.loadout, "hello loadout");
+        if (err) return fail(err);
+      }
       break;
     case "join":
       if (m.code !== undefined && !(typeof m.code === "string" && isCanonicalRoomCode(m.code)))

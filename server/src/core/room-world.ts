@@ -30,8 +30,9 @@ import { resolveSpawn } from "../../../src/shared/sim/players.js";
 import { Zone, type ZoneApi, type ZoneOutbox } from "./zone.js";
 import { DEFAULT_WORLD_LIMITS, type BeaconLimits, type WorldLimits } from "./config.js";
 import type { Clock } from "./room.js";
-import type { ClientMessage, JsonValue, PlayerId } from "../../../src/shared/net/protocol.js";
+import type { ClientMessage, JsonValue, PlayerId, PlayerLoadout } from "../../../src/shared/net/protocol.js";
 import type { ZoneSnapshot } from "./store.js";
+import type { PlayerCombatSnapshot } from "../../../src/shared/sim/combat-persistence.js";
 
 /** Where a RoomWorld sends its outbound frames — back to the room's member
  *  sockets (in-process: the room's connection map; worker: across the thread
@@ -49,7 +50,7 @@ export interface RoomOutbox {
 export interface RoomSim {
   /** Spawn a NEW player at the project start map. `snapshot` pushes the join
    *  snapshot (always true for a real join/resume). */
-  admit(pid: PlayerId, name: string, charset: string, snapshot: boolean): void;
+  admit(pid: PlayerId, name: string, charset: string, snapshot: boolean, loadout?: PlayerLoadout): void;
   remove(pid: PlayerId, announce: boolean): void;
   frame(pid: PlayerId, msg: ClientMessage): void;
   requestSnapshot(pid: PlayerId): void;
@@ -95,7 +96,7 @@ export class RoomWorld implements RoomSim {
   private readonly zoneFactory: (mapId: number, outbox: ZoneOutbox) => ZoneApi;
   private readonly zones = new Map<number, ZoneApi>();
   private readonly memberMap = new Map<PlayerId, number>(); // pid → current mapId
-  private readonly names = new Map<PlayerId, { name: string; charset: string }>();
+  private readonly names = new Map<PlayerId, { name: string; charset: string; loadout?: PlayerLoadout; combat?: PlayerCombatSnapshot }>();
   /** World-shared state (switch:N / var:N / timeOfDay) so a zone created later
    *  by a transfer inherits the room's current world flags. */
   private readonly shared = new Map<string, JsonValue>();
@@ -123,19 +124,27 @@ export class RoomWorld implements RoomSim {
       sendMany: (pids, frame) => roomOut.sendMany(pids, frame),
       transferOut: (pid, mapId, x, y, dir) => this.transferPlayer(pid, mapId, x, y, dir),
       sharedSet: (key, value) => this.setShared(key, value),
-      recordPatch: () => {},
+      recordPatch: (pid, patch) => {
+        const info = this.names.get(pid);
+        if (info && patch.loadout && typeof patch.loadout === "object") {
+          info.loadout = patch.loadout as unknown as PlayerLoadout;
+        }
+        if (info && patch.combat && typeof patch.combat === "object") {
+          info.combat = patch.combat as unknown as PlayerCombatSnapshot;
+        }
+      },
     };
   }
 
   /* ── RoomSim surface (the room drives these) ─────────────────────────────── */
 
-  admit(pid: PlayerId, name: string, charset: string, snapshot: boolean): void {
+  admit(pid: PlayerId, name: string, charset: string, snapshot: boolean, loadout?: PlayerLoadout): void {
     if (this.stopped) return;
     const spawn = resolveSpawn(this.scratch, { charset });
-    this.names.set(pid, { name, charset });
+    this.names.set(pid, { name, charset, loadout });
     this.memberMap.set(pid, spawn.mapId);
     const zone = this.zoneFor(spawn.mapId);
-    zone.admit(pid, name, charset, spawn.x, spawn.y, spawn.dir, snapshot);
+    zone.admit(pid, name, charset, spawn.x, spawn.y, spawn.dir, snapshot, undefined, loadout);
   }
 
   remove(pid: PlayerId, announce: boolean): void {
@@ -211,10 +220,14 @@ export class RoomWorld implements RoomSim {
     if (!info || cur === undefined) return;
     const spawn = this.spawnOn(mapId, x, y, dir);
     const from = this.zones.get(cur);
+    const combat = from?.combatOf?.(pid) || info.combat;
+    const loadout = from?.loadoutOf?.(pid) || info.loadout;
+    if (combat) info.combat = combat;
+    if (loadout) info.loadout = loadout;
     if (from) from.remove(pid, true); // announce the leave on the old map
     const to = this.zoneFor(mapId);
     this.memberMap.set(pid, mapId);
-    to.admit(pid, info.name, info.charset, spawn.x, spawn.y, spawn.dir, true);
+    to.admit(pid, info.name, info.charset, spawn.x, spawn.y, spawn.dir, true, combat, info.loadout);
   }
 
   private setShared(key: string, value: JsonValue): void {

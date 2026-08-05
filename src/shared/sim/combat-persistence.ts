@@ -2,7 +2,7 @@
 
 import type { CombatNetState } from "./action-combat.js";
 
-export type CombatEventKind = "hit" | "damage" | "defeat" | "respawn" | "playerDeath" | "revive";
+export type CombatEventKind = "telegraph" | "hit" | "damage" | "defeat" | "respawn" | "playerDeath" | "revive";
 
 export interface CombatEvent {
   tick: number;
@@ -14,6 +14,12 @@ export interface CombatEvent {
   eventId?: number;
   amount?: number;
   attackId?: number;
+  x?: number;
+  y?: number;
+  dir?: number;
+  hpAfter?: number;
+  animationId?: number;
+  sound?: string;
 }
 
 export interface PlayerCombatSnapshot {

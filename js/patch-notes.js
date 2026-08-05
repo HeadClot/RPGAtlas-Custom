@@ -5,6 +5,28 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Action-combat sprint bug fixes",
+    summary:
+      "Closed multiplayer authority, persistence handoff, client ordering, Cloudflare restore, and equipment-stat regressions found during the action-combat sprint.",
+    items: [
+      "Friend-room enemies now target and damage remote players with their own validated loadouts, including death, revive, telegraph, and presentation events.",
+      "Preserved live HP, revive state, combat state, and loadouts across map transfers and durable reconnect records.",
+      "Ignored stale client frames, applied input acknowledgements, blocked Cloudflare input during restore, and fixed level-growth, zero-knockback, and chase-range parity.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
+    title: "Unified authoritative action combat",
+    summary:
+      "Solo, friend-room, Node, and Cloudflare combat now share equipment-aware authority, ordered outcomes, recovery state, and a playable Practice Clearing slice.",
+    items: [
+      "Added validated multiplayer lead-actor loadouts, deterministic chase/target selection, telegraphs, collision-tested knockback, automatic death/respawn, and map-transfer state preservation.",
+      "Replicated combat events through snapshots/deltas for HUD HP, damage text, sounds, telegraphs, defeat effects, and client reconciliation.",
+      "Added the two-map Practice Clearing demo and its reproducible build command: node scripts/build-practice-clearing-demo.mjs.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Advanced-map startup diagnostics",
     summary:
       "Large generalized maps now composite sparse layers more efficiently and expose phase timing when map readiness is delayed.",

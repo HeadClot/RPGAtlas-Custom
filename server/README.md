@@ -13,10 +13,10 @@ It is **server-authoritative** (Project Beacon D1): clients send input intents,
 the server owns the world and streams back positions. No P2P, no player-visible
 IPs (D6). Room codes are unguessable capability tokens; empty rooms expire.
 
-> **Scope (MP5).** The server simulates the *player layer* — movement with static
-> **wall collision**, presence, emotes, late-join, resume. Autonomous NPCs,
-> events, and encounters run in the browser today and become a headless per-zone
-> runtime in a later phase (MP8). See [`docs/mp-5-spec.md`](../docs/mp-5-spec.md).
+> **Scope.** The server simulates the player layer and the shared action-combat
+> runtime — movement/collision, presence, late-join, resume, enemy chase AI,
+> telegraphs, damage, knockback, defeat, death, and respawn. Cloudflare keeps
+> the same runtime behind its capability gate and Durable Object persistence.
 
 ---
 
@@ -28,6 +28,20 @@ cd server
 npm run build                       # → dist/beacon.mjs (esbuild bundle)
 node dist/beacon.mjs --project ../Atlas_Quest.json --port 8787
 ```
+
+### Practice Clearing
+
+Build and host the dedicated authoritative action-combat slice from the repo
+root:
+
+```text
+node scripts/build-practice-clearing-demo.mjs
+node server/dist/beacon.mjs --project Practice_Clearing.json
+```
+
+The demo includes two players, two chasing enemies, telegraphs, knockback,
+respawn, and a map transfer. `Atlas_Quest_Coop.json` remains the turn-based
+co-op compatibility fixture.
 
 Players connect over `ws://<host>:8787` (put it behind a TLS-terminating proxy
 for `wss://`, which the browser client requires off localhost). Options:

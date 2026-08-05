@@ -23,10 +23,12 @@ import {
   type ModAction,
   type ServerMessage,
   type ServerPresence,
+  type PlayerLoadout,
 } from "../../shared/net/protocol.js";
 import { resolveSay } from "../../shared/net/chat-filter.js";
 import type { Transport } from "../../shared/net/transport.js";
 import type { World } from "../../shared/sim/world.js";
+import type { Project } from "../../shared/schema.js";
 import { deliverReply } from "../../shared/sim/directives.js";
 import { drainBattleOutbox, type BattleEvent } from "../../shared/sim/coop-battle.js";
 import { consumePartyDirty, partyTable } from "../../shared/sim/party.js";
@@ -36,6 +38,9 @@ import { toCombatNetState, type CombatState } from "../../shared/sim/action-comb
 import { openBroadcastServer, type BroadcastServer } from "./broadcast-transport.js";
 import type { WorldHost } from "./world-host.js";
 import { session } from "./session.js";
+import { resolveActorCombat, sanitizePlayerLoadout } from "../../shared/sim/combat-profiles.js";
+import { drainLocalCombatEvents } from "../../shared/sim/local-combat-events.js";
+import type { CombatEvent } from "../../shared/sim/combat-persistence.js";
 
 /** A resume-token-shaped random string (matches protocol `isResumeToken`). Not
  *  a security token in MP4 (local bus) — MP5 issues real per-session secrets. */
@@ -51,6 +56,7 @@ interface ClientLink {
   transport: Transport;
   name: string;
   lastSeq: number;
+  loadout?: PlayerLoadout;
 }
 
 export interface RoomHostOptions {
@@ -59,6 +65,7 @@ export interface RoomHostOptions {
   /** The host's own appearance key (player 0), used to spawn peers too until
    *  per-player appearance lands (MP7). */
   localCharset: string;
+  localLoadout?: PlayerLoadout;
   /** Fired when a peer joins (for the host's own presence toast/UI). */
   onPresence?: (p: ServerPresence) => void;
   /** MP7·C: a client sent a plugin custom message (atlas.mp.sendCustom). The
@@ -138,8 +145,8 @@ export class RoomHost {
         }
         pid = this.nextId++;
         const name = helloName || "Player " + pid;
-        addPlayer(this.world, pid, name, { charset: this.opts.localCharset });
-        this.clients.set(pid, { pid, transport, name, lastSeq: 0 });
+        addPlayer(this.world, pid, name, { charset: this.opts.localCharset, loadout: m.loadout });
+        this.clients.set(pid, { pid, transport, name, lastSeq: 0, loadout: m.loadout });
         transport.send({
           t: "welcome",
           proto: PROTOCOL_VERSION,
@@ -172,6 +179,17 @@ export class RoomHost {
         const isAttack = m.intent.k === "attack";
         if (isAttack && m.seq <= link.lastSeq) return;
         link.lastSeq = Math.max(link.lastSeq, m.seq);
+        if (m.intent.k === "loadout") {
+          const player = getPlayer(this.world, pid);
+          if (player) {
+            player.loadout = sanitizePlayerLoadout(this.world.proj as Partial<Project>, m.intent.loadout);
+            const actor = resolveActorCombat(this.world.proj as Partial<Project>, player.loadout.actorId, player.loadout);
+            player.maxHp = actor.maxHp;
+            player.hp = Math.min(Number(player.hp ?? actor.maxHp), actor.maxHp);
+          }
+          link.loadout = player?.loadout;
+          return;
+        }
         this.worldHost.pushInput(pid, m.seq, m.intent);
       } else if (m.t === "reply") {
         deliverReply(this.world, pid, m.id, m.value);
@@ -267,6 +285,9 @@ export class RoomHost {
    *  table when membership changed and each player's queued battle events
    *  (both additive `changes` content — the D-B1 precedent). */
   afterTick(): void {
+    const combatEvents: CombatEvent[] = drainLocalCombatEvents();
+    // Local presentation already consumed these events. Drain them even while
+    // the host is alone so a later joiner never receives stale solo effects.
     if (!this.clients.size) return;
     const players = this.states();
     const table = consumePartyDirty(this.world) ? partyTable(this.world) : null;
@@ -282,12 +303,15 @@ export class RoomHost {
     }
     for (const c of this.clients.values()) {
       const changes: Record<string, unknown> = { players, events: this.events() };
+      if (combatEvents.length) changes.combatEvents = combatEvents;
+      if (combatEvents.length) changes.combatCursor = Math.max(...combatEvents.map((event) => Number(event.seq) || 0));
       if (table) changes.party = table;
       const mine = byPid && byPid.get(c.pid);
       if (mine) changes.battle = mine;
       c.transport.send({
         t: "delta",
         tick: this.world.tick,
+        ack: c.lastSeq,
         changes: changes as unknown as JsonValue,
       });
     }

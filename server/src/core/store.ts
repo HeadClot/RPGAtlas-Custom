@@ -24,7 +24,7 @@
    reads one file; the DO store lists one key prefix (transactional). Pure +
    DOM-free; runs on Node ≥ 20 and workerd. GPL-3.0-or-later (see LICENSE). */
 
-import type { JsonValue } from "../../../src/shared/net/protocol.js";
+import type { JsonValue, PlayerLoadout } from "../../../src/shared/net/protocol.js";
 import {
   COMBAT_LEDGER_LIMIT,
   type CombatEvent,
@@ -49,6 +49,8 @@ export interface PlayerRecord {
   combat?: PlayerCombatSnapshot;
   /** Recent player combat outcomes, capped by the shared ledger contract. */
   combatHistory?: CombatEvent[];
+  /** Last server-validated field-combat loadout. */
+  loadout?: PlayerLoadout;
   lastSeen: number;
 }
 

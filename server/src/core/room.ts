@@ -26,6 +26,7 @@ import {
   type ClientMod,
   type JsonValue,
   type PlayerId,
+  type PlayerLoadout,
   type ServerMessage,
   type ServerPresence,
 } from "../../../src/shared/net/protocol.js";
@@ -77,6 +78,7 @@ export interface RoomMember {
   disconnectedAt: number;
   /** Say/emote spam bucket (MP9·A, tick-based). */
   social: SocialBucket;
+  loadout?: PlayerLoadout;
 }
 
 export interface RoomOptions {
@@ -243,7 +245,7 @@ export class BeaconRoom {
    *  Returns the member, or null when the room is full (the caller answers
    *  `room-full`). Spawns at the project start, sends welcome + snapshot, and
    *  announces the join to everyone else. */
-  admit(conn: ServerConnection, name: string, charset: string): RoomMember | null {
+  admit(conn: ServerConnection, name: string, charset: string, loadout?: PlayerLoadout): RoomMember | null {
     if (this.isFull) return null;
     const pid = this.nextPid++;
     const cleanName = String(name || "").slice(0, MAX_NAME_LEN) || "Player " + pid;
@@ -251,6 +253,7 @@ export class BeaconRoom {
       pid, conn, name: cleanName, charset,
       resumeToken: randomResumeToken(), lastSeq: 0, pending: null, disconnectedAt: 0,
       social: newSocialBucket(this.world.tick),
+      loadout,
     };
     this.members.set(pid, member); // must precede sim.admit (its outbox routes here)
     if (this.ownerPid < 0) this.ownerPid = pid; // first player in = room owner
@@ -261,9 +264,9 @@ export class BeaconRoom {
     if (this.sim) {
       // Engine room: the world sim spawns the entity at the start map, pushes
       // the join snapshot, and announces the join to the others via its outbox.
-      this.sim.admit(pid, cleanName, charset, true);
+      this.sim.admit(pid, cleanName, charset, true, loadout);
     } else {
-      const spawn = resolveSpawn(this.world, { charset });
+      const spawn = resolveSpawn(this.world, { charset, loadout });
       addPlayer(this.world, pid, cleanName, spawn);
       conn.send(encodeMessage({
         t: "snapshot", tick: this.world.tick,

@@ -35,7 +35,7 @@ import { RelayClient } from "./net/relay-client.js";
 import { dialRelay, type RelayDial } from "./net/relay-dial.js";
 import { connectSocket, isAllowedRelayUrl } from "./net/socket-transport.js";
 import { renderDirective } from "./scenes/directive-renderer.js";
-import { loadMap, initPlayer, syncFollowers } from "./scenes/map-runtime.js";
+import { loadMap, initPlayer, syncFollowers, presentCombatEvents } from "./scenes/map-runtime.js";
 import { generateRoomCode, normalizeRoomCode, formatRoomCode } from "../shared/net/room-code.js";
 import { resetSession, session } from "./net/session.js";
 import { loadOrCreatePassport, exportPassportText, importPassportText } from "./net/passport-store.js";
@@ -45,7 +45,8 @@ import { clearMuted } from "./net/moderation.js";
 import type { PlayerState } from "../shared/sim/players.js";
 import { createCombatState } from "../shared/sim/action-combat.js";
 import type { EventNetState } from "../shared/net/zone-runtime.js";
-import type { ErrorCode, InputIntent, ModAction } from "../shared/net/protocol.js";
+import type { ErrorCode, InputIntent, ModAction, PlayerLoadout } from "../shared/net/protocol.js";
+import type { CombatEvent } from "../shared/sim/combat-persistence.js";
 
 /** Host a room from an ALREADY-running game (player 0 = G.player). Returns the
  *  room code to share. The host keeps playing exactly as solo; peers join. */
@@ -55,6 +56,7 @@ export function createRoom(name: string): string {
   active.host = new RoomHost(soloHost.world, soloHost, code, {
     localName: myName,
     localCharset: (G.party && G.party[0] && G.party[0].charset) || "",
+    localLoadout: currentLoadout(),
     onPresence: (p) => {
       if (p.kind === "join") toast(mpText("playerJoined", { name: p.name || mpText("someone") }));
       firePresencePlugins(p);
@@ -75,9 +77,11 @@ export function joinRoom(rawCode: string, name: string): RoomClient | null {
   myName = (name || "Player").slice(0, 24);
   const client = new RoomClient(defaultWorld, code, {
     name: myName,
+    loadout: currentLoadout(),
     onSnapshot: reconstructClient,
     onLocal: writeLocalPlayer,
     onEvents: applyEventStates,
+    onCombatEvents: applyCombatEvents,
     onPresence: (p) => {
       if (p.kind === "join") toast(mpText("playerJoined", { name: p.name || mpText("someone") }));
       firePresencePlugins(p);
@@ -305,6 +309,28 @@ function applyEventStates(events: EventNetState[]): void {
       rt.combat = rt.combat || createCombatState();
       Object.assign(rt.combat, s.combat);
     } else rt.combat = null;
+  }
+}
+
+function currentLoadout(): PlayerLoadout {
+  const actor: any = G.party && G.party[0];
+  return {
+    actorId: Number(actor?.actorId || actor?.id) || 1,
+    level: Math.max(1, Math.min(99, Number(actor?.level) || 1)),
+    ...(Number(actor?.weaponId) > 0 ? { weaponId: Number(actor.weaponId) } : {}),
+    ...(Number(actor?.weapon2Id) > 0 ? { weapon2Id: Number(actor.weapon2Id) } : {}),
+    ...(Number(actor?.armorId) > 0 ? { armorId: Number(actor.armorId) } : {}),
+    row: "front",
+  };
+}
+
+function applyCombatEvents(events: CombatEvent[]): void {
+  presentCombatEvents(events);
+  for (const event of events) {
+    if ((event.kind === "playerDeath" || event.kind === "revive") && Number(event.target) === session.localPlayerId) {
+      const p: any = G.player;
+      if (p?.combat) p.combat.dead = event.kind === "playerDeath";
+    }
   }
 }
 
@@ -566,11 +592,13 @@ function connectRelay(
     attach: (transport, joinCode) => {
       active.client = new RelayClient(defaultWorld, transport, {
         name: myName,
+        loadout: currentLoadout(),
         code: joinCode,
         onWelcome: (_pid, roomCode) => { settle(); onWelcome(roomCode); },
         onSnapshot: reconstructClient,
         onLocal: writeLocalPlayer,
         onEvents: applyEventStates,
+        onCombatEvents: applyCombatEvents,
         onPresence: (p) => { if (p.kind === "join") toast(mpText("playerJoined", { name: p.name || mpText("someone") })); firePresencePlugins(p); },
         renderDirective,
         onError: (c) => { if (!settled) { settle(); onFail(friendlyError(c)); } else inSessionError(c); },
@@ -619,11 +647,13 @@ function connectWorld(name: string, url: string, onEntered: () => void, onFail: 
     lastWorldUrl = url;
     active.client = new RelayClient(defaultWorld, transport, {
       name: myName,
+      loadout: currentLoadout(),
       passport,
       onWelcome: () => { settled = true; onEntered(); },
       onSnapshot: reconstructClient,
         onLocal: writeLocalPlayer,
         onEvents: applyEventStates,
+        onCombatEvents: applyCombatEvents,
       onPresence: (p) => { if (p.kind === "join") toast(mpText("playerJoined", { name: p.name || mpText("someone") })); firePresencePlugins(p); },
       renderDirective,
       onError: (c) => { if (!settled) { settled = true; onFail(friendlyError(c)); } else inSessionError(c); },
@@ -656,11 +686,13 @@ function reconnectWorld(url: string, token: string): void {
     lastWorldUrl = url;
     active.client = new RelayClient(defaultWorld, transport, {
       name: myName,
+      loadout: currentLoadout(),
       passport,
       resume: { code: session.roomCode, token },
       onSnapshot: reconstructClient,
       onLocal: writeLocalPlayer,
       onEvents: applyEventStates,
+      onCombatEvents: applyCombatEvents,
       onPresence: (p) => firePresencePlugins(p),
       renderDirective,
       onKick: (c) => { toast(friendlyKick(c)); leaveRelay(); },

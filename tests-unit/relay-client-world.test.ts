@@ -34,6 +34,32 @@ async function waitFor(pred: () => boolean, tries = 100): Promise<void> {
 }
 
 describe("RelayClient WORLD handshake (D-8-4)", () => {
+  it("ignores stale frames, cancels an older async snapshot, and reports ack", async () => {
+    const tr = new MockTransport();
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const acks: number[] = [];
+    const world = createWorld(null);
+    const client = new RelayClient(world, tr, {
+      name: "Ada",
+      onAck: (ack) => acks.push(ack),
+      onSnapshot: async () => pending,
+      onLocal: (state) => { (world.g as any).seenX = state.x; },
+    });
+    tr.recv({ t: "welcome", proto: 1, playerId: 1, roomCode: "ROOM", resumeToken: "token", tick: 0 });
+    const local = (x: number) => ({ id: 1, name: "Ada", charset: "", mapId: 1, x, y: 1, rx: x, ry: 1, dir: 0, moving: false, animT: 0, combat: undefined });
+    tr.recv({ t: "snapshot", tick: 5, world: { players: [local(5)], mapId: 1, timeOfDay: 12 } as any });
+    tr.recv({ t: "delta", tick: 6, ack: 3, changes: { players: [local(6)] } as any });
+    tr.recv({ t: "delta", tick: 4, ack: 99, changes: { players: [local(4)] } as any });
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(world.tick).toBe(6);
+    expect((world.g as any).seenX).toBe(6);
+    expect(client.lastAck).toBe(3);
+    expect(acks).toEqual([3]);
+    client.close();
+  });
+
   it("waits for the challenge, then sends a VALID signed hello + codeless join", async () => {
     const passport = await generatePassport("Mara");
     const tr = new MockTransport();

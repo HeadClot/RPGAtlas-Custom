@@ -21,6 +21,7 @@ import {
   type InputIntent,
   type JsonValue,
   type ModAction,
+  type PlayerLoadout,
   type ServerKick,
   type ServerMessage,
   type ServerPresence,
@@ -30,6 +31,7 @@ import type { Transport } from "../../shared/net/transport.js";
 import type { World } from "../../shared/sim/world.js";
 import type { BattleEvent } from "../../shared/sim/coop-battle.js";
 import type { EventNetState } from "../../shared/net/zone-runtime.js";
+import type { CombatEvent } from "../../shared/sim/combat-persistence.js";
 import { applyPartyTable, type PartyChange, type PartyTableEntry } from "../../shared/sim/party.js";
 import { applyPlayerStates, getPlayer, type PlayerState } from "../../shared/sim/players.js";
 import type { DirectiveRenderer } from "./client-session.js";
@@ -45,11 +47,14 @@ export interface RoomSnapshot {
   timeOfDay: number;
   party?: PartyTableEntry[];
   events?: EventNetState[];
+  combatCursor?: number;
+  combatEvents?: CombatEvent[];
 }
 
 export interface RoomClientOptions {
   /** This client's display name (sent in `hello`). */
   name: string;
+  loadout?: PlayerLoadout;
   /** Fired once, with the server-assigned player id. */
   onWelcome?: (playerId: number) => void;
   /** Reconstruct the world from the snapshot (engine: load the map, init the
@@ -67,6 +72,8 @@ export interface RoomClientOptions {
   onBattle?: (ev: BattleEvent) => void;
   /** Apply authoritative NPC/event positions and combat state. */
   onEvents?: (events: EventNetState[]) => void;
+  onCombatEvents?: (events: CombatEvent[]) => void;
+  onAck?: (seq: number) => void;
   /** MP7·C: a plugin custom message from another player in the room. */
   onCustom?: (msg: { from: number; data: JsonValue }) => void;
   /** MP9·A: a player report reached ME (I'm the room owner). */
@@ -84,6 +91,10 @@ export class RoomClient {
   localPlayerId = -1;
   private readonly opts: RoomClientOptions;
   private seq = 0;
+  private combatCursor = 0;
+  private lastFrameTick = -1;
+  private frameVersion = 0;
+  lastAck = 0;
 
   constructor(world: World, roomCode: string, opts: RoomClientOptions) {
     this.world = world;
@@ -93,7 +104,7 @@ export class RoomClient {
     session.mode = "client";
     session.roomCode = roomCode;
     session.name = opts.name;
-    this.transport.send({ t: "hello", proto: PROTOCOL_VERSION, name: opts.name });
+    this.transport.send({ t: "hello", proto: PROTOCOL_VERSION, name: opts.name, ...(opts.loadout ? { loadout: opts.loadout } : {}) });
   }
 
   private onFrame(msg: ServerMessage | { t: string }): void {
@@ -104,20 +115,34 @@ export class RoomClient {
       session.localPlayerId = m.playerId;
       this.opts.onWelcome?.(m.playerId);
     } else if (m.t === "snapshot") {
+      if (m.tick < this.lastFrameTick) return;
       const snap = m.world as unknown as RoomSnapshot;
-      this.world.tick = m.tick;
+      const version = ++this.frameVersion;
+      this.lastFrameTick = m.tick;
+      this.world.tick = Math.max(this.world.tick, m.tick);
       void (async () => {
         if (this.opts.onSnapshot) await this.opts.onSnapshot(snap);
+        if (version !== this.frameVersion || m.tick < this.lastFrameTick) return;
         applyPlayerStates(this.world, this.localPlayerId, snap.players || [], this.opts.onLocal);
         if (snap.party) applyPartyTable(this.world, snap.party);
         if (snap.events) this.opts.onEvents?.(snap.events);
+        if (typeof snap.combatCursor === "number") this.combatCursor = Math.max(this.combatCursor, snap.combatCursor);
       })();
     } else if (m.t === "delta") {
+      if (m.tick < this.lastFrameTick) return;
+      this.frameVersion++;
+      this.lastFrameTick = m.tick;
       this.world.tick = m.tick;
+      if (typeof m.ack === "number" && m.ack > this.lastAck) {
+        this.lastAck = m.ack;
+        this.opts.onAck?.(m.ack);
+      }
       const changes = m.changes as unknown as {
         players?: PlayerState[];
         party?: PartyTableEntry[];
         events?: EventNetState[];
+        combatEvents?: CombatEvent[];
+        combatCursor?: number;
         battle?: BattleEvent[];
       };
       applyPlayerStates(this.world, this.localPlayerId, changes.players || [], this.opts.onLocal);
@@ -127,12 +152,20 @@ export class RoomClient {
         this.opts.onParty?.(diff);
       }
       if (changes.events) this.opts.onEvents?.(changes.events);
+      if (changes.combatEvents) {
+        const fresh = changes.combatEvents.filter((event) => Number(event.seq) > this.combatCursor);
+        if (fresh.length) {
+          this.combatCursor = Math.max(this.combatCursor, ...fresh.map((event) => Number(event.seq) || 0));
+          this.opts.onCombatEvents?.(fresh);
+        }
+      }
+      if (typeof changes.combatCursor === "number") this.combatCursor = Math.max(this.combatCursor, changes.combatCursor);
       if (changes.battle) for (const ev of changes.battle) this.opts.onBattle?.(ev);
     } else if (m.t === "directive") {
       const render = this.opts.renderDirective;
       if (render) void render(m.directive).then((value) => this.transport.send({ t: "reply", id: m.id, value }));
     } else if (m.t === "presence") {
-      this.world.tick = m.tick;
+      this.world.tick = Math.max(this.world.tick, m.tick);
       if (m.playerId !== this.localPlayerId) {
         const e = getPlayer(this.world, m.playerId);
         if (e && m.kind === "emote") e.emote = { id: m.emote || "", t: m.tick };
@@ -155,6 +188,11 @@ export class RoomClient {
   /** Send one input intent to the host (the host moves the player). */
   sendInput(intent: InputIntent): void {
     this.transport.send({ t: "input", seq: ++this.seq, intent });
+  }
+
+  /** Update the authoritative loadout used by the room host for combat. */
+  sendLoadout(loadout: PlayerLoadout): void {
+    this.sendInput({ k: "loadout", loadout });
   }
 
   /** Send an emote (always available, D4). */

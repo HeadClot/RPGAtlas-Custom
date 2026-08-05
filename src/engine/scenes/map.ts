@@ -74,6 +74,7 @@ import {
 import { counterAt, damageFloorAt } from "./tile-behavior.js";
 import { autosaveNow } from "../state/save.js";
 import { resolveBoundaryCrossing } from "../../shared/map-connections.js";
+import { knockbackStep } from "../../shared/sim/action-combat-adapter.js";
 
 let frameWaiters: any[] = [];
 let seamlessCrossing = false;
@@ -360,7 +361,11 @@ export function update(): void {
       updateJumpMotion(rt); // route "jump" steps: NPC hops advance like the player's
     } else if (rt.moving) {
       const arrived = updateEntityMotion(rt, rt.combat && rt.combat.knockback ? 0.18 : rt.speed);
-      if (arrived && rt.combat) rt.combat.knockback = false;
+      if (arrived && rt.combat && Number(rt.combat.knockback) > 0) {
+        const remaining = Number(rt.combat.knockback) || 0;
+        if (knockbackStep(rt, Number(rt.combat.knockbackDir) || rt.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) rt.combat.knockback = remaining - 1;
+        else rt.combat.knockback = 0;
+      }
     }
     if (!rt.moving && !rt.jumping && rt.route) {
       updateRoute(rt);

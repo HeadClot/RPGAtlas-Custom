@@ -31,6 +31,26 @@ function outbox(): ZoneOutbox {
 }
 
 describe("Cloudflare action-combat simulation adapter", () => {
+  it("does not admit action input before durable restore completes", async () => {
+    let release!: () => void;
+    const restore = new Promise<null>((resolve) => { release = () => resolve(null); });
+    const persistence = {
+      loadPlayer: async () => null,
+      savePlayer: async () => {},
+      loadZone: () => restore,
+      saveZone: async () => {},
+    };
+    const z = new Zone(1, project, outbox(), { limits: DEFAULT_WORLD_LIMITS, runtimeFactory: (ctx) => createCloudActionCombatRuntime({ ...ctx, persistence }) });
+    z.admit(1, "Riko", "", 1, 1, 2, false);
+    z.frame(1, { t: "input", seq: 1, intent: { k: "attack" } });
+    expect(z.world.roster.players.get(1)!.combat.phase).toBe("idle");
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    z.frame(1, { t: "input", seq: 2, intent: { k: "attack" } });
+    expect(z.world.roster.players.get(1)!.combat.phase).toBe("active");
+    z.stop();
+  });
+
   it("authoritatively defeats an enemy and restores its snapshot", () => {
     const first = new Zone(1, project, outbox(), { limits: DEFAULT_WORLD_LIMITS, runtimeFactory: createCloudActionCombatRuntime });
     first.admit(1, "Riko", "", 1, 1, 2, false);

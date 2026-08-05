@@ -169,6 +169,24 @@ describe("RoomWorld directory routing (player-layer, no engine)", () => {
     expect(framesTo(2).some((m) => m.t === "presence" && m.kind === "leave" && m.playerId === 1)).toBe(true);
     expect(rw.zoneCount).toBe(1); // one map occupied
   });
+
+  it("carries live combat state and loadout through an internal map transfer", () => {
+    rw = new RoomWorld(plainProject(), outbox(), { limits: DEFAULT_LIMITS, seed: 1 });
+    const loadout = { actorId: 1, level: 7, row: "back" as const };
+    rw.admit(1, "Ada", "", true, loadout);
+    const from = (rw as any).zones.get(1);
+    const player = from.world.roster.players.get(1);
+    player.hp = 4;
+    player.maxHp = 100;
+    player.revive = 27;
+    player.combat.dead = true;
+    player.combat.phase = "dead";
+    player.loadout = loadout;
+    expect((rw as any).transferPlayer(1, 2, 3, 3, 2)).toBeUndefined();
+    const to = (rw as any).zones.get(2);
+    expect(to.world.roster.players.get(1)).toMatchObject({ hp: 4, maxHp: 100, revive: 27, loadout });
+    expect(to.world.roster.players.get(1).combat.dead).toBe(true);
+  });
 });
 
 /* ── layer 2: the F-1 fix through the whole room stack (engine) ───────────── */

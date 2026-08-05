@@ -85,6 +85,7 @@ import {
 } from "../../shared/sim/action-combat.js";
 import { resolveActorCombat, resolveEnemyCombat, type ResolvedEnemyCombat } from "../../shared/sim/combat-profiles.js";
 import { CombatLedger, type CombatEvent } from "../../shared/sim/combat-persistence.js";
+import { CombatEventStream, knockbackStep, playerDamageFor, selectCombatTarget } from "../../shared/sim/action-combat-adapter.js";
 import type { JsonValue, PlayerId } from "../../shared/net/protocol.js";
 import type { World } from "../../shared/sim/world.js";
 import type {
@@ -212,6 +213,13 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
   let shTime = 0;
   const shPSwitch = new Map<string, boolean>(); // key = pid + ":" + id
   let combatLedger = new CombatLedger();
+  let combatEvents = new CombatEventStream();
+
+  function recordCombat(event: Omit<CombatEvent, "seq">): CombatEvent {
+    const row = combatLedger.append(event);
+    combatEvents.append(row);
+    return row;
+  }
 
   /* ── entity queries + motion (headless port of map-runtime) ────────────── */
 
@@ -260,21 +268,19 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
   }
 
   function playerAttackDamage(player: any, rt: any): number {
-    const actor = world.g.party && world.g.party[0];
-    const actorId = Number(actor && (actor.actorId || actor.id)) || 1;
-    const resolved = resolveActorCombat(world.proj as any, actorId);
+    const resolved = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
     const enemy = world.proj && world.proj.enemies
       ? world.proj.enemies.find((e: any) => Number(e.id) === Number(rt.combat.enemyId))
       : null;
     const def = Number(enemy && enemy.stats && enemy.stats.def) || 0;
-    return Math.max(1, Math.floor(resolved.damage * 1.35 - def * 0.6));
+    return playerDamageFor(world.proj as any, player.loadout || { actorId: resolved.actorId }, def);
   }
 
   function defeatEvent(rt: any, cfg: ResolvedEnemyCombat): void {
     if (!rt.combat || rt.combat.dead) return;
     markDead(rt.combat, cfg.respawnFrames);
     rt.combat.hp = 0;
-    combatLedger.append({ tick: world.tick, kind: "defeat", target: rt.ev.id, mapId, eventId: rt.ev.id });
+    recordCombat({ tick: world.tick, kind: "defeat", target: rt.ev.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, animationId: cfg.animationId, sound: cfg.defeatSound });
     // A defeat self-switch is permanent authored defeat. Respawn is the
     // alternate authored behavior and keeps the event on the field.
     const sw = Number(cfg.respawnFrames) > 0 ? "" : cfg.defeatSelfSwitch;
@@ -293,14 +299,15 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     if (!cfg || !rt.combat || rt.combat.dead || rt.combat.invuln > 0) return;
     const dmg = playerAttackDamage(player, rt);
     rt.combat.hp = Math.max(0, Number(rt.combat.hp || 100) - dmg);
-    combatLedger.append({ tick: world.tick, kind: "hit", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, attackId: player.combat.attackId });
-    combatLedger.append({ tick: world.tick, kind: "damage", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, amount: dmg, attackId: player.combat.attackId });
+    recordCombat({ tick: world.tick, kind: "hit", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, attackId: player.combat.attackId, x: rt.x, y: rt.y, dir: player.combat.dir, animationId: cfg.hitAnimationId, sound: cfg.hitSound });
+    recordCombat({ tick: world.tick, kind: "damage", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, amount: dmg, hpAfter: Math.max(0, rt.combat.hp), attackId: player.combat.attackId, x: rt.x, y: rt.y, sound: cfg.hurtSound });
     applyHurt(rt.combat, cfg.invulnFrames, cfg.staggerFrames || 10);
     if (rt.combat.hp <= 0) defeatEvent(rt, cfg);
     else {
-      const [dx, dy] = DIR_OFFSET[player.combat.dir] || [0, 0];
-      const nx = rt.x + dx, ny = rt.y + dy;
-      if (!rt.moving && canEntityPass(rt, nx, ny)) startMove(rt, player.combat.dir);
+      if (cfg.knockbackTiles > 0 && !rt.moving && knockbackStep(rt, player.combat.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) {
+        rt.combat.knockback = Math.max(0, Number(cfg.knockbackTiles) || 0) - 1;
+        rt.combat.knockbackDir = player.combat.dir;
+      }
     }
   }
 
@@ -309,12 +316,14 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     if (rt.combat.hitIds.has(player.id)) return;
     rt.combat.hitIds.add(player.id);
     player.hp = Math.max(0, Number(player.hp || 100) - Math.max(0, cfg.touchDamage));
-    combatLedger.append({ tick: world.tick, kind: "damage", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, amount: Math.max(0, cfg.touchDamage), attackId: rt.combat.attackId });
+    recordCombat({ tick: world.tick, kind: "damage", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, amount: Math.max(0, cfg.touchDamage), hpAfter: player.hp, attackId: rt.combat.attackId, x: player.x, y: player.y, sound: cfg.hurtSound });
     applyHurt(player.combat, 60, cfg.staggerFrames || 0);
     if (player.hp <= 0) {
-      markDead(player.combat, 300);
-      player.revive = 300;
-      combatLedger.append({ tick: world.tick, kind: "playerDeath", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id });
+      const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
+      const reviveFrames = Math.max(1, actor.reviveFrames || 300);
+      markDead(player.combat, reviveFrames);
+      player.revive = reviveFrames;
+      recordCombat({ tick: world.tick, kind: "playerDeath", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, x: player.x, y: player.y, animationId: cfg.animationId, sound: cfg.defeatSound });
     }
   }
 
@@ -325,11 +334,11 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       if (player.combat.dead) {
         tickAttack(player.combat, 0, 0);
         if (respawnIfReady(player.combat)) {
-          const actor = resolveActorCombat(world.proj as any, 1);
+          const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
           player.hp = Math.max(1, actor.reviveHp);
           player.maxHp = Math.max(player.maxHp || 0, actor.maxHp);
           player.revive = 0;
-          combatLedger.append({ tick: world.tick, kind: "revive", target: player.id, mapId });
+          recordCombat({ tick: world.tick, kind: "revive", target: player.id, mapId, x: player.x, y: player.y, animationId: actor.reviveFrames ? actor.hitAnimationId : 0, sound: actor.hitSound });
         }
         continue;
       }
@@ -351,7 +360,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
         if (Number(cfg.respawnFrames) > 0 && respawnIfReady(rt.combat)) {
           rt.combat.hp = cfg.hp;
           rt.erased = false;
-          combatLedger.append({ tick: world.tick, kind: "respawn", target: rt.ev.id, mapId, eventId: rt.ev.id });
+          recordCombat({ tick: world.tick, kind: "respawn", target: rt.ev.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, sound: cfg.reviveSound });
           refreshPage(mapId, rt);
         }
         continue;
@@ -368,6 +377,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
           rt.combat.hitIds.clear();
           startAttack(rt.combat, rt.dir, cfg.attackWindupFrames, cfg.attackActiveFrames, cfg.attackRecoveryFrames);
           rt.combat.attackCooldown = cfg.attackCooldown || 45;
+          recordCombat({ tick: world.tick, kind: "telegraph", source: rt.ev.id, target: target.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, dir: rt.dir, animationId: cfg.telegraphAnimationId, sound: cfg.telegraphSound });
           // Zero-windup attacks are active immediately on this tick.
           if (attackIsActive(rt.combat)) {
             for (const player of players) {
@@ -695,7 +705,33 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       }
       for (const rt of world.evRTs) {
         if (rt.erased || !rt.page) continue;
-        if (rt.moving) updateEntityMotion(rt, rt.speed);
+        if (rt.moving) {
+          const arrived = updateEntityMotion(rt, rt.speed);
+          if (arrived && rt.combat && Number(rt.combat.knockback) > 0) {
+            const remaining = Number(rt.combat.knockback) || 0;
+            if (knockbackStep(rt, Number(rt.combat.knockbackDir) || rt.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) {
+              rt.combat.knockback = remaining - 1;
+            } else {
+              rt.combat.knockback = 0;
+            }
+          }
+        }
+        const chaseCfg = combatConfig(rt);
+        if (!rt.moving && chaseCfg?.ai === "chase" && !rt.locked && !ctx.blockingRun && rt.combat && !rt.combat.dead && rt.combat.stagger <= 0) {
+          const target = selectCombatTarget(rt, [...world.roster.players.values()].filter((p: any) => !p.combat.dead && p.mapId === mapId), 8);
+          if (target && Math.abs(target.x - rt.x) + Math.abs(target.y - rt.y) > (chaseCfg.attackRange || 1)) {
+            const dx = target.x - rt.x, dy = target.y - rt.y;
+            const preferred = Math.abs(dx) >= Math.abs(dy) ? [dx > 0 ? 2 : 1, dy > 0 ? 0 : 3] : [dy > 0 ? 0 : 3, dx > 0 ? 2 : 1];
+            for (const dir of preferred) {
+              const [sx, sy] = DIR_OFFSET[dir] || [0, 0];
+              if (canEntityPass(rt, rt.x + sx, rt.y + sy) && eventMayStep(rt, rt.x + sx, rt.y + sy)) {
+                rt.dir = dir;
+                startMove(rt, dir);
+                break;
+              }
+            }
+          }
+        }
         if (!rt.moving && rt.route) {
           updateRoute(rt);
         } else if (!rt.moving) {
@@ -768,7 +804,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     onAttack(pid: PlayerId): void {
       const player = world.roster.players.get(pid) as any;
       if (!player || player.moving || player.combat.dead || world.blocking.has(pid)) return;
-      const actor = resolveActorCombat(world.proj, 1);
+      const actor = resolveActorCombat(world.proj, player.loadout?.actorId || 1, player.loadout);
       if (player.combat.attackCooldown > 0) return;
       if (startAttack(player.combat, player.dir, actor.windupFrames, actor.activeFrames, actor.recoveryFrames)) {
         player.combat.attackCooldown = actor.cooldown;
@@ -785,6 +821,10 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
         });
       }
       return out;
+    },
+
+    drainCombatEvents(): CombatEvent[] {
+      return combatEvents.drain();
     },
 
     snapshotData(): Record<string, JsonValue> {
@@ -810,7 +850,10 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     },
 
     restoreData(data: Record<string, JsonValue>): void {
-      if (data && Array.isArray(data.combatLedger)) combatLedger = new CombatLedger(data.combatLedger as unknown as CombatEvent[]);
+      if (data && Array.isArray(data.combatLedger)) {
+        combatLedger = new CombatLedger(data.combatLedger as unknown as CombatEvent[]);
+        combatEvents = new CombatEventStream(data.combatLedger as unknown as CombatEvent[]);
+      }
       const events = data && (data.events as any[]);
       if (!Array.isArray(events)) return;
       const byId = new Map<number, any>();
