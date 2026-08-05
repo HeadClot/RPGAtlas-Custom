@@ -39,7 +39,7 @@ gains join master (me rides the bgm volume), `setBgsVolume`, `getBuses()`
 hands the live context/buses to the deck, `playAt(name, pan, vol)`.
 **Routing** (one seam): `Sfx.play`/`playAt` and `Music.play(name, fadeMs?)`
 detect `asset:` references and delegate to `window.AtlasAudioDeck`
-(registered by `src/shared/audio-deck.ts` — imported for side effect by both
+(registered by `src/shared/audio/audio-deck.ts` — imported for side effect by both
 boots); procedural behavior is byte-for-byte otherwise, and Music enforces
 one BGM owner (chiptune timer OR deck, never both). **Deck**: two-slot BGM
 crossfade (equal linear ramps on per-slot gains, default 800 ms), N looping
@@ -111,7 +111,7 @@ tsc, eslint, node --test (16), vitest (**179**), Playwright **36/36**
 (goldens byte-stable).
 
 Stage B COMPLETE (2026-07-02): the Asset Browser. **Tools ▸ Asset Browser**
-(`src/editor/tools/asset-browser.ts`, command `assetbrowser`, Tools menu +
+(`src/editor/tools/assets/asset-browser.ts`, command `assetbrowser`, Tools menu +
 command palette): left type rail with live counts (All/Characters/Facesets/
 Enemies/Tiles/Audio), toolbar (search, **Unused only** toggle, **Images as**
 type selector, **Import Files…** + full-modal drag-drop with `.ab-drop`
@@ -148,7 +148,7 @@ written via temp-file rename + content-addressed `blobs/<sha>` files shared
 by hash, base64 IPC, hex-validated file names; base64 crate added; cargo
 check green). `src/platform/default-asset-store.ts` picks FS under
 `__TAURI__` (editor + playtest windows share one library), else IDB, else
-null. **Service** (`src/shared/asset-library.ts`): catalog init publishes
+null. **Service** (`src/shared/assets/asset-library.ts`): catalog init publishes
 image entries to `window.RPGATLAS_LIBRARY_ASSETS` (object URLs, audio stays
 internal); `importAssets` (slugging, collision suffixes that respect
 `.pass`/`.terrain`, hash dedupe w/ tag merge, injectable probe, audio-kind
@@ -356,7 +356,7 @@ badges, rename rewriting, and delete warnings.
   temp-file rename). IPC carries base64; the TS side converts to/from Blob.
   Feature-gated by `window.__TAURI__` exactly like host.js; browser build
   never imports it (dynamic pick in one boot spot).
-- **`src/shared/asset-library.ts`** — the service everything else calls:
+- **`src/shared/assets/asset-library.ts`** — the service everything else calls:
   - `initLibrary(store)` + `libraryCatalog()`: merged shipped+library view
     as `{type, name, src}` entries feeding `discoverExternalAssets`
     (object URLs for library blobs). `js/assets.js` gains ONE hook:
@@ -445,7 +445,7 @@ never knows an importer existed.
 
 ### Stage D — Audio v2
 
-- **`src/shared/audio-deck.ts`** — streamed playback over the existing
+- **`src/shared/audio/audio-deck.ts`** — streamed playback over the existing
   mixer, procedural untouched:
   - sfx.js exposes its buses (`busFor("bgm"|"bgs"|"me"|"se")`, adding `bgs`
     + `me` gains into master; volumes: bgs persisted like bgm/se, me rides

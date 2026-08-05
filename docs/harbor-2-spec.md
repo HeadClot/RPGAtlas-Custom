@@ -139,7 +139,7 @@ the folder leaf is the `sanitizeFolderName(displayName)` result.
   `string`, avoiding a 15k-line inferred JSON type in `tsc`, and bundles the bytes into the
   lazy manager chunk). Parsed, title overridden, migrated/validated like the others.
 
-The descriptor list + `isTemplateId` come from the H1 core `src/shared/project-templates.ts`
+The descriptor list + `isTemplateId` come from the H1 core `src/shared/project/project-templates.ts`
 (labels/blurbs already final and kid-friendly).
 
 ---
@@ -402,7 +402,7 @@ manager never mounts).
   Manager — make or open a game" (kid-friendly; names the New/Open launcher, the live folder
   preview, the three templates, recents, the friendly errors, and the window title; notes the
   web version is unchanged). Cache-buster bumped `patch-notes.js?v=61 → 62` in **both**
-  `src/editor/help.ts` and `src/editor/shims.d.ts` (per AGENTS.md). Product version stays
+  `src/editor/core/help.ts` and `src/editor/shims.d.ts` (per AGENTS.md). Product version stays
   **1.1.0** (bumps to 1.2.0 at H6); `data.js` stays `?v=31`; FORMAT_VERSION stays **2**.
 - **Final gate sweep:** Playwright **83/83** (70 existing **unmodified** + 13 manager) ·
   vitest **941** · node **19** · eslint **0** · typecheck **clean** · patch-notes `?v=62` ·

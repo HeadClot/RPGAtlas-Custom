@@ -11,13 +11,13 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { TILE, editorState as S, curMap } from "../editor-state";
+import { TILE, editorState as S, curMap } from "../core/editor-state";
 import { touch } from "../persistence";
 import { renderMap, normRect } from "../map-editor/map-render";
 import { pushUndo } from "../map-editor/history";
-import { layerView } from "../../shared/layer-view";
-import { isAutotileId } from "../../shared/autotile-registry";
-import { withFlags } from "../../shared/tile-flags";
+import { layerView } from "../../shared/map/layer-view";
+import { isAutotileId } from "../../shared/map/autotile-registry";
+import { withFlags } from "../../shared/map/tile-flags";
 import { advState, advHooks, ensureLayersAdv, findLayer } from "./adv-state";
 import { placeStampAt } from "./adv-stamps";
 

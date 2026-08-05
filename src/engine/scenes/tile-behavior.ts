@@ -1,6 +1,6 @@
 /* RPGAtlas — src/engine/scenes/tile-behavior.ts
    Per-tile behavior flags + terrain tags (Project Compass M4·A): the engine
-   glue over the pure core (src/shared/tile-behavior-core.ts). A lookup cache
+   glue over the pure core (src/shared/map/tile-behavior-core.ts). A lookup cache
    is rebuilt on every map load; a presence mask scanned from the painted
    layers lets every query short-circuit on maps without a behavior — classic
    maps stay byte-identical (movement, rendering, RNG draws; draw-conservation
@@ -21,7 +21,7 @@ import {
   terrainTagAtIndex,
   wrapCoord,
   type BehaviorMaps,
-} from "../../shared/tile-behavior-core.js";
+} from "../../shared/map/tile-behavior-core.js";
 
 export { BEHAV };
 

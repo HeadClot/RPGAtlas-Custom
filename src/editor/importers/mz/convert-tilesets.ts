@@ -21,8 +21,8 @@
    GPL-3.0-or-later (see LICENSE). */
 
 import type { Autotile, Tileset } from "../../../shared/schema";
-import { assetKeyOf, slugName } from "../../../shared/asset-library";
-import { tileIdOf } from "../../../shared/autotile-registry";
+import { assetKeyOf, slugName } from "../../../shared/assets/asset-library";
+import { tileIdOf } from "../../../shared/map/autotile-registry";
 import type { ImportReport } from "./report";
 import type { RmList, RmTileset } from "./raw-types";
 import {

@@ -10,15 +10,15 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, TILE, editorState as S, t } from "../editor-state";
-import { h } from "../dom";
+import { Assets, TILE, editorState as S, t } from "../core/editor-state";
+import { h } from "../core/dom";
 import { renderPalette } from "../map-editor/map-render";
 import { setStatus } from "../map-editor/status";
-import { isAutotileId } from "../../shared/autotile-registry";
-import { flagTransform } from "../../shared/tile-flags";
+import { isAutotileId } from "../../shared/map/autotile-registry";
+import { flagTransform } from "../../shared/map/tile-flags";
 import {
   CATEGORY_ORDER, CATEGORY_LABEL_KEY, filterTileIds, type TileCategory,
-} from "../../shared/tile-categories";
+} from "../../shared/map/tile-categories";
 import { advState, advHooks } from "./adv-state";
 import {
   stamps, deleteStamp, renameStamp, captureStamp,

@@ -49,7 +49,7 @@ import {
   DIR_OFFSET,
   type MapCollision,
 } from "../../../src/shared/sim/collision.js";
-import { resolveBoundaryCrossing } from "../../../src/shared/map-connections.js";
+import { resolveBoundaryCrossing } from "../../../src/shared/map/map-connections.js";
 import type { GameMap } from "../../../src/shared/schema.js";
 import { advanceStep, startStep, translateIntent, type PendingMove } from "./motion.js";
 import { randomResumeToken } from "./tokens.js";

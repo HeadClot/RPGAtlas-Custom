@@ -42,9 +42,9 @@ import { getFormula, mzDamageValue, mzHitRoll } from "../../shared/formula.js";
 import { useItemOn, iconEntryHtml, bar } from "./menus.js";
 import { gaugeColors } from "../state/player-options.js";
 import { createBattleFx } from "./battle-fx.js";
-import { playAnimation } from "../../shared/anim-player.js";
-import { playMe } from "../../shared/audio-deck.js";
-import { resolvePlaybackSheet } from "../../shared/asset-library.js";
+import { playAnimation } from "../../shared/presentation/anim-player.js";
+import { playMe } from "../../shared/audio/audio-deck.js";
+import { resolvePlaybackSheet } from "../../shared/assets/asset-library.js";
 import { Interp } from "../interpreter/interp.js";
 import { resolvePictureSrc } from "./presentation-runtime.js";
 import {

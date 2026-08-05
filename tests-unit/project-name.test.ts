@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/project-name.test.ts
-   The project-name → folder-leaf sanitizer (src/shared/project-name.ts, Harbor
+   The project-name → folder-leaf sanitizer (src/shared/project/project-name.ts, Harbor
    H1·C §5.1). Covers illegal chars, trailing dot/space, reserved device names,
    empty/whitespace, over-length, preserved unicode/casing, and idempotence.
    Control characters are built with String.fromCharCode so the source stays clean
@@ -10,7 +10,7 @@ import {
   sanitizeFolderName,
   FALLBACK_FOLDER_NAME,
   MAX_FOLDER_NAME,
-} from "../src/shared/project-name";
+} from "../src/shared/project/project-name";
 
 const TAB = String.fromCharCode(9);
 const LF = String.fromCharCode(10);

@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/automap.test.ts
-   The pure visual-automap evaluator (src/shared/automap.ts, Phase 8 Stage F):
+   The pure visual-automap evaluator (src/shared/map/automap.ts, Phase 8 Stage F):
    predicate matching over a fixture grid (terrainIs / tileIs / near / notNear /
    regionIs / passable), action expansion (placeTile probability, placeStamp
    into per-cell writes, setRegion), determinism (same seed ⇒ identical edits),
@@ -9,8 +9,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { AutomapRule, Stamp } from "../src/shared/schema";
-import { TILE_FLAG_H, withFlags } from "../src/shared/tile-flags";
-import { evaluateAutomap, applyAutomapEdits, type AutomapMap } from "../src/shared/automap";
+import { TILE_FLAG_H, withFlags } from "../src/shared/map/tile-flags";
+import { evaluateAutomap, applyAutomapEdits, type AutomapMap } from "../src/shared/map/automap";
 
 const GRASS = 5;
 const WATER = 9;

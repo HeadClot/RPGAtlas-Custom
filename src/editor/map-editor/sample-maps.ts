@@ -8,9 +8,9 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, RA, editorState as S } from "../editor-state";
-import { h } from "../dom";
-import { modal } from "../modals";
+import { Assets, RA, editorState as S } from "../core/editor-state";
+import { h } from "../core/dom";
+import { modal } from "../core/modals";
 import { touch } from "../persistence";
 import { renderMap } from "./map-render";
 import { flashStatus } from "./status";

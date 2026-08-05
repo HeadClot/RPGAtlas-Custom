@@ -1,13 +1,13 @@
 /* RPGAtlas — tests-unit/editor-scoped-restore.test.ts
    Pure core of the unified undo's scoped snapshots
-   (src/editor/scoped-restore.ts, Phase 3 Stage F).
+   (src/editor/core/scoped-restore.ts, Phase 3 Stage F).
    GPL-3.0-or-later. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, expect, it } from "vitest";
 import {
   cloneScoped, restoreScoped, restoreInto, sameScoped, type ScopeSpec,
-} from "../src/editor/scoped-restore";
+} from "../src/editor/core/scoped-restore";
 
 describe("cloneScoped", () => {
   it("deep-clones the scope's container", () => {

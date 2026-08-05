@@ -4,9 +4,9 @@
    message window. GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA, editorState as S } from "../editor-state";
-import { h, field, row, dbOpts, varOpts } from "../dom";
-import { modal, confirmBox } from "../modals";
+import { RA, editorState as S } from "../core/editor-state";
+import { h, field, row, dbOpts, varOpts } from "../core/dom";
+import { modal, confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 
 const TYPE_LABELS: Record<string, string> = {

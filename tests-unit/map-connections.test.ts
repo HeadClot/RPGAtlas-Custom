@@ -8,7 +8,7 @@ import {
   validateLayout,
   localToWorld,
   worldToLocal,
-} from "../src/shared/map-connections";
+} from "../src/shared/map/map-connections";
 
 type ConnMap = { id: number; width: number; height: number; worldOrigin?: { x: number; y: number }; loop?: { h?: boolean; v?: boolean } };
 const map = (id: number, x: number, y: number, width = 4, height = 3, extra: Partial<ConnMap> = {}): ConnMap => ({

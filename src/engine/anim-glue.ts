@@ -3,7 +3,7 @@
    command's engine half. Lazily creates one stage-level fx layer (under the
    uiLayer, so message windows stay on top) with its own battle-fx particle
    pool, converts entities to stage-local screen points via the same camera
-   math render-glue uses, and feeds src/shared/anim-player.ts. Points are
+   math render-glue uses, and feeds src/shared/presentation/anim-player.ts. Points are
    passed as plain {x,y} (stage coordinates) rather than DOM rects so the
    stage's CSS scale never enters the math. GPL-3.0-or-later (see LICENSE). */
 
@@ -13,10 +13,10 @@ import { Assets, RA, Sfx } from "../shared/deps.js";
 import { clamp, el } from "./util.js";
 import { ctx } from "./state/engine-context.js";
 import { G } from "./state/game-state.js";
-import { createBattleFx } from "../shared/battle-fx.js";
-import { playAnimation } from "../shared/anim-player.js";
-import { resolvePlaybackSheet } from "../shared/asset-library.js";
-import { clampCameraAxis, connectedCameraBounds } from "../shared/map-connections.js";
+import { createBattleFx } from "../shared/presentation/battle-fx.js";
+import { playAnimation } from "../shared/presentation/anim-player.js";
+import { resolvePlaybackSheet } from "../shared/assets/asset-library.js";
+import { clampCameraAxis, connectedCameraBounds } from "../shared/map/map-connections.js";
 import { connectedMapBuffers } from "./scenes/map-runtime.js";
 
 let fxBundle: any = null;

@@ -17,7 +17,7 @@ import {
   type ProjectBundle,
   type ScannedFile,
 } from "../../platform/tauri/project-host";
-import type { Recent } from "../../shared/recents";
+import type { Recent } from "../../shared/project/recents";
 import type { AssetMeta } from "../../shared/services";
 
 /** The project surface the manager depends on. `create`/`open`/`recents*`/`reveal`

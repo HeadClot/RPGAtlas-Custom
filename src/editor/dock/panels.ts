@@ -8,9 +8,9 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { $, h } from "../dom";
-import { modal } from "../modals";
-import { registerCommand, refreshToolbar } from "../workspace";
+import { $, h } from "../core/dom";
+import { modal } from "../core/modals";
+import { registerCommand, refreshToolbar } from "../core/workspace";
 import { flashStatus } from "../map-editor/status";
 import { mountViewport, VIEWPORT_PANEL } from "../map-editor/hd-viewport";
 import { mountWorldView, WORLD_PANEL } from "../map-editor/world-view";

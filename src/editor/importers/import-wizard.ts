@@ -18,13 +18,13 @@
    GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { h } from "../dom";
-import { modal } from "../modals";
+import { h } from "../core/dom";
+import { modal } from "../core/modals";
 import {
   importAssets,
   slugName,
   type ImportItem,
-} from "../../shared/asset-library";
+} from "../../shared/assets/asset-library";
 import type { AssetMeta } from "../../shared/services";
 import { defaultSliceCell, gridCells, cellName, isCharsetSheet, parseAseprite, packFrames, type AsepriteSheet } from "./sheet-math";
 

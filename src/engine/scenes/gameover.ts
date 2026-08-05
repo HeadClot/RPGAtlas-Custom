@@ -12,7 +12,7 @@ import { Music } from "../../shared/deps.js";
 import { el, sysSe } from "../util.js";
 import { pushUI, removeUI } from "../ui-stack.js";
 import { ctx, fns } from "../state/engine-context.js";
-import { playMe } from "../../shared/audio-deck.js";
+import { playMe } from "../../shared/audio/audio-deck.js";
 import { toTitle } from "./title.js";
 
 /** Ask for a game over from a defeat (a lost battle, a killing touch on the

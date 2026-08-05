@@ -3,14 +3,14 @@
    Transfer-Player graph, while this panel edits runtime worldOrigin values. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S, curMap, TILE } from "../editor-state";
-import { h } from "../dom";
+import { editorState as S, curMap, TILE } from "../core/editor-state";
+import { h } from "../core/dom";
 import { touch } from "../persistence";
 import { mapAnimFrame, renderMap, renderMapView, type MapView } from "./map-render";
 import { rebuildMapList } from "./map-list";
 import { setStatus, flashStatus } from "./status";
 import { focusPanel, getFocusedPanel, isPanelVisible, togglePanel } from "../dock/dock";
-import { connectionSegment, deriveConnections, validateLayout } from "../../shared/map-connections";
+import { connectionSegment, deriveConnections, validateLayout } from "../../shared/map/map-connections";
 
 export const CONNECTIONS_PANEL = "connections";
 const TILE_PX = 24;

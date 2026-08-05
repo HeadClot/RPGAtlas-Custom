@@ -86,7 +86,8 @@ function main(): void {
       const loadout = zone.loadoutOf?.(pid);
       post({ op: "recordPatch", pid, patch: {
         x: pos.x, y: pos.y, dir: pos.dir, mapId: init.mapId,
-        ...(combat ? { combat } : {}), ...(loadout ? { loadout } : {}),
+        ...(combat ? { combat: combat as unknown as JsonValue } : {}),
+        ...(loadout ? { loadout: loadout as unknown as JsonValue } : {}),
       } });
     }
   };

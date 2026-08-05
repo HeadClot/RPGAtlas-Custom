@@ -16,6 +16,17 @@ export const PATCH_NOTES = [
     ],
   },
   {
+    date: "August 5, 2026",
+    title: "Feature-oriented source layout",
+    summary:
+      "Regrouped internal TypeScript modules by feature and responsibility while preserving the editor, player, export, server, and plugin compatibility boundaries.",
+    items: [
+      "Grouped shared map, project, asset, audio, event, and presentation services under src/shared/ without changing their behavior.",
+      "Grouped editor shell, export, asset, content, generator, and plugin modules while keeping the existing editor and player entrypoints stable.",
+      "Updated contributor and architecture guidance so future changes route to the owning feature directory.",
+    ],
+  },
+  {
     date: "August 4, 2026",
     title: "Documentation synchronization pass",
     summary:

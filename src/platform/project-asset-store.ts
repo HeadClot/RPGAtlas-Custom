@@ -1,7 +1,7 @@
 /* RPGAtlas — src/platform/project-asset-store.ts
    The per-project AssetStore (Project Harbor, Phase H4·A): the desktop asset library
    now lives INSIDE the open project instead of the global <app-data>/library. It
-   implements the same `AssetStore` interface src/shared/asset-library.ts already
+   implements the same `AssetStore` interface src/shared/assets/asset-library.ts already
    consumes, so nothing above it changes; only where the bytes live differs.
 
    Two storage locations, chosen per asset:

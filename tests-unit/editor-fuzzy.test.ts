@@ -1,9 +1,9 @@
 /* RPGAtlas — tests-unit/editor-fuzzy.test.ts
-   The command-palette scorer (src/editor/fuzzy.ts, Phase 3 Stage A).
+   The command-palette scorer (src/editor/core/fuzzy.ts, Phase 3 Stage A).
    GPL-3.0-or-later. */
 
 import { describe, expect, it } from "vitest";
-import { fuzzyScore } from "../src/editor/fuzzy";
+import { fuzzyScore } from "../src/editor/core/fuzzy";
 
 const score = (q: string, t: string) => {
   const s = fuzzyScore(q, t);

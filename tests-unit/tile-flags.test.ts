@@ -10,8 +10,8 @@ import {
   TILE_FLAG_H, TILE_FLAG_V, TILE_FLAG_R, TILE_FLAG_MASK, TILE_ID_MASK,
   tileId, tileFlags, hasFlags, withFlags, setFlags,
   toggleH, toggleV, rotateCW, flagTransform,
-} from "../src/shared/tile-flags";
-import { AUTOTILE_BASE, isAutotileId, groupIdOf } from "../src/shared/autotile-registry";
+} from "../src/shared/map/tile-flags";
+import { AUTOTILE_BASE, isAutotileId, groupIdOf } from "../src/shared/map/autotile-registry";
 
 const NO = { h: false, v: false, r: false };
 

@@ -12,11 +12,11 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { curMap, t, LAYER_LABELS } from "../editor-state";
-import { h } from "../dom";
+import { curMap, t, LAYER_LABELS } from "../core/editor-state";
+import { h } from "../core/dom";
 import { touch } from "../persistence";
 import { pushUndo } from "../map-editor/history";
-import { classicStack, type BlendMode } from "../../shared/layer-view";
+import { classicStack, type BlendMode } from "../../shared/map/layer-view";
 import type { AdvLayer } from "../../shared/schema";
 import {
   advState, advHooks, findLayer, addTileLayer, addGroup,

@@ -17,7 +17,7 @@ import { registerCommand } from "./interpreter/registry.js";
 import { ctx, fns } from "./state/engine-context.js";
 import { G } from "./state/game-state.js";
 import { scriptApi } from "./script-api.js";
-import { zonesAtTile } from "../shared/zone-geom.js";
+import { zonesAtTile } from "../shared/map/zone-geom.js";
 
 export const Plugins: any = {
   // MP7·C adds the multiplayer hook lists (playerJoin/playerLeave/custom); the

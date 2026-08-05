@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/move-route.test.ts
-   The shared character-movement rules (src/shared/move-route.ts): the wander
+   The shared character-movement rules (src/shared/map/move-route.ts): the wander
    leash that keeps an event near the tile it was placed on, and the move-route
    step machine both event runtimes drive. Pure module, so this is a plain
    node-env vitest with hand-built stand-ins for an event runtime.
@@ -16,7 +16,7 @@ import {
   normalizeStep,
   withinLeash,
   type RouteOps,
-} from "../src/shared/move-route";
+} from "../src/shared/map/move-route";
 
 describe("wander leash", () => {
   it("measures distance from home as tiles in any direction (a square)", () => {

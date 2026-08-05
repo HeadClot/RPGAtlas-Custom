@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/autotile-anim.test.ts
-   Animated-terrain frame clock + bounded redraw (src/shared/autotile-anim.ts,
+   Animated-terrain frame clock + bounded redraw (src/shared/map/autotile-anim.ts,
    Phase 8 Stage C). The pure parts run under node (no DOM): registration stores
    the source block opaquely, so a stub canvas is enough to exercise the anim
    metadata + cell scan + frame-change gating without a real image.
@@ -8,10 +8,10 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
   registerAutotile, clearAutotiles, tileIdOf, autotileAnim, anyAutotileAnimated,
-} from "../src/shared/autotile-registry";
+} from "../src/shared/map/autotile-registry";
 import {
   frameAt, frameAtTick, scanAnimatedCells, redrawAnimatedCells,
-} from "../src/shared/autotile-anim";
+} from "../src/shared/map/autotile-anim";
 
 // A stub "canvas" — registration never touches its DOM API, only assembly does
 // (which this suite never triggers). width/height keep the type shape happy.

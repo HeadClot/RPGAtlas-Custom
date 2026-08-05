@@ -7,9 +7,9 @@
 
 import { downloadBlob } from "../../../js/editor/project-io.js";
 import { EDITOR_LOCALE_MESSAGES } from "../../../js/editor/i18n.js";
-import { Assets, editorState as S, editorHooks } from "../editor-state";
+import { Assets, editorState as S, editorHooks } from "../core/editor-state";
 import { touch } from "../persistence";
-import { importAssets, libraryImageEntries, type ImportItem } from "../../shared/asset-library";
+import { importAssets, libraryImageEntries, type ImportItem } from "../../shared/assets/asset-library";
 import { registerConsoleCommand, done, fail, text, table, type ConsoleBlock } from "./registry";
 
 // Database tables addressable from the console. Import stays limited to these

@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/layer-view.test.ts
-   The pure layer-view core (src/shared/layer-view.ts, Phase 8 Stage A):
+   The pure layer-view core (src/shared/map/layer-view.ts, Phase 8 Stage A):
    classic default stack, repair-on-open invariants (one core per role,
    missing cores inserted in classic order, dupes/unknowns dropped, unique
    ids), group inheritance in flatten, shadow position, id allocation.
@@ -10,7 +10,7 @@ import type { AdvLayer } from "../src/shared/schema";
 import {
   CORE_ROLES, classicStack, repairLayersAdv, flattenLayers, layerView,
   shadowIndex, nextLayerId, entryArray, BLEND_COMPOSITE, type CoreRole,
-} from "../src/shared/layer-view";
+} from "../src/shared/map/layer-view";
 
 const core = (role: CoreRole, id = 0) =>
   ({ id, name: String(role), type: "core", role }) as AdvLayer;

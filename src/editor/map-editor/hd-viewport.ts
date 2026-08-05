@@ -25,13 +25,13 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, TILE, curMap } from "../editor-state";
-import { drawLayerCell } from "../../shared/autotile-draw";
-import { composeAdvBuffers } from "../../shared/layer-composite";
-import { anyAutotileAnimated } from "../../shared/autotile-registry";
-import { frameAt } from "../../shared/autotile-anim";
+import { Assets, TILE, curMap } from "../core/editor-state";
+import { drawLayerCell } from "../../shared/map/autotile-draw";
+import { composeAdvBuffers } from "../../shared/map/layer-composite";
+import { anyAutotileAnimated } from "../../shared/map/autotile-registry";
+import { frameAt } from "../../shared/map/autotile-anim";
 import { Renderer as GLRender } from "../../renderer/index.js";
-import { h } from "../dom";
+import { h } from "../core/dom";
 import { effectivePass } from "./map-render";
 import { flashStatus } from "./status";
 import { touch } from "../persistence";

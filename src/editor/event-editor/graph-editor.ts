@@ -1,6 +1,6 @@
 /* RPGAtlas — src/editor/event-editor/graph-editor.ts
    The Atlas Graph canvas (Phase 4 Stage B): the node-graph view of an event
-   page. Pure graph semantics live in src/shared/event-graph.ts; this module
+   page. Pure graph semantics live in src/shared/events/event-graph.ts; this module
    is the DOM surface — pan/zoom stage, DOM node cards over an SVG edge
    layer (the world-view pattern), port drag-to-wire, add-node menus reusing
    pickCommand, double-click editing reusing editCommand forms, comments/
@@ -12,15 +12,15 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { t } from "../editor-state";
-import { h } from "../dom";
-import { modal } from "../modals";
+import { t } from "../core/editor-state";
+import { h } from "../core/dom";
+import { modal } from "../core/modals";
 import { touch } from "../persistence";
 import { cmdSummary, cmdDef, editCommand, pickCommand } from "./command-defs";
 import {
   addNode, compileGraph, connect, deleteNode, getNode, normalizeOut,
   outPortLabels, validateGraph, type GraphIssue,
-} from "../../shared/event-graph";
+} from "../../shared/events/event-graph";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const NODE_W = 190;

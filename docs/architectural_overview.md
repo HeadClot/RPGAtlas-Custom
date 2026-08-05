@@ -30,7 +30,10 @@ multiplayer configuration. Browser projects use storage adapters; desktop projec
 `src/editor/` is organized by authoring concern:
 
 - `boot.ts` and `main.ts` compose the editor and load the selected project.
-- `workspace.ts`, `menu-registry.ts`, `keymap.ts`, and `command-palette.ts` expose editor actions.
+- `core/` contains editor shell/state/action infrastructure; `main.ts` and `boot.ts` remain the
+  composition roots loaded by `index.html`.
+- `core/workspace.ts`, `core/menu-registry.ts`, `core/keymap.ts`, and `core/command-palette.ts`
+  expose editor actions.
 - `map-editor/` handles classic painting, HD-2D preview, World View, Map Connections, history,
   clipboard, and map rendering.
 - `advanced/` handles unlimited layers, terrain/autotile studio, stamps, zones, and Automap.
@@ -38,8 +41,9 @@ multiplayer configuration. Browser projects use storage adapters; desktop projec
   multiplayer, quests, tilesets, and other project data.
 - `event-editor/` defines event commands, conditions, pages, move routes, Atlas Graph, and quick
   event templates.
-- `tools/` contains asset/audio/resource managers, dialogue, generators, plugins, search, and the
-  character generator.
+- `tools/assets/`, `tools/content/`, `tools/generators/`, and `tools/plugins/` contain the asset,
+  audio, resource, dialogue, search, generator, and plugin authoring tools.
+- `export/` owns web export assembly; `map-editor/autotile-store.ts` owns editor autotile storage.
 - `importers/` converts RPG Maker MV/MZ projects and produces an import report.
 - `project-manager/` owns desktop New/Open/recent-project flows and folder migration.
 - `persistence.ts` binds browser recovery and desktop atomic folder saves to the active project.
@@ -69,8 +73,10 @@ tests, Beacon Node, and Cloudflare:
 - `schema.ts` defines the project and runtime data shapes and migration-compatible defaults.
 - `sim/` contains deterministic world, player, party, collision, timers, and action-combat rules.
 - `net/` contains protocol, transport, room-code, relay, passport, and chat primitives.
-- `autotile*`, `layer-*`, `stamp-ops`, `terrain-kinds`, and `zone-*` support advanced maps.
-- `asset-*`, `audio-*`, `anim-player`, and `battle-fx` are shared presentation/data services.
+- `map/` contains autotiles, layer composition, map connections, movement/pathfinding, stamps,
+  terrain/tile behavior, world graphs, and zones.
+- `project/` contains folder persistence/migration helpers; `assets/`, `audio/`, `events/`, and
+  `presentation/` contain shared asset, audio, event, animation, and battle-effect services.
 - `services.ts` defines host-neutral seams for assets, saves, projects, rendering, and plugins.
 
 ### Renderer and platform adapters

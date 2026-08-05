@@ -1,12 +1,12 @@
 /* RPGAtlas — tests-unit/zone-raster.test.ts
-   The pure collision/nav rasterizer (src/shared/zone-raster.ts, Phase 8 Stage
+   The pure collision/nav rasterizer (src/shared/map/zone-raster.ts, Phase 8 Stage
    D): bakes collision (force-block) and nav (force-pass) zones into a
    passOv-compatible grid at map load so the movement hot path stays a plain
    array read. Absent-is-meaningful (no such zones ⇒ null) and force-block wins
    over force-pass are the two contracts. GPL-3.0-or-later. */
 
 import { describe, expect, it } from "vitest";
-import { rasterizeZones, PASS_BLOCK, PASS_FORCE, PASS_AUTO } from "../src/shared/zone-raster";
+import { rasterizeZones, PASS_BLOCK, PASS_FORCE, PASS_AUTO } from "../src/shared/map/zone-raster";
 import type { MapZone } from "../src/shared/schema";
 
 const at = (g: Int8Array, w: number, x: number, y: number) => g[y * w + x];

@@ -129,10 +129,10 @@ hits`, `Weapon.animationId`, `CmdPlayAnim` in the union; **FORMAT_VERSION 2**
 battleSystem/atbWait, followers, minimap, vehicles, per-map `regions`,
 per-troop `pages` — idempotent, inert defaults; `newProject`/`newMap` mirror
 them, and the sample ships 3 showcase animations wired to Fireball/Heal/
-Power Strike). Runtime: `src/shared/battle-fx.ts` (moved verbatim from the
+Power Strike). Runtime: `src/shared/presentation/battle-fx.ts` (moved verbatim from the
 engine + two additive extensions: `fxPoint` accepts plain `{x,y}` points and
 the pool is exposed via `spawn`/`release`; the engine path re-exports),
-`src/shared/anim-player.ts` (flat-timeline player, injectable clock/scheduler
+`src/shared/presentation/anim-player.ts` (flat-timeline player, injectable clock/scheduler
 → node-testable; ring/rain/spiral emitters, target/screen flashes,
 projectiles, icon/sheet flipbooks over the shared pool; multi-target
 fan-out), `src/engine/anim-glue.ts` (map fx layer under the uiLayer +
@@ -372,7 +372,7 @@ Design keystones:
 
 ### Stage C — Movement & world
 
-- **A\*** (`src/shared/pathfind.ts`, pure):
+- **A\*** (`src/shared/map/pathfind.ts`, pure):
   `findPath(passable(x,y), from, to, { maxNodes = 600, near = false })` →
   `"up"/"down"/…` step strings (route-machinery native). 4-dir, Manhattan
   heuristic, binary-heap open set, deterministic tie-break (stable order),

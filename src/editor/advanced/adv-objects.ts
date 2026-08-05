@@ -11,11 +11,11 @@
    in adv-zone-draw.ts. Copyright (C) 2026 RPGAtlas contributors — GPL-3.0. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA, editorState as S, curMap, t } from "../editor-state";
-import { h } from "../dom";
+import { RA, editorState as S, curMap, t } from "../core/editor-state";
+import { h } from "../core/dom";
 import { touch } from "../persistence";
 import { pushUndo } from "../map-editor/history";
-import { runAct } from "../workspace";
+import { runAct } from "../core/workspace";
 import { openLocationPicker } from "../event-editor/location-picker";
 import type { MapZone } from "../../shared/schema";
 import { advState, advHooks, type ZoneTool } from "./adv-state";

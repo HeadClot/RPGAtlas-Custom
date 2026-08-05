@@ -33,7 +33,7 @@ import { updateHud } from "./hud.js";
 import { drawPresentation, scrollOffsetPx } from "./scenes/presentation-runtime.js";
 import { motionReduced } from "./state/player-options.js";
 import { weatherMotionScale } from "../shared/a11y.js";
-import { clampCameraAxis, connectedCameraBounds } from "../shared/map-connections.js";
+import { clampCameraAxis, connectedCameraBounds } from "../shared/map/map-connections.js";
 // The fixed tick length is owned by the loop (src/engine/loop.ts); render()
 // only uses it to interpolate by the leftover fraction. Function-scope use
 // only, so the loop↔render-glue import cycle is eval-order safe.

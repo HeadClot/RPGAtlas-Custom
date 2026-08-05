@@ -17,8 +17,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { AdvLayer, Stamp, ZoneShape } from "../../shared/schema";
-import { classicStack, repairLayersAdv, nextLayerId, type CoreRole } from "../../shared/layer-view";
-import type { TileFlags } from "../../shared/tile-flags";
+import { classicStack, repairLayersAdv, nextLayerId, type CoreRole } from "../../shared/map/layer-view";
+import type { TileFlags } from "../../shared/map/tile-flags";
 
 export type AdvTool = "pen" | "erase" | "fill" | "rect" | "shadow";
 /** Which right-rail tab the Advanced panel shows. */
@@ -72,7 +72,7 @@ export const advState = {
   automapOpen: false,
   /** the pending Preview diff (evaluated edits) drawn as a canvas overlay;
    *  null = no preview shown. Cleared on Apply / rule edits / map switch. */
-  automapPreview: null as import("../../shared/automap").AutomapEdit[] | null,
+  automapPreview: null as import("../../shared/map/automap").AutomapEdit[] | null,
 };
 
 /** Panel refresh callbacks, bound on mount so the Layers/paint modules can

@@ -15,24 +15,24 @@
 
 import { Assets, Music, RA, Sfx } from "../../shared/deps.js";
 import { Renderer } from "../../renderer/index.js";
-import { drawLayerCell } from "../../shared/autotile-draw.js";
-import { composeAdvBuffers, recomposeLowerCell } from "../../shared/layer-composite.js";
-import { tileId } from "../../shared/tile-flags.js";
-import { advanceRoute, eventMayStep, type RouteOps } from "../../shared/move-route.js";
-import { syncAutotileRegistry } from "../../shared/autotile-load.js";
-import { scanAnimatedCells, redrawAnimatedCells, frameAtTick } from "../../shared/autotile-anim.js";
-import { anyAutotileAnimated, isAutotileId, autotilePassable } from "../../shared/autotile-registry.js";
+import { drawLayerCell } from "../../shared/map/autotile-draw.js";
+import { composeAdvBuffers, recomposeLowerCell } from "../../shared/map/layer-composite.js";
+import { tileId } from "../../shared/map/tile-flags.js";
+import { advanceRoute, eventMayStep, type RouteOps } from "../../shared/map/move-route.js";
+import { syncAutotileRegistry } from "../../shared/map/autotile-load.js";
+import { scanAnimatedCells, redrawAnimatedCells, frameAtTick } from "../../shared/map/autotile-anim.js";
+import { anyAutotileAnimated, isAutotileId, autotilePassable } from "../../shared/map/autotile-registry.js";
 import { clamp, rnd, compareVariable, sysSe } from "../util.js";
 import { DEVELOPER_THROUGH_ACTION } from "../developer-mode.js";
 import { ctx, fns } from "../state/engine-context.js";
 import { G, Quests, objectiveDone, onEnemyKilled } from "../state/game-state.js";
 import { Plugins } from "../plugin-runtime.js";
-import { setAmbience } from "../../shared/audio-deck.js";
-import { mergeCommandBgs } from "../../shared/audio-math.js";
+import { setAmbience } from "../../shared/audio/audio-deck.js";
+import { mergeCommandBgs } from "../../shared/audio/audio-math.js";
 import { resetZoneState, zonePassAt, mapHasZones } from "./zone-runtime.js";
 import { rebuildTileBehaviors, ladderAt, terrainTagAt, wrapX, wrapY } from "./tile-behavior.js";
 import { resolvePictureSrc } from "./presentation-runtime.js";
-import { deriveConnections } from "../../shared/map-connections.js";
+import { deriveConnections } from "../../shared/map/map-connections.js";
 import {
   applyHurt,
   attackIsActive as sharedAttackIsActive,
@@ -1015,7 +1015,7 @@ export function walkFrame(ent: any): number {
 
 // ---- routes ----
 // The step machine itself is shared with the headless zone driver
-// (src/shared/move-route.ts) — the two runtimes used to carry diverging copies,
+// (src/shared/map/move-route.ts) — the two runtimes used to carry diverging copies,
 // and the zone's understood barely half the steps. This file supplies only the
 // map scene's capabilities: its passability rules, its hop arc, its sound.
 export function setRoute(ent: any, steps: any, onDone: any, opts?: any): void {

@@ -7,7 +7,7 @@
    installs the window.AtlasConsole programmatic surface.
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 
-import { h } from "../dom";
+import { h } from "../core/dom";
 import {
   registerConsoleCommand, executeConsoleLine, completeLine, done,
   installConsoleApi,

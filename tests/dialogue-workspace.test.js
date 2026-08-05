@@ -41,9 +41,9 @@ assert.equal(migrated.dialogues[0].name, "Dialogue");
 assert.equal(migrated.dialogues[0].startNodeId, 4, "a dangling start node falls back to the first node");
 assert.deepEqual(plain(migrated.dialogues[0].nodes[0].options), [], "malformed choices normalize safely");
 
-const workspaceSource = fs.readFileSync("src/editor/tools/dialogue-workspace.ts", "utf8");
+const workspaceSource = fs.readFileSync("src/editor/tools/content/dialogue-workspace.ts", "utf8");
 const commandSource = fs.readFileSync("src/editor/event-editor/command-defs.ts", "utf8");
-const workspaceChrome = fs.readFileSync("src/editor/workspace.ts", "utf8");
+const workspaceChrome = fs.readFileSync("src/editor/core/workspace.ts", "utf8");
 assert.match(workspaceChrome, /Dialogue & Cutscenes/, "Tools exposes the dedicated workspace");
 assert.match(workspaceSource, /Conversation tree/);
 assert.match(workspaceSource, /Generate keys/);
@@ -65,7 +65,7 @@ assert.match(commandSource, /t: "dialogue", label: "Play Dialogue"/,
     export { Interp, initInterpServices } from ${JSON.stringify(path.join(root, "src/engine/interpreter/interp.ts").replace(/\\/g, "/"))};
     export { registerBuiltinCommands } from ${JSON.stringify(path.join(root, "src/engine/interpreter/commands/index.ts").replace(/\\/g, "/"))};
     export { registerCommand, getCommand } from ${JSON.stringify(path.join(root, "src/engine/interpreter/registry.ts").replace(/\\/g, "/"))};
-    export { usedAssetKeys, rewriteAssetKey } from ${JSON.stringify(path.join(root, "src/shared/asset-library.ts").replace(/\\/g, "/"))};
+    export { usedAssetKeys, rewriteAssetKey } from ${JSON.stringify(path.join(root, "src/shared/assets/asset-library.ts").replace(/\\/g, "/"))};
   `;
   const output = (await build({
     stdin: { contents: entry, resolveDir: root, loader: "ts" },

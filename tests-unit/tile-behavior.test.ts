@@ -12,9 +12,9 @@ import {
   scanBehaviorPresence,
   terrainTagAtIndex,
   wrapCoord,
-} from "../src/shared/tile-behavior-core";
-import { tileIdOf } from "../src/shared/autotile-registry";
-import { withFlags } from "../src/shared/tile-flags";
+} from "../src/shared/map/tile-behavior-core";
+import { tileIdOf } from "../src/shared/map/autotile-registry";
+import { withFlags } from "../src/shared/map/tile-flags";
 
 // A 3-tile Assets.tiles-shaped array + a Tileset carrying props for two keys.
 const tiles = [{ key: "t0" }, { key: "asset:tilesets/w_b-t16" }, { key: "asset:tilesets/w_a5-t4" }];

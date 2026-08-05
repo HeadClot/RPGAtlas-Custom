@@ -218,7 +218,7 @@ struct ScannedFile {
 
 /// Scan every `assets/<type>/` folder (non-recursive) for known image/audio files and
 /// return a cheap snapshot `[{type, relPath, size, mtimeMs}]` (no bytes). The frontend
-/// planner (src/shared/asset-scan.ts) diffs this against the index and only reads bytes
+/// planner (src/shared/assets/asset-scan.ts) diffs this against the index and only reads bytes
 /// for genuinely new/changed files, so a focus-scan never floods the IPC channel. The
 /// per-project README and any unknown extension are skipped.
 #[tauri::command]

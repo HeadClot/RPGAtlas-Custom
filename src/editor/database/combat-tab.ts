@@ -1,8 +1,8 @@
 /* RPGAtlas — Database ▸ Attack Profiles and field-combat authoring helpers. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S } from "../editor-state";
-import { h, nIn, sel, field, row, dbOpts } from "../dom";
+import { editorState as S } from "../core/editor-state";
+import { h, nIn, sel, field, row, dbOpts } from "../core/dom";
 import { listFormTab, nameRefresher } from "./shared";
 import { swordHitboxAt } from "../../shared/sim/action-combat";
 

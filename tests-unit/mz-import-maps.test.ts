@@ -22,7 +22,7 @@ import {
   type FsReadFns,
   type MzProjectResult,
 } from "../src/editor/importers/mz";
-import { groupIdOf, isAutotileId } from "../src/shared/autotile-registry";
+import { groupIdOf, isAutotileId } from "../src/shared/map/autotile-registry";
 import { isProjectLike, validateProject, type Project } from "../src/shared/schema";
 import type { RmMap, RmTileset } from "../src/editor/importers/mz/raw-types";
 import { ImportReport } from "../src/editor/importers/mz/report";

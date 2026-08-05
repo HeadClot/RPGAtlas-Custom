@@ -186,7 +186,7 @@ world creation.
 | `map.ts` · `lastTimeBand` | **world** | day/night page-refresh edge detector (derived from G.timeOfDay) |
 | `map.ts` · `forcedEncounterArmed` | **world** | forced-encounter latch |
 | `map-runtime.ts` · `ANIM_FRAME_STATE` `autotilesSyncedFor` `parallaxState` `mapFloatTexts` | client | render caches + floating text (world events *spawn* float texts → delta/presence in MP) |
-| `tile-behavior.ts` · `maps` `presentFlags` `terrainPresent` | config | per-project bake over the pure core in `src/shared/tile-behavior-core.ts` (the sim reuses the pure core) |
+| `tile-behavior.ts` · `maps` `presentFlags` `terrainPresent` | config | per-project bake over the pure core in `src/shared/map/tile-behavior-core.ts` (the sim reuses the pure core) |
 | `zone-runtime.ts` · `Z` | **world** (mixed) | `passGrid`/`hasZones` are config-derived per map; `inside` is per-player world state; `weatherApplied`/`soundActive` are client ambience mirrors. MP1 instances the world part per map; the ambience applier stays client |
 | `presentation-runtime.ts` · `pictures` `tint` `tintTween` `timer` `scroll` `scrollTween` | **world (per-player)** | event-driven AND save-serialized (`serializePresentation`) — same nature as `cameraZoom`: authoritative per-player state in the world, rendered by the client |
 | `battle.ts` · `Battle` | — | const namespace; ALL battle state is closure-local per `Battle.run` — already instanced ✓ (MP6 lifts it into a shared troop instance in the world; no singleton in the way) |

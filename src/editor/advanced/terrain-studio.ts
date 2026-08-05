@@ -24,22 +24,22 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S, t, TILE } from "../editor-state";
-import { h } from "../dom";
-import { modal } from "../modals";
+import { editorState as S, t, TILE } from "../core/editor-state";
+import { h } from "../core/dom";
+import { modal } from "../core/modals";
 import { touch } from "../persistence";
 import { flashStatus } from "../map-editor/status";
 import { renderMap, renderPalette } from "../map-editor/map-render";
 import { renderAutotileBar } from "../map-editor/autotile-ui";
 import {
   createTerrainGroup, importAutotileSheet, type TerrainGroupConfig,
-} from "../autotile-store";
+} from "../map-editor/autotile-store";
 import {
   registerAutotile, unregisterAutotile, resolveAutotileCell, tileIdOf,
-} from "../../shared/autotile-registry";
+} from "../../shared/map/autotile-registry";
 import {
   detectKind, requiredTileCount, frameTileGrid, type TerrainKind,
-} from "../../shared/terrain-kinds";
+} from "../../shared/map/terrain-kinds";
 
 const DRAFT_KEY = "rpgatlas_terrain_studio_draft";
 // A transient reserved id well above any real group, used ONLY to register the

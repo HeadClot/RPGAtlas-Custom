@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/project-templates.test.ts
-   Template descriptors (src/shared/project-templates.ts, Harbor H1·C §5.3). Every
+   Template descriptors (src/shared/project/project-templates.ts, Harbor H1·C §5.3). Every
    TemplateId has a non-empty label + description; isTemplateId accepts exactly the
    three ids and rejects everything else. GPL-3.0-or-later. */
 
@@ -8,7 +8,7 @@ import {
   TEMPLATES,
   isTemplateId,
   type TemplateId,
-} from "../src/shared/project-templates";
+} from "../src/shared/project/project-templates";
 
 const ALL_IDS: TemplateId[] = ["blank", "starter", "atlas-quest"];
 

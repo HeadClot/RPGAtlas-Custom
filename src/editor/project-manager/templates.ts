@@ -9,10 +9,10 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { DataDefaults, RA } from "../editor-state";
+import { DataDefaults, RA } from "../core/editor-state";
 import { validateProject } from "../../shared/schema";
-import { FALLBACK_FOLDER_NAME } from "../../shared/project-name";
-import type { TemplateId } from "../../shared/project-templates";
+import { FALLBACK_FOLDER_NAME } from "../../shared/project/project-name";
+import type { TemplateId } from "../../shared/project/project-templates";
 // Vite `?raw` keeps the type `string` (no 15k-line inferred JSON type in tsc) and
 // bundles the sample's bytes into this lazy manager chunk. The sample is blob-free.
 import atlasQuestRaw from "../../../Atlas_Quest.json?raw";

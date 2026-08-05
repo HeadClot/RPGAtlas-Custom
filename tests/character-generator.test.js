@@ -142,7 +142,10 @@ test("four-direction characters keep side fallback while eight-direction exports
 });
 
 test("the editor exposes thumbnails, build controls, palette controls, and coordinated randomizers", () => {
-  const source = fs.readFileSync(path.join(root, "src", "editor", "tools", "character-generator.ts"), "utf8");
+  const source = fs.readFileSync(
+    path.join(root, "src", "editor", "tools", "generators", "character-generator.ts"),
+    "utf8",
+  );
   const css = fs.readFileSync(path.join(root, "css", "editor.css"), "utf8");
   assert.match(source, /field\("Sprite art style"/);
   assert.match(source, /cg-style-card/);

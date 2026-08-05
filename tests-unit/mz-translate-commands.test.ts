@@ -511,7 +511,7 @@ describe("real translations carry their fields (matrix §8)", () => {
 // Move routes (§9) — via 205.
 // ============================================================================
 // Atlas move routes carry the whole RM palette since post-2.0 (the shared step
-// machine in src/shared/move-route.ts), so these steps come across intact
+// machine in src/shared/map/move-route.ts), so these steps come across intact
 // instead of being decomposed, approximated or dropped.
 describe("move-route steps (matrix §9)", () => {
   const steps = (route: RmCommand[]): unknown[] =>

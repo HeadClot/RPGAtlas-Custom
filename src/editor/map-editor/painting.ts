@@ -7,8 +7,8 @@
    Copyright (C) 2026 RPGAtlas contributors - GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, DataDefaults, RA, TILE, editorState as S, curMap } from "../editor-state";
-import { showPopupMenu } from "../modals";
+import { Assets, DataDefaults, RA, TILE, editorState as S, curMap } from "../core/editor-state";
+import { showPopupMenu } from "../core/modals";
 import { touch } from "../persistence";
 import { renderMap, renderPalette, normRect } from "./map-render";
 import { pushUndo } from "./history";
@@ -20,9 +20,9 @@ import {
   quickDoor, quickSavePoint, quickHealingCrystal, quickMonster, quickGift, quickQuestGiver,
 } from "../event-editor/quick-events";
 import { openEventEditor } from "../event-editor/event-editor";
-import { setMode, refreshToolbar } from "../workspace";
-import { isAutotileId } from "../../shared/autotile-registry";
-import { tileId } from "../../shared/tile-flags";
+import { setMode, refreshToolbar } from "../core/workspace";
+import { isAutotileId } from "../../shared/map/autotile-registry";
+import { tileId } from "../../shared/map/tile-flags";
 
   // ============================ painting ============================
   export function cellFromMouse(e: any) {

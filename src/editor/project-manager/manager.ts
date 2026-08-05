@@ -11,19 +11,19 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA } from "../editor-state";
-import { h } from "../dom";
+import { RA } from "../core/editor-state";
+import { h } from "../core/dom";
 import { validateProject, isProjectLike } from "../../shared/schema";
-import { sanitizeFolderName } from "../../shared/project-name";
-import { planFolderMigration, type FolderMigrationPlan } from "../../shared/folder-migration";
-import { projectErrorCopy, type ProjectErrorCode } from "../../shared/project-errors";
-import { annotateRecents, type Recent } from "../../shared/recents";
-import { TEMPLATES, type TemplateId } from "../../shared/project-templates";
+import { sanitizeFolderName } from "../../shared/project/project-name";
+import { planFolderMigration, type FolderMigrationPlan } from "../../shared/project/folder-migration";
+import { projectErrorCopy, type ProjectErrorCode } from "../../shared/project/project-errors";
+import { annotateRecents, type Recent } from "../../shared/project/recents";
+import { TEMPLATES, type TemplateId } from "../../shared/project/project-templates";
 import type { ProjectBundle } from "../../platform/tauri/project-host";
 import { runBootWith } from "../boot";
-import { modal } from "../modals";
+import { modal } from "../core/modals";
 import { bindFolderProject, peekMirror, peekMirrorMeta, flushFolderNow } from "../persistence";
-import { decideRecovery } from "../../shared/folder-sync";
+import { decideRecovery } from "../../shared/project/folder-sync";
 import { activeManagerHost, type ManagerHost } from "./manager-host";
 import { isEditorBooted, setOpenProjectContext } from "./project-context";
 import { buildTemplateDocument } from "./templates";

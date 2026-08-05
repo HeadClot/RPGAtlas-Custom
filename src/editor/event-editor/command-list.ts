@@ -8,8 +8,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars -- dragFromIdx is write-only
    in the original monolith source; preserved verbatim, so keep the dead assign. */
 
-import { RA, t, editorState as S } from "../editor-state";
-import { h } from "../dom";
+import { RA, t, editorState as S } from "../core/editor-state";
+import { h } from "../core/dom";
 import { touch } from "../persistence";
 import { flashStatus } from "../map-editor/status";
 import { cmdSummary, condSummary, editCommand, pickCommand } from "./command-defs";

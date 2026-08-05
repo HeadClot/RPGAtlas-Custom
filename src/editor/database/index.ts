@@ -8,13 +8,13 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA, editorState as S } from "../editor-state";
-import { h } from "../dom";
-import { modal } from "../modals";
+import { RA, editorState as S } from "../core/editor-state";
+import { h } from "../core/dom";
+import { modal } from "../core/modals";
 import { renderMap } from "../map-editor/map-render";
 import { rebuildMapList } from "../map-editor/map-list";
-import { beginEdit, endEdit } from "../edit-scope";
-import type { ScopeSpec } from "../scoped-restore";
+import { beginEdit, endEdit } from "../core/edit-scope";
+import type { ScopeSpec } from "../core/scoped-restore";
 import { systemTab, controlsTab } from "./system-tab";
 import { actorsTab, classesTab, skillsTab, enemiesTab, statesTab } from "./battler-tabs";
 import { itemsTab, weaponsTab, armorsTab, troopsTab, commonEventsTab } from "./item-tabs";

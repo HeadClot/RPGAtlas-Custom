@@ -37,7 +37,7 @@ const Sfx = (() => {
   function setBgmVolume(v) { vols.bgm = clamp01(v); if (bgmGain) bgmGain.gain.value = vols.bgm; if (meGain) meGain.gain.value = vols.bgm; }
   function setBgsVolume(v) { vols.bgs = clamp01(v); if (bgsGain) bgsGain.gain.value = vols.bgs; }
   function setSeVolume(v) { vols.se = clamp01(v); if (seGain) seGain.gain.value = vols.se; }
-  // The streamed-audio deck (src/shared/audio-deck.ts) taps the live mixer here:
+  // The streamed-audio deck (src/shared/audio/audio-deck.ts) taps the live mixer here:
   // creating the context on demand and handing back the per-channel buses.
   function getBuses() {
     const a = ctx();

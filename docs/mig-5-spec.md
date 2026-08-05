@@ -150,7 +150,7 @@ honest report line (nothing dropped — D6/D11). No write surface exists (D5:
 read-only *by design*; no writes without a new gate decision).
 
 **Delivered:**
-1. **`src/shared/mz-script.ts`** — the one pure module (no engine/DOM imports,
+1. **`src/shared/events/mz-script.ts`** — the one pure module (no engine/DOM imports,
    so the vitest node env and the engine share a single definition of "the
    supported subset" — the src/shared pure-core trap):
    - **`analyzeMzScript(code)`** — the import-time gate. A snippet is `ok` only

@@ -46,7 +46,7 @@ flow is e2e-covered without the desktop app.
   changed outside the editor, offer a friendly **reload** (no local edits) or
   **reload-or-keep-mine** (local edits). On boot, if the localStorage mirror is *newer*
   than the file (crash evidence), offer to recover it. Both decisions are pure cores
-  (`src/shared/folder-sync.ts`, vitest env=node). Kill-process scenario documented + e2e.
+  (`src/shared/project/folder-sync.ts`, vitest env=node). Kill-process scenario documented + e2e.
 - **H3·C — Playtest bridge.** Keep the proven **same-origin localStorage** bridge: the
   editor writes the mirror right before `open_playtest`, and the playtest window stays
   reload-only. Document that `saves/` slots remain in browser storage for 1.2.0.
@@ -131,7 +131,7 @@ The mirror bookkeeping lives in a sibling localStorage key **`atlas.mirror.meta`
   got — the exact crash signature.
 
 `decideRecovery({ root, folderDoc, mirrorDoc, mirrorMeta })` → `use-folder | offer-mirror`
-(pure, `src/shared/folder-sync.ts`). Offers recovery **only** when every guard agrees the
+(pure, `src/shared/project/folder-sync.ts`). Offers recovery **only** when every guard agrees the
 mirror is genuinely newer for *this* game:
 
 | Guard | Result |
@@ -209,7 +209,7 @@ post-1.2.0 stretch, per roadmap H3·C).
 - **Trap 2 (windows):** playtest is byte-identical (predefined window, reload-only). No
   `WebviewWindowBuilder`.
 - **Trap 3 (vitest env=node):** the two decision cores + mirror-meta parsing live in
-  `src/shared/folder-sync.ts` — pure, no `window`/DOM/`audio-deck`.
+  `src/shared/project/folder-sync.ts` — pure, no `window`/DOM/`audio-deck`.
 - **Trap 4 (Playwright = browser):** folder flows hide behind `folderRoot`, bound only under
   `managerActive()`; e2e goes through the `?fakehost` host's new `save`, additively. The 70
   run unmodified.
@@ -238,7 +238,7 @@ post-1.2.0 stretch, per roadmap H3·C).
 ### H3·A — Autosave rebind — 2026-07-09
 
 - **Authored this spec** (`docs/harbor-3-spec.md`) from the roadmap H3 section.
-- **New pure core `src/shared/folder-sync.ts`** (env=node — trap 3): `MirrorMeta` +
+- **New pure core `src/shared/project/folder-sync.ts`** (env=node — trap 3): `MirrorMeta` +
   `parseMirrorMeta`/`stringifyMirrorMeta` (corrupt/missing-field → null), `decideRecovery`
   (the six-guard crash-recovery truth table, §2) and `decideExternalChange`
   (none/reload/conflict, §3). The recovery + external-change *functions* land now (fully
@@ -357,7 +357,7 @@ post-1.2.0 stretch, per roadmap H3·C).
   its own folder now" (kid-friendly; names the autosave-into-the-folder rebind, safe/atomic
   saves + the backup folder, crash recovery, external-change detection, and that Export still
   makes a shareable single-file copy while Playtest is unchanged; notes the web version is
-  unchanged). Cache-buster bumped `patch-notes.js?v=62 → 63` in **both** `src/editor/help.ts`
+  unchanged). Cache-buster bumped `patch-notes.js?v=62 → 63` in **both** `src/editor/core/help.ts`
   and `src/editor/shims.d.ts` (per AGENTS.md). Product version stays **1.1.0** (bumps to 1.2.0
   at H6); `editor.css` stays `?v=60`; `data.js` stays `?v=31`; FORMAT_VERSION stays **2**.
 - **Final gate sweep:** vitest **952** · node **19** · Playwright **91/91** (70 existing

@@ -5,8 +5,8 @@
    captured stamp survives JSON serialization (the save format). GPL-3.0-or-later. */
 
 import { describe, expect, it } from "vitest";
-import { captureStampData, writeStampData, type StampMapView } from "../src/shared/stamp-ops";
-import { withFlags, tileId, tileFlags } from "../src/shared/tile-flags";
+import { captureStampData, writeStampData, type StampMapView } from "../src/shared/map/stamp-ops";
+import { withFlags, tileId, tileFlags } from "../src/shared/map/tile-flags";
 import type { Stamp } from "../src/shared/schema";
 
 function blankMap(w: number, h: number): StampMapView {
