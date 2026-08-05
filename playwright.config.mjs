@@ -27,7 +27,7 @@ const PORT = Number(process.env.RPGATLAS_E2E_PORT) || 4173;
 // 127.0.0.1 (IPv4-only) does not on every machine. Use --host to pin an
 // explicit interface if that ever changes.
 const BASE_URL = `http://localhost:${PORT}`;
-const WORKERS = Number(process.env.RPGATLAS_E2E_WORKERS) || (process.env.CI ? undefined : 2);
+const WORKERS = Number(process.env.RPGATLAS_E2E_WORKERS) || (process.env.CI ? 1 : 2);
 
 export default defineConfig({
   testDir: "./tests-e2e",
@@ -35,9 +35,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  // Keep local SwiftShader runs capped at two workers because full machine
-  // parallelism can starve renderer-golden contexts. Remote CI intentionally
-  // uses Playwright's CPU-based default unless an explicit override is set.
+  // Keep SwiftShader runs serialized in CI because full machine parallelism can
+  // starve renderer-golden and performance contexts. Local runs remain capped
+  // at two workers; RPGATLAS_E2E_WORKERS overrides either default explicitly.
   workers: WORKERS,
   reporter: process.env.CI ? [["html", { open: "never" }], ["list"]] : "list",
   timeout: 30_000,

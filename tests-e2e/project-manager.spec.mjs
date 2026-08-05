@@ -481,7 +481,12 @@ test.describe("External changes on focus (H3·B)", () => {
   });
 
   test("Load the newer version with unsaved edits DISCARDS them — nothing flushes them back", async ({ page }) => {
+    // Install the clock before navigation, then pause it after boot so the
+    // editor's 700 ms autosave debounce cannot erase the deliberate unsaved
+    // state while a busy CI runner is processing the paint click.
+    await page.clock.install();
     await bootGame(page, "Mine Base");
+    await page.clock.pauseAt(Date.now() + 1000);
 
     // An unsaved local edit (paint), still ● when the file changes on disk. The
     // leaving-the-page flush must stand down for this deliberate discard-reload —
@@ -501,7 +506,12 @@ test.describe("External changes on focus (H3·B)", () => {
     );
 
     await expect(page.locator(".modal-body", { hasText: "aren't saved yet" })).toBeVisible();
+    const navigation = page.waitForEvent("framenavigated", {
+      predicate: (frame) => frame === page.mainFrame(),
+    });
     await page.locator(".modal-btns button", { hasText: "Load the newer version" }).click();
+    await page.clock.resume();
+    await navigation;
 
     // Boots straight into the disk version — no crash-recovery prompt trying to
     // resurrect the discarded edits, and the folder still holds the disk version.

@@ -2028,3 +2028,16 @@ PATCH_NOTES.push({
     "Legacy date-only entries remain supported and continue to appear in the historical list.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T16:50:08-06:00",
+  title: "Stable CI E2E performance and quieter importer builds",
+  summary:
+    "GitHub Actions now runs SwiftShader-heavy E2E tests deterministically, while RPG Maker importer bundling no longer emits verbose import-resolution diagnostics.",
+  items: [
+    "CI Playwright execution uses one worker; local runs retain the two-worker cap and explicit RPGATLAS_E2E_WORKERS override.",
+    "MZ importer fixture bundling is silent while normal test summaries and failure artifacts remain available.",
+    "Project-manager discard-reload coverage now controls autosave timing and waits for the replacement document to navigate before asserting its title.",
+  ],
+});
