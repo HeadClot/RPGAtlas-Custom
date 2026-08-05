@@ -178,7 +178,11 @@ assert.match(mapSceneSource, /Input\.consume\(["']attack["']\)/, "map update con
 assert.doesNotMatch(inputWiringSource, /case\s+["']KeyJ["']/, "input wiring has no hardcoded J attack branch");
 assert.doesNotMatch(mapSceneSource, /case\s+["']KeyJ["']/, "map update has no hardcoded J attack branch");
 assert.doesNotMatch(mapRuntimeSource, /case\s+["']KeyJ["']/, "map runtime has no hardcoded J attack branch");
-assert.match(mapRuntimeSource, /tileDistance\(p, rt\) > 1/, "touch damage can strike from an adjacent tile");
+assert.match(
+  mapRuntimeSource,
+  /tileDistance\(target, rt\) > \(Number\(cfg\.attackRange\) \|\| 1\)/,
+  "touch damage uses the configured contact range, defaulting to the adjacent tile",
+);
 assert.match(mapRuntimeSource, /function combatChaseDir\(rt/, "action-combat enemies have chase AI");
 assert.match(mapRuntimeSource, /combatAi\(cfg\) !== ["']chase["']/, "chase AI is gated by the page combat AI setting");
 assert.match(mapRuntimeSource, /canCombatChasePass\(rt, rt\.x \+ mx, rt\.y \+ my\)/, "chase AI checks event destination reservations");
