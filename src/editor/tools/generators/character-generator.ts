@@ -79,6 +79,8 @@ export function openCharGenerator() {
   let work: any = randomWork();
   let selectedDir = 0;
   let animF = 0;
+  let previewIdx = -1;
+  let previewKey = "";
   const PV_KEY = "cg_preview";
   const directionCanvases = DIRECTIONS.map(() => {
     const canvas = document.createElement("canvas");
@@ -98,7 +100,13 @@ export function openCharGenerator() {
   }
 
   function redrawPreview() {
-    const idx = Assets.registerHuman(PV_KEY, "preview", paramsOf(work));
+    const params = paramsOf(work);
+    const key = JSON.stringify(params);
+    if (key !== previewKey) {
+      previewKey = key;
+      previewIdx = Assets.registerHuman(PV_KEY, "preview", params);
+    }
+    const idx = previewIdx;
     const frame = [0, 1, 2, 1][animF % 4];
     directionCanvases.forEach((canvas, dir) => {
       const g = canvas.getContext("2d")!;

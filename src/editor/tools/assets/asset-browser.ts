@@ -149,6 +149,13 @@ export function openAssetBrowser() {
   const activeTags = new Set<string>();
   let preview: HTMLAudioElement | null = null;
   let previewKey: string | null = null;
+  let catalogCache: {
+    metas: AssetMeta[];
+    used: Set<string>;
+    srcByKey: Map<string, string>;
+    bytes: number;
+  } | null = null;
+  let refreshRaf = 0;
 
   const rail = h("div", { class: "ab-rail" });
   const bar = h("div", { class: "ab-bar" });
@@ -306,8 +313,11 @@ export function openAssetBrowser() {
 
   // ---- toolbar --------------------------------------------------------------
   const searchBox = h("input", { type: "search", placeholder: "Search…", class: "ab-search" });
-  searchBox.addEventListener("input", () => { search = searchBox.value.trim().toLowerCase(); refresh(); });
-  const unusedBtn = h("button", { class: "mini", onclick() { unusedOnly = !unusedOnly; refresh(); } }, "Unused only");
+  searchBox.addEventListener("input", () => {
+    search = searchBox.value.trim().toLowerCase();
+    if (!refreshRaf) refreshRaf = requestAnimationFrame(() => { refreshRaf = 0; refresh(false); });
+  });
+  const unusedBtn = h("button", { class: "mini", onclick() { unusedOnly = !unusedOnly; refresh(false); } }, "Unused only");
   bar.appendChild(searchBox);
   bar.appendChild(unusedBtn);
   bar.appendChild(h("span", { class: "spacer" }));
@@ -322,8 +332,9 @@ export function openAssetBrowser() {
 
   // ---- rendering ------------------------------------------------------------
   function visibleMetas(): { list: AssetMeta[]; used: Set<string> } {
-    const used = usedAssetKeys(S.proj, libraryCatalog());
-    let list = libraryMetas();
+    const catalog = getCatalogCache();
+    const used = catalog.used;
+    let list = catalog.metas.slice();
     if (curType !== "all") list = list.filter((m) => m.type === curType);
     if (search) list = list.filter((m) => (m.name + " " + (m.tags || []).join(" ")).toLowerCase().includes(search));
     if (activeTags.size) list = list.filter((m) => (m.tags || []).some((tg) => activeTags.has(tg)));
@@ -334,13 +345,14 @@ export function openAssetBrowser() {
 
   function renderRail() {
     rail.innerHTML = "";
+    const metas = getCatalogCache().metas;
     const counts: Record<string, number> = {};
-    for (const m of libraryMetas()) counts[m.type] = (counts[m.type] || 0) + 1;
+    for (const m of metas) counts[m.type] = (counts[m.type] || 0) + 1;
     for (const ty of ["all", ...ASSET_TYPES, "packs"]) {
-      const n = ty === "all" ? libraryMetas().length : counts[ty] || 0;
+      const n = ty === "all" ? metas.length : counts[ty] || 0;
       rail.appendChild(h("button", {
         class: "ab-railbtn" + (curType === ty ? " sel" : ""),
-        onclick() { curType = ty; refresh(); },
+        onclick() { curType = ty; refresh(false); },
       }, TYPE_LABELS[ty] + (n && ty !== "packs" ? " (" + n + ")" : "")));
     }
   }
@@ -457,12 +469,12 @@ export function openAssetBrowser() {
   function renderTags() {
     tagRow.innerHTML = "";
     const all = new Set<string>();
-    for (const m of libraryMetas()) for (const tg of m.tags || []) all.add(tg);
+    for (const m of getCatalogCache().metas) for (const tg of m.tags || []) all.add(tg);
     if (!all.size) return;
     for (const tg of Array.from(all).sort()) {
       tagRow.appendChild(h("button", {
         class: "ab-tag" + (activeTags.has(tg) ? " sel" : ""),
-        onclick() { if (activeTags.has(tg)) activeTags.delete(tg); else activeTags.add(tg); refresh(); },
+        onclick() { if (activeTags.has(tg)) activeTags.delete(tg); else activeTags.add(tg); refresh(false); },
       }, tg));
     }
   }
@@ -554,7 +566,21 @@ export function openAssetBrowser() {
       actions);
   }
 
-  function refresh() {
+  function getCatalogCache() {
+    if (!catalogCache) {
+      const metas = libraryMetas();
+      catalogCache = {
+        metas,
+        used: usedAssetKeys(S.proj, libraryCatalog()),
+        srcByKey: new Map<string, string>(libraryImageEntries().map((e: any) => [e.key, e.src])),
+        bytes: metas.reduce((sum, m) => sum + (m.bytes || 0), 0),
+      };
+    }
+    return catalogCache;
+  }
+
+  function refresh(invalidate = true) {
+    if (invalidate) catalogCache = null;
     renderRail();
     if (curType === "packs") {
       tagRow.innerHTML = "";
@@ -571,7 +597,7 @@ export function openAssetBrowser() {
         "The asset library is unavailable in this session (no IndexedDB/desktop storage). Imports are disabled."));
     } else if (!list.length) {
       grid.appendChild(h("div", { class: "dim", style: "padding:20px" },
-        libraryMetas().length
+        getCatalogCache().metas.length
           ? "No assets match the current filters."
           : (projectScanAvailable()
               ? "No assets yet — drop files into " + folderHint(curType) + ", then click Scan (or just come back to the editor). Import Files… works too. Your art appears in the same pickers as the built-in sets."
@@ -581,8 +607,7 @@ export function openAssetBrowser() {
     } else {
       // One key → object-URL map per refresh; a per-card catalog scan was
       // quadratic once a sliced-sheet import put thousands of tiles in here.
-      const srcByKey = new Map<string, string>(
-        libraryImageEntries().map((e: any) => [e.key, e.src]));
+      const srcByKey = getCatalogCache().srcByKey;
       const missing = projectScanAvailable() ? currentMissingKeys() : null;
       for (const meta of list) grid.appendChild(card(meta, used, srcByKey, !!missing && missing.has(meta.key)));
       // Recovering from an oversliced import means deleting thousands of
@@ -599,9 +624,9 @@ export function openAssetBrowser() {
         } }, "Delete All " + list.length + " Unused…")));
       }
     }
-    const metasAll = libraryMetas();
+    const metasAll = getCatalogCache().metas;
     const usedAll = metasAll.filter((m) => used.has(m.key)).length;
-    const bytes = metasAll.reduce((sum, m) => sum + (m.bytes || 0), 0);
+    const bytes = getCatalogCache().bytes;
     foot.textContent = metasAll.length + " assets · " + usedAll + " used by this project · "
       + (metasAll.length - usedAll) + " unused · " + fmtBytes(bytes)
       + " — shipped img/ and generated assets are managed by the Resource Manager.";
@@ -640,6 +665,7 @@ export function openAssetBrowser() {
     content: body,
     onClose() {
       stopPreview();
+      if (refreshRaf) cancelAnimationFrame(refreshRaf);
       window.removeEventListener("focus", onFocus);
       if (unsubProject) unsubProject();
     },

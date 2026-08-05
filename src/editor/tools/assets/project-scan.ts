@@ -78,11 +78,30 @@ async function fileFromHost(root: string, s: ScannedFile): Promise<File | null> 
   return new File([base64ToBlob(res.data, mime)], name, mime ? { type: mime } : {});
 }
 
+interface ScanIndexes {
+  byRelPath: Map<string, AssetMeta>;
+  bySourceRel: Map<string, AssetMeta[]>;
+}
+
+function indexMetas(metas: AssetMeta[]): ScanIndexes {
+  const byRelPath = new Map<string, AssetMeta>();
+  const bySourceRel = new Map<string, AssetMeta[]>();
+  for (const meta of metas) {
+    if (meta.relPath) byRelPath.set(meta.relPath, meta);
+    const sourceRel = meta.meta && meta.meta.sourceRel;
+    if (sourceRel) {
+      const list = bySourceRel.get(sourceRel);
+      if (list) list.push(meta);
+      else bySourceRel.set(sourceRel, [meta]);
+    }
+  }
+  return { byRelPath, bySourceRel };
+}
+
 /** Re-import a changed file, keeping its name/tags/key. Returns true when the content
  *  actually differed (a bare mtime touch is a no-op). */
-async function reimportChanged(root: string, s: ScannedFile, file: File, hash: string): Promise<boolean> {
-  const metas = libraryMetas();
-  const whole = metas.find((m) => m.relPath === s.relPath);
+async function reimportChanged(root: string, s: ScannedFile, file: File, hash: string, indexes: ScanIndexes): Promise<boolean> {
+  const whole = indexes.byRelPath.get(s.relPath);
   if (whole) {
     if (whole.hash === hash) {
       // Touched but identical — refresh the recorded mtime so we stop re-hashing it.
@@ -111,7 +130,7 @@ async function reimportChanged(root: string, s: ScannedFile, file: File, hash: s
   // unchanged (hash matches), leave it (a rare touched-but-identical sheet re-hashes on
   // the next scan — cheap; there are few sheets). If it changed, re-cut it: drop the old
   // tiles (their cache blobs go with them) and re-run the slicer on the new bytes.
-  const slices = metas.filter((m) => m.meta && m.meta.sourceRel === s.relPath);
+  const slices = indexes.bySourceRel.get(s.relPath) || [];
   if (slices.length) {
     if (slices[0].meta!.sourceHash === hash) return false;
     await removeAssets(slices.map((m) => m.key));
@@ -133,7 +152,9 @@ async function scanOnce(): Promise<{ added: number; changed: number; missing: nu
     } catch {
       return null; // a scan failure must never break the editor
     }
-    const plan = planScan(scanned, libraryMetas() as any);
+    const metas = libraryMetas();
+    const plan = planScan(scanned, metas as any);
+    const indexes = indexMetas(metas);
 
     missingKeys.clear();
     for (const k of plan.missing) missingKeys.add(k);
@@ -163,7 +184,7 @@ async function scanOnce(): Promise<{ added: number; changed: number; missing: nu
       const file = await fileFromHost(root, s);
       if (!file) continue;
       const hash = await sha256Hex(file);
-      if (await reimportChanged(root, s, file, hash)) {
+      if (await reimportChanged(root, s, file, hash, indexes)) {
         changed += 1;
         boundImages = true; // conservative — a changed image needs re-binding
       }

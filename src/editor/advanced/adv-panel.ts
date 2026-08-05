@@ -58,6 +58,7 @@ const openFolders = new Set<number>();
 // ============================ dirty / rebuild ============================
 let dirty = true;
 let kick: any = null;
+let renderRaf = 0;
 export function advDirty() {
   dirty = true;
   if (!root) return;
@@ -296,6 +297,14 @@ function renderAdvCanvas() {
   renderMapView(canvas.getContext("2d"), m, advView());
   if (zoomLabel) zoomLabel.textContent = Math.round(advState.zoom * 100) + "%";
 }
+/** Coalesce hover/paint callbacks that can arrive many times in one frame. */
+function scheduleAdvCanvasRender() {
+  if (renderRaf) return;
+  renderRaf = requestAnimationFrame(() => {
+    renderRaf = 0;
+    renderAdvCanvas();
+  });
+}
 function stepZoom(dir: number) {
   const i = ADV_ZOOMS.indexOf(advState.zoom);
   const ni = Math.min(ADV_ZOOMS.length - 1, Math.max(0, (i < 0 ? 2 : i) + dir));
@@ -411,7 +420,7 @@ export function mountAdvanced(): HTMLElement {
   });
   root.tabIndex = 0;
   // Bind the refresh hooks the Layers / paint / zone modules call (cycle-safe).
-  advHooks.render = renderAdvCanvas;
+  advHooks.render = scheduleAdvCanvasRender;
   advHooks.rebuildLayers = rebuildLayers;
   advHooks.rebuildObjects = rebuildObjects;
   advHooks.rebuild = rebuild;

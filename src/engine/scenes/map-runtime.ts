@@ -229,10 +229,11 @@ async function prerenderMap(useHd = true): Promise<{ lowerBuf: any; upperBuf: an
     const gr = m.layers.ground, dc = m.layers.decor, d2 = m.layers.decor2, ov = m.layers.over;
     for (let y = 0; y < m.height; y++) {
       for (let x = 0; x < m.width; x++) {
-        drawLayerCell(lg, gr, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile);
-        drawLayerCell(lg, dc, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile);
-        drawLayerCell(lg, d2, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile);
-        drawLayerCell(ug, ov, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile);
+        const i = y * m.width + x;
+        if (gr[i]) drawLayerCell(lg, gr, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile);
+        if (dc[i]) drawLayerCell(lg, dc, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile);
+        if (d2[i]) drawLayerCell(lg, d2, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile);
+        if (ov[i]) drawLayerCell(ug, ov, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile);
       }
     }
   } else {

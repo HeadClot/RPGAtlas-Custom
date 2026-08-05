@@ -99,12 +99,20 @@ export async function render(): Promise<void> {
   const camY = loopV ? rawCamY : clampCameraAxis(
     rawCamY, viewH, cameraBounds.minY * TILE, cameraBounds.maxY * TILE,
   );
+  const spriteMargin = TILE * 2;
+  const spriteVisible = (x: number, y: number, ox = 0, oy = 0) => {
+    const px = (x + ox) * TILE;
+    const py = (y + oy) * TILE;
+    return px + TILE >= camX - spriteMargin && px <= camX + viewW + spriteMargin &&
+      py + TILE >= camY - spriteMargin && py <= camY + viewH + spriteMargin;
+  };
   const drawables = [];
   for (const rt of ctx.evRTs) {
     if (rt.erased || !rt.page || rt.charsetIdx < 0) continue;
     // Transparent, set by a move-route step (the player has always had this
     // flag; events gained it with move routes). Unset ⇒ drawn as before.
     if (rt.transparent) continue;
+    if (!spriteVisible(rt.x, rt.y)) continue;
     drawables.push(rt);
   }
   if (!hdLive && connected.length && ctx.map.worldOrigin) {
@@ -114,6 +122,7 @@ export async function render(): Promise<void> {
       const oy = neighbor.map.worldOrigin.y - ctx.map.worldOrigin.y;
       for (const rt of neighbor.evRTs) {
         if (rt.erased || !rt.page || rt.charsetIdx < 0) continue;
+        if (!spriteVisible(rt.x, rt.y, ox, oy)) continue;
         drawables.push({ ...rt, worldOffsetX: ox, worldOffsetY: oy, neighbor: true });
       }
     }
@@ -232,8 +241,14 @@ export async function render(): Promise<void> {
     if (loopH) for (let x = -(((camX % mpw) + mpw) % mpw); x < viewW; x += mpw) xs.push(x);
     const ys = loopV ? [] : [-camY];
     if (loopV) for (let y = -(((camY % mph) + mph) % mph); y < viewH; y += mph) ys.push(y);
-    const drawBuf = (buf: any) => { for (const by of ys) for (const bx of xs) g.drawImage(buf, bx, by); };
-    const drawWorldBuf = (buf: any, ox: number, oy: number) => g.drawImage(buf, ox * TILE - camX, oy * TILE - camY);
+    const drawCropped = (buf: any, bx: number, by: number) => {
+      const x0 = Math.max(0, bx), y0 = Math.max(0, by);
+      const x1 = Math.min(viewW, bx + buf.width), y1 = Math.min(viewH, by + buf.height);
+      if (x1 <= x0 || y1 <= y0) return;
+      g.drawImage(buf, x0 - bx, y0 - by, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    };
+    const drawBuf = (buf: any) => { for (const by of ys) for (const bx of xs) drawCropped(buf, bx, by); };
+    const drawWorldBuf = (buf: any, ox: number, oy: number) => drawCropped(buf, ox * TILE - camX, oy * TILE - camY);
     // A sprite's screen alias nearest the wrapped view (plus the seam twin).
     const charXs = (sx: number) => (loopH ? [((sx % mpw) + mpw) % mpw, (((sx % mpw) + mpw) % mpw) - mpw] : [sx]);
     const charYs = (sy: number) => (loopV ? [((sy % mph) + mph) % mph, (((sy % mph) + mph) % mph) - mph] : [sy]);
