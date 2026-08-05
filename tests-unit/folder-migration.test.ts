@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/folder-migration.test.ts
-   The pure legacy → folder migration decision core (src/shared/folder-migration.ts,
+   The pure legacy → folder migration decision core (src/shared/project/folder-migration.ts,
    Harbor H6·A §1). Covers the "should we offer?" signal (mirror present + no folder
    meta + parses as a project) and the prefilled-title derivation (system.title,
    trimmed, with the friendly fallback). The real isProjectLike is injected as a stub so
@@ -10,7 +10,7 @@ import {
   planFolderMigration,
   migrationTitle,
   DEFAULT_MIGRATION_TITLE,
-} from "../src/shared/folder-migration";
+} from "../src/shared/project/folder-migration";
 
 // A stub of the schema predicate: an object with meta.engine === "rpgatlas" is a project.
 const isProjectLike = (v: unknown): boolean => {

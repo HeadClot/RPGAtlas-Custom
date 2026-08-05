@@ -12,15 +12,15 @@
    Copyright (C) 2026 RPGAtlas contributors - GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { RA, editorState as S } from "../editor-state";
+import { RA, editorState as S } from "../core/editor-state";
 import { touch } from "../persistence";
 import { renderMap } from "./map-render";
 import { heightsOf, shadowsOf, passOvOf } from "./painting";
 import { rebuildMapList } from "./map-list";
 import { flashStatus } from "./status";
-import { refreshToolbar } from "../workspace";
-import { commitEdit, withEditsSuppressed, resyncEditBaseline } from "../edit-scope";
-import { type ScopeSpec, cloneScoped, restoreScoped } from "../scoped-restore";
+import { refreshToolbar } from "../core/workspace";
+import { commitEdit, withEditsSuppressed, resyncEditBaseline } from "../core/edit-scope";
+import { type ScopeSpec, cloneScoped, restoreScoped } from "../core/scoped-restore";
 
 const STACK_MAX = 60;
 

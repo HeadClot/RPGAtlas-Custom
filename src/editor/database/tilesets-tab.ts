@@ -7,9 +7,9 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, RA, editorState as S } from "../editor-state";
-import { h, tIn, field, row } from "../dom";
-import { confirmBox } from "../modals";
+import { Assets, RA, editorState as S } from "../core/editor-state";
+import { h, tIn, field, row } from "../core/dom";
+import { confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 
 // Passage byte: bits 0-7 = N E S W NE SE SW NW (1 = passable)

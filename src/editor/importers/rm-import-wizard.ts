@@ -12,12 +12,12 @@
    GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { h } from "../dom";
-import { modal } from "../modals";
-import { Assets, DataDefaults, RA, editorState as S, editorHooks } from "../editor-state";
+import { h } from "../core/dom";
+import { modal } from "../core/modals";
+import { Assets, DataDefaults, RA, editorState as S, editorHooks } from "../core/editor-state";
 import { touch } from "../persistence";
 import { validateProject, type ImportReportDoc, type ImportReportLine, type ImportReportPlugin } from "../../shared/schema";
-import { consumeEmbeddedAssets, libraryImageEntries } from "../../shared/asset-library";
+import { consumeEmbeddedAssets, libraryImageEntries } from "../../shared/assets/asset-library";
 import { downloadBlob } from "../../../js/editor/project-io.js";
 import {
   fileListSource,

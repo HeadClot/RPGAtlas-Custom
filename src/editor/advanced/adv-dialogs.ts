@@ -7,9 +7,9 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { t } from "../editor-state";
-import { h } from "../dom";
-import { modal } from "../modals";
+import { t } from "../core/editor-state";
+import { h } from "../core/dom";
+import { modal } from "../core/modals";
 
 /** Prompt for a single non-empty name. Calls onOk(name) on Save. */
 export function nameDialog(title: string, initial: string, onOk: (name: string) => void) {

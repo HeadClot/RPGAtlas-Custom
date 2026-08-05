@@ -13,12 +13,12 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, DataDefaults, RA, editorState as S, curMap } from "../editor-state";
-import { h, sel, tIn, nIn, chk, field, row, dbOpts, charsetOpts, DIR_OPTS } from "../dom";
-import { modal } from "../modals";
+import { Assets, DataDefaults, RA, editorState as S, curMap } from "../core/editor-state";
+import { h, sel, tIn, nIn, chk, field, row, dbOpts, charsetOpts, DIR_OPTS } from "../core/dom";
+import { modal } from "../core/modals";
 import { touch } from "../persistence";
 import { renderMap } from "../map-editor/map-render";
-import { refreshToolbar } from "../workspace";
+import { refreshToolbar } from "../core/workspace";
 import { pushUndo } from "../map-editor/history";
 import { eventAt } from "../map-editor/painting";
 import { flashStatus } from "../map-editor/status";

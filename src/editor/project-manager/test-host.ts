@@ -15,7 +15,7 @@ import {
   removeRecent,
   touchRecent,
   type Recent,
-} from "../../shared/recents";
+} from "../../shared/project/recents";
 import type { ManagerHost } from "./manager-host";
 
 const DOCS_KEY = "atlas.fakehost.docs"; // { [root]: documentJson }

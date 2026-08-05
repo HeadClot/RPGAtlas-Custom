@@ -1,12 +1,12 @@
 /* RPGAtlas — tests-unit/asset-scan.test.ts
-   Project Harbor H4·A: the pure legacy-migration planner (src/shared/asset-scan.ts).
+   Project Harbor H4·A: the pure legacy-migration planner (src/shared/assets/asset-scan.ts).
    Which global-library keys to copy into a freshly opened project. Pure, env=node.
    GPL-3.0-or-later (see LICENSE). */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, expect, it } from "vitest";
-import { planLegacyMigration, planScan } from "../src/shared/asset-scan";
+import { planLegacyMigration, planScan } from "../src/shared/assets/asset-scan";
 
 describe("planLegacyMigration", () => {
   const global = [

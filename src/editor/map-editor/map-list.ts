@@ -6,16 +6,16 @@
    Copyright (C) 2026 RPGAtlas contributors - GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, DataDefaults, RA, LAYER_ORDER, editorState as S, curMap } from "../editor-state";
-import { $, h, tIn, nIn, sel, chk, field, row, dbOpts, MUSIC_OPTS, BGS_OPTS } from "../dom";
-import { modal, confirmBox } from "../modals";
+import { Assets, DataDefaults, RA, LAYER_ORDER, editorState as S, curMap } from "../core/editor-state";
+import { $, h, tIn, nIn, sel, chk, field, row, dbOpts, MUSIC_OPTS, BGS_OPTS } from "../core/dom";
+import { modal, confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 import { renderMap } from "./map-render";
 import { heightsOf, regionsOf, shadowsOf, passOvOf } from "./painting";
 import { setStatus, flashStatus } from "./status";
 import { viewportDirty } from "./hd-viewport";
 import { walkCommands } from "../event-editor/command-list";
-import { beginEdit, endEdit } from "../edit-scope";
+import { beginEdit, endEdit } from "../core/edit-scope";
 import { subTabs } from "../database/shared";
 
   // ============================ map list ============================

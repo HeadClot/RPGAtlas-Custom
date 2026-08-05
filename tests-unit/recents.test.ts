@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/recents.test.ts
-   Recent-projects registry logic (src/shared/recents.ts, Harbor H1·C §5.2). Covers
+   Recent-projects registry logic (src/shared/project/recents.ts, Harbor H1·C §5.2). Covers
    upsert moves-to-front, dedupe by path, cap enforcement, remove, annotate splits
    present/missing while preserving order, and corrupt-JSON → []. GPL-3.0-or-later. */
 
@@ -11,7 +11,7 @@ import {
   parseRecents,
   RECENTS_CAP,
   type Recent,
-} from "../src/shared/recents";
+} from "../src/shared/project/recents";
 
 const R = (path: string, name = path, lastOpened = 0): Recent => ({ path, name, lastOpened });
 

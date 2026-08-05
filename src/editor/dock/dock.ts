@@ -15,8 +15,8 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { $, h } from "../dom";
-import { editorI18n } from "../editor-state";
+import { $, h } from "../core/dom";
+import { editorI18n } from "../core/editor-state";
 import {
   defaultLayout, validateLayout, collectPanels, hasPanel, insertPanelBefore,
   dockTab, dockSplit, dockFloatTab, floatPanel, showPanel, closePanel,

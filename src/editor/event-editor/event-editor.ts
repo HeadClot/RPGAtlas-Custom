@@ -9,13 +9,13 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, DataDefaults, RA, t, editorState as S } from "../editor-state";
-import { ICONS } from "../icons";
+import { Assets, DataDefaults, RA, t, editorState as S } from "../core/editor-state";
+import { ICONS } from "../core/icons";
 import {
   h, tIn, sel, chk, nIn, esc,
   dbOpts, switchOpts, varOpts, cmpOpts, charsetOpts, DIR_OPTS, stringSelOpts,
-} from "../dom";
-import { modalRoot, modal, confirmBox } from "../modals";
+} from "../core/dom";
+import { modalRoot, modal, confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 import { renderMap } from "../map-editor/map-render";
 import { pushUndo } from "../map-editor/history";
@@ -23,7 +23,7 @@ import { flashStatus } from "../map-editor/status";
 import { buildCmdRows, cmdListWidget } from "./command-list";
 import { cmdSummary, mountForm } from "./command-defs";
 import { graphEditorWidget } from "./graph-editor";
-import { compileGraph, decompileCommands } from "../../shared/event-graph";
+import { compileGraph, decompileCommands } from "../../shared/events/event-graph";
 import { attackProfileOptions, combatPresentationFields } from "../database/combat-tab";
 import { resolveEnemyCombat, validateCombatProject } from "../../shared/sim/combat-profiles";
 

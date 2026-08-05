@@ -23,9 +23,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { tileId } from "../tile-flags.js";
-import { isAutotileId, autotilePassable } from "../autotile-registry.js";
-import { wrapCoord } from "../tile-behavior-core.js";
+import { tileId } from "../map/tile-flags.js";
+import { isAutotileId, autotilePassable } from "../map/autotile-registry.js";
+import { wrapCoord } from "../map/tile-behavior-core.js";
 import { BUILTIN_TILE_PASS } from "./builtin-tile-pass.js";
 
 /** The engine's numeric grid-direction offsets (DIRD keys): 0=down 1=left

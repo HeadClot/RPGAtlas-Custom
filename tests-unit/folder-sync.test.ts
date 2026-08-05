@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/folder-sync.test.ts
-   Pure desktop-folder-save decision cores (src/shared/folder-sync.ts, Harbor H3 §2/§3).
+   Pure desktop-folder-save decision cores (src/shared/project/folder-sync.ts, Harbor H3 §2/§3).
    Covers mirror-meta parsing (round-trip + corrupt → null), crash-recovery classification
    (every guard: absent mirror, absent/wrong-root meta, identical content, confirmed save,
    and the one true "offer" case), and external-change classification (none / reload /
@@ -12,7 +12,7 @@ import {
   decideRecovery,
   decideExternalChange,
   type MirrorMeta,
-} from "../src/shared/folder-sync";
+} from "../src/shared/project/folder-sync";
 
 const META = (over: Partial<MirrorMeta> = {}): MirrorMeta => ({
   root: "/Games/Hero",

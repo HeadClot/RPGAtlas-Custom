@@ -19,7 +19,7 @@ import {
   type FsReadFns,
   type RmImportOutcome,
 } from "../src/editor/importers/mz";
-import { buildZip } from "../src/editor/export-web";
+import { buildZip } from "../src/editor/export/export-web";
 import { isProjectLike, validateProject, type Project } from "../src/shared/schema";
 
 const root = (name: string): string =>

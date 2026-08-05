@@ -264,8 +264,10 @@ fits together.
 
 TypeScript modules under `src/` hold the engine (`src/engine/` — scenes, interpreter, state,
 network sessions, and the shared action-combat client),
-the editor (`src/editor/` — map editor, database, dock workspace, tools, importers), the
-three.js HD-2D renderer (`src/renderer/`), shared services (`src/shared/`), and the storage
+the editor (`src/editor/` — `core/` shell infrastructure, map editor, database, dock workspace,
+feature-grouped tools, importers, and export), the
+three.js HD-2D renderer (`src/renderer/`), shared services (`src/shared/` — map, project, asset,
+audio, event, presentation, networking, and simulation groups), and the storage
 platform adapters (`src/platform/` — browser and Tauri). The procedural asset/audio/data
 generators remain classic scripts under `js/` (`assets.js`, `sfx.js`, `data.js`) alongside
 `js/editor/project-io.js` (persistence/export) and `js/standalone-template.mjs` +

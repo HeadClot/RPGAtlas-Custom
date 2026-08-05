@@ -291,15 +291,15 @@ Everything for 2.0.0 except the final verdict-signing + tags, which are the
 **Fable RELEASE gate's** job (per the BUILD kickoff: "Do NOT tag v2.0.0").
 
 - **Version → 2.0.0** across the **6 literal sites**: `package.json`,
-  `server/package.json`, `src/editor/help.ts` (About display),
-  `src/editor/workspace.ts` (storage comment), `src-tauri/Cargo.toml`,
+  `server/package.json`, `src/editor/core/help.ts` (About display),
+  `src/editor/core/workspace.ts` (storage comment), `src-tauri/Cargo.toml`,
   `src-tauri/tauri.conf.json`. `cargo check` confirms `rpgatlas v2.0.0`
   compiles. (No stray `1.2.0` remains outside historical patch notes / specs.)
 - **Patch note:** a "Play Together — online multiplayer is here (RPGAtlas
   2.0.0)" entry added to the top of `js/patch-notes.js` (kid-readable: one
   checkbox, room codes, kid-safe by construction, chat off-by-default with
   mute/report/kick/ban, self-hosting, the new help pages + demo). **Cache-bust
-  bumped `patch-notes.js ?v=74 → 75`** in BOTH `src/editor/help.ts` (import) and
+  bumped `patch-notes.js ?v=74 → 75`** in BOTH `src/editor/core/help.ts` (import) and
   `src/editor/shims.d.ts` (module decl — they must match; tsc enforces it).
   `editor.css` (?v=70) and `data.js` (?v=36) UNTOUCHED (no such file changed) →
   no bump owed.

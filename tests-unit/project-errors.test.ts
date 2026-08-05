@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/project-errors.test.ts
-   Kid-friendly error copy (src/shared/project-errors.ts, Harbor H1·C §5.4 + gate
+   Kid-friendly error copy (src/shared/project/project-errors.ts, Harbor H1·C §5.4 + gate
    amendment 4). Asserts EVERY taxonomy code returns non-empty title + body (no code
    can ship without copy), the MISSING_ASSET state copy is present, and an unknown
    code falls back to IO. GPL-3.0-or-later. */
@@ -9,7 +9,7 @@ import {
   projectErrorCopy,
   MISSING_ASSET_COPY,
   type ProjectErrorCode,
-} from "../src/shared/project-errors";
+} from "../src/shared/project/project-errors";
 
 const ALL_CODES: ProjectErrorCode[] = [
   "FOLDER_EXISTS",

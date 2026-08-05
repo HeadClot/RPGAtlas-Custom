@@ -13,8 +13,8 @@
    movement-loop regression" exit. GPL-3.0-or-later. */
 
 import { describe, expect, it } from "vitest";
-import { zonesAtTile } from "../src/shared/zone-geom";
-import { rasterizeZones } from "../src/shared/zone-raster";
+import { zonesAtTile } from "../src/shared/map/zone-geom";
+import { rasterizeZones } from "../src/shared/map/zone-raster";
 import type { MapZone } from "../src/shared/schema";
 
 const W = 64, H = 64;

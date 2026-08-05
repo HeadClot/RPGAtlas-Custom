@@ -1,5 +1,5 @@
 /* RPGAtlas — tests-unit/event-graph.test.ts
-   The Atlas Graph pure core (src/shared/event-graph.ts, Phase 4 Stage A):
+   The Atlas Graph pure core (src/shared/events/event-graph.ts, Phase 4 Stage A):
    port shapes, deterministic compile (chains, branches, loops, merges by
    tail duplication), cycle/overflow rejection, validation lint, node edits
    (connect/delete/normalize), and the decompile → compile identity
@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   COMPILE_LIMIT, addNode, compileGraph, connect, decompileCommands,
   deleteNode, emptyGraph, normalizeOut, outPortLabels, validateGraph,
-} from "../src/shared/event-graph";
+} from "../src/shared/events/event-graph";
 
 // Convenience: build a graph from a chain of commands, returning the nodes.
 function chainGraph(...cmds: any[]) {

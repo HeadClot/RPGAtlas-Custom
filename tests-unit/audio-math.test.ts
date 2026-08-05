@@ -4,7 +4,7 @@
    GPL-3.0-or-later (see LICENSE). */
 
 import { describe, expect, it } from "vitest";
-import { ambienceDiff, mergeCommandBgs, panGainForTile } from "../src/shared/audio-math";
+import { ambienceDiff, mergeCommandBgs, panGainForTile } from "../src/shared/audio/audio-math";
 
 describe("ambienceDiff", () => {
   const rain = "asset:audio/rain";

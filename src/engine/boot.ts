@@ -87,13 +87,13 @@ import { gameOver, requestGameOver } from "./scenes/gameover.js";
 import { playMapAnimation } from "./anim-glue.js";
 import { initPerfHud } from "./perf-hud.js";
 import { Renderer } from "../renderer/index.js";
-import { initAssetLibrary } from "../shared/asset-library.js";
+import { initAssetLibrary } from "../shared/assets/asset-library.js";
 import { createDefaultAssetStore } from "../platform/default-asset-store.js";
 // Side effect: registers window.AtlasAudioDeck, the seam js/sfx.js routes
 // "asset:" music/sound references through (Phase 6 audio v2).
-import "../shared/audio-deck.js";
-import { playMe, bgmPosition, stopSe, setAmbience } from "../shared/audio-deck.js";
-import { mergeCommandBgs } from "../shared/audio-math.js";
+import "../shared/audio/audio-deck.js";
+import { playMe, bgmPosition, stopSe, setAmbience } from "../shared/audio/audio-deck.js";
+import { mergeCommandBgs } from "../shared/audio/audio-math.js";
 
 const TILE = Assets.TILE;
 // defaults (overridden at boot from system.screenWidth/Height)

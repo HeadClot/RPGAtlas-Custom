@@ -8,11 +8,11 @@ command-pattern rewrite), with one deliberate refinement: instead of wrapping
 each bound-input helper in dom.ts, the transaction hook lives in `touch()`
 itself (`persistence.ts` → `noteEdit()`), which catches bound inputs AND
 structural ops (New/Delete/Duplicate/Bulk/Paste/resize) through one seam.
-Pure core `src/editor/scoped-restore.ts` (`ScopeSpec`, `cloneScoped` with
+Pure core `src/editor/core/scoped-restore.ts` (`ScopeSpec`, `cloneScoped` with
 top-level `skip`, recursive in-place `restoreInto` that preserves object/array
 identity so every live reference — S.proj, S.proj.items, a map's layers —
 survives a restore; 11 unit tests). Transaction engine
-`src/editor/edit-scope.ts`: `beginEdit(scope)` baselines EAGERLY at dialog
+`src/editor/core/edit-scope.ts`: `beginEdit(scope)` baselines EAGERLY at dialog
 open (edits mutate before touch() fires, so lazy capture would be too late),
 `noteEdit()` debounces an 800 ms commit window, `commitEdit()` always diffs —
 never gated on a dirty flag, because Map Properties' OK mutates, close()s,
@@ -54,7 +54,7 @@ Stage E COMPLETE (2026-07-02): World View & database upgrades. **World View** �
 dockable bird's-eye panel (dock id `world`, toggled by F3 / View menu / the
 `worldview` command; lazy `mount` like the HD-2D viewport). It draws the whole
 project as a map-connection graph over a pure, unit-tested core
-(`src/shared/world-graph.ts`: `collectTransfers` walks each map's events —
+(`src/shared/map/world-graph.ts`: `collectTransfers` walks each map's events —
 recursing if/choices exactly like the editor's `walkCommands` — `buildWorldGraph`
 aggregates directed edges per (from,to) with counts and flags danglers/self-
 loops, `autoLayout` gives a deterministic BFS-column layout per connected
@@ -116,21 +116,21 @@ RPG-Maker-A2 autotile engine.** Map layers stay plain integer tile ids — the
 blob shape is resolved at DRAW TIME from 8-neighbour connectivity, so the save
 format and the Phase 2 golden suite are untouched (sample maps have no autotile
 groups → the resolver is never entered; all 9 goldens byte-identical). Pure core
-`src/shared/autotile.ts` (`cornerSources(mask)` → the four 24px minitile sources
+`src/shared/map/autotile.ts` (`cornerSources(mask)` → the four 24px minitile sources
 per corner via the five-state corner rule; `neighborMask(same)` collapses the
 256-input space onto the 47 valid shapes by masking diagonals whose edges are
 open). The per-corner minitile coordinates were reverse-engineered from RPG Maker
 MV's `Tilemap.FLOOR_AUTOTILE_TABLE` (entry 0 = connected, 47 = isolated,
 single-bit-flip entries) and cross-validated for mirror symmetry — 16 unit tests
 cover all 256 masks + the canonical MV entries. Runtime registry
-`src/shared/autotile-registry.ts` (reserved id `AUTOTILE_BASE = 1_000_000` per
+`src/shared/map/autotile-registry.ts` (reserved id `AUTOTILE_BASE = 1_000_000` per
 group, per-mask 48×48 assembled-canvas cache) + shared draw primitive
-`src/shared/autotile-draw.ts` (`drawLayerCell`) replace the four bare
+`src/shared/map/autotile-draw.ts` (`drawLayerCell`) replace the four bare
 `Assets.drawTile` cell loops (2D map-render, HD viewport `buildBuffers`, tile-
 paste preview, engine `prerenderMap`) so autotiles resolve identically in the 2D
 editor, the live HD-2D viewport, AND playtest. Group management
-`src/editor/autotile-store.ts` (proj.autotiles CRUD, A2-sheet slice import into
-96×144 blocks, swatches) + shared decode `src/shared/autotile-load.ts`
+`src/editor/map-editor/autotile-store.ts` (proj.autotiles CRUD, A2-sheet slice import into
+96×144 blocks, swatches) + shared decode `src/shared/map/autotile-load.ts`
 (`syncAutotileRegistry`, used by editor boot and engine map load). Tiles-panel UI
 `src/editor/map-editor/autotile-ui.ts`: brush-size selector (1/3/5, keys `[`/`]`,
 `S.brushSize` footprint in the pen/eraser) + autotile swatch strip with Import
@@ -238,7 +238,7 @@ project schema's meaning or any runtime behavior.
 
 ## Current-state facts that constrain the design
 
-1. **The workspace hub already exists**: `src/editor/workspace.ts` holds `ACT` — a
+1. **The workspace hub already exists**: `src/editor/core/workspace.ts` holds `ACT` — a
    string-keyed action registry ({label, icon, key, tip, enabled?, active?, run}) that
    the toolbar, menubar (`MENUS`), and shortcut dialog all drive. It is the seed of the
    Phase 3 command registry; 8 modules import from workspace.ts, so its exports
@@ -322,12 +322,12 @@ registered, palette-invocable command; keyboard dispatch becomes data, not code.
 
 | File | Role |
 |---|---|
-| `src/editor/workspace.ts` | `ACT` typed as `EditorCommand`; `registerCommand` exported; `commandEntries()` — palette feed with menu-derived categories |
-| `src/editor/keymap.ts` | NEW — pure ordered-binding key dispatcher (`KeyBinding`, `matchBinding`, `dispatchKey`); no imports, unit-testable |
-| `src/editor/fuzzy.ts` | NEW — pure fuzzy scorer for the palette (substring > word-start subsequence > subsequence); no imports, unit-testable |
-| `src/editor/command-palette.ts` | NEW — Ctrl+P overlay: search field + result list in `#modal-root` |
+| `src/editor/core/workspace.ts` | `ACT` typed as `EditorCommand`; `registerCommand` exported; `commandEntries()` — palette feed with menu-derived categories |
+| `src/editor/core/keymap.ts` | NEW — pure ordered-binding key dispatcher (`KeyBinding`, `matchBinding`, `dispatchKey`); no imports, unit-testable |
+| `src/editor/core/fuzzy.ts` | NEW — pure fuzzy scorer for the palette (substring > word-start subsequence > subsequence); no imports, unit-testable |
+| `src/editor/core/command-palette.ts` | NEW — Ctrl+P overlay: search field + result list in `#modal-root` |
 | `src/editor/boot.ts` | keydown cascade rewritten as a declarative `KeyBinding[]` fed to `dispatchKey` — semantics preserved binding-for-binding |
-| `src/editor/help.ts` | shortcuts dialog gains the palette row |
+| `src/editor/core/help.ts` | shortcuts dialog gains the palette row |
 | `css/editor.css` | `.cmdpal*` styles (bump `?v`) |
 | `tests-unit/editor-keymap.test.ts`, `tests-unit/editor-fuzzy.test.ts` | vitest for the two pure modules |
 | `tests-e2e/editor.spec.mjs` | palette e2e: open, search, run (opens Database), Esc closes |

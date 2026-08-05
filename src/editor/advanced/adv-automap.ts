@@ -1,7 +1,7 @@
 /* RPGAtlas — src/editor/advanced/adv-automap.ts
    The Advanced Map Editor's Automap Rules drawer (Phase 8 Stage F, mockup 3): a
    collapsible bottom drawer that edits map.automapRules and drives Preview /
-   Apply through the shared pure evaluator (src/shared/automap.ts).
+   Apply through the shared pure evaluator (src/shared/map/automap.ts).
 
    Each rule is an IF/AND/THEN sentence: a list of ANDed predicates (terrain is /
    tile is / near / not near / region is / passable) and a list of actions (place
@@ -18,15 +18,15 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { editorState as S, curMap, t } from "../editor-state";
-import { h } from "../dom";
+import { editorState as S, curMap, t } from "../core/editor-state";
+import { h } from "../core/dom";
 import { touch } from "../persistence";
 import { pushUndo } from "../map-editor/history";
 import { flashStatus } from "../map-editor/status";
-import { layerView } from "../../shared/layer-view";
-import { tileIdOf, groupIdOf, isAutotileId } from "../../shared/autotile-registry";
-import { tileId } from "../../shared/tile-flags";
-import { evaluateAutomap, applyAutomapEdits, type AutomapEdit } from "../../shared/automap";
+import { layerView } from "../../shared/map/layer-view";
+import { tileIdOf, groupIdOf, isAutotileId } from "../../shared/map/autotile-registry";
+import { tileId } from "../../shared/map/tile-flags";
+import { evaluateAutomap, applyAutomapEdits, type AutomapEdit } from "../../shared/map/automap";
 import type { AutomapRule, RulePredicate, RuleAction, Autotile, Stamp } from "../../shared/schema";
 import { advState, advHooks } from "./adv-state";
 

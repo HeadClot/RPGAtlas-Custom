@@ -21,8 +21,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { AnyCommand, Condition } from "../../../shared/schema";
-import { analyzeMzScript } from "../../../shared/mz-script";
-import { assetKeyOf, slugName } from "../../../shared/asset-library";
+import { analyzeMzScript } from "../../../shared/events/mz-script";
+import { assetKeyOf, slugName } from "../../../shared/assets/asset-library";
 import { slugKey, paramKey } from "./slug";
 import type { CommandTranslator } from "./convert-events";
 import type { ImportReport, ReportKind } from "./report";

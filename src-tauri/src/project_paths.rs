@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 /// The finite, kid-friendly failure taxonomy (docs/harbor-1-spec.md §6). Serialized
 /// SCREAMING_SNAKE (e.g. `FOLDER_EXISTS`) so the typed host maps `code` → copy via
-/// `src/shared/project-errors.ts`. The frontend never sees a raw OS string.
+/// `src/shared/project/project-errors.ts`. The frontend never sees a raw OS string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProjectErrorCode {

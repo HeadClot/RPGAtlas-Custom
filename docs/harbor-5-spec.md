@@ -259,7 +259,7 @@ config, and the docs cover the portable-exe "Open with…" path.
   single-instance front-and-switch that saves your current game first, the Windows
   "Open with… ▸ Always use this app" one-time setup, and the friendly "we can't find that
   game" fallback; notes the web version is unchanged). Cache-buster bumped
-  `patch-notes.js?v=64 → 65` in **both** `src/editor/help.ts` and `src/editor/shims.d.ts`
+  `patch-notes.js?v=64 → 65` in **both** `src/editor/core/help.ts` and `src/editor/shims.d.ts`
   (AGENTS.md / trap 8). **No `editor.css` change this phase** (H5 added no styles — the
   manager overlay/toast are H2's), so `editor.css?v=61` and `data.js?v=31` are unchanged.
   Product **version stays 1.1.0** (bumps to 1.2.0 at H6); **FORMAT_VERSION stays 2**.

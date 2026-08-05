@@ -22,7 +22,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Assets } from "../../shared/deps.js";
-import { assetUrlSync, isAssetKey } from "../../shared/asset-library.js";
+import { assetUrlSync, isAssetKey } from "../../shared/assets/asset-library.js";
 import { el } from "../util.js";
 import { pushUI, removeUI } from "../ui-stack.js";
 import { ctx } from "../state/engine-context.js";

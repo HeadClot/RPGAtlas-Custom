@@ -908,7 +908,7 @@ export interface Condition {
   /** kind "mzScript" (Project Compass M5·B): a read-only RPG Maker
    *  Conditional-Branch "Script" expression, evaluated through the same
    *  `$game*` compatibility shim as the `mzScript` command
-   *  (src/shared/mz-script.ts). Only set when the importer verified the
+   *  (src/shared/events/mz-script.ts). Only set when the importer verified the
    *  expression against the D5 read-only subset. */
   code?: string;
   val?: boolean | number;
@@ -1212,7 +1212,7 @@ export interface CmdScript {
 /** A read-only RPG Maker Script command the importer verified against the
  *  M5·B compatibility subset (Project Compass, mig-0 D5): it reads only
  *  `$gameSwitches`/`$gameVariables`/`$gameParty` and runs under the same
- *  sandbox as `script`, through the `$game*` shim (src/shared/mz-script.ts).
+ *  sandbox as `script`, through the `$game*` shim (src/shared/events/mz-script.ts).
  *  Scripts that write game state or reach other `$game*`/globals never become
  *  this — they stay `mzTodo` + a report line. Additive/optional
  *  (FORMAT_VERSION stays 2). */
@@ -2158,7 +2158,7 @@ export interface EmbeddedAsset {
 
 /** Project asset registry (proj.assets): tile overrides + external asset
  *  blobs. Free-form: owned by js/assets.js (tiles) and
- *  src/shared/asset-library.ts (external). */
+ *  src/shared/assets/asset-library.ts (external). */
 export interface ProjectAssets {
   tiles: Record<string, any>;
   /** Project-owned 32×32 PNG data URLs appended after the 128 built-in icons. */

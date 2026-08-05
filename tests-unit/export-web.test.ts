@@ -4,7 +4,7 @@
    pieces from js/standalone-template.mjs. GPL-3.0-or-later. */
 
 import { describe, expect, it } from "vitest";
-import { buildWebZipEntries, buildZip, crc32 } from "../src/editor/export-web";
+import { buildWebZipEntries, buildZip, crc32 } from "../src/editor/export/export-web";
 import {
   assembleStandaloneHtml,
   injectPwaHooks,

@@ -6,14 +6,14 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, RA, Sfx, curMap, editorState as S } from "../editor-state";
-import { describeStep } from "../../shared/move-route";
+import { Assets, RA, Sfx, curMap, editorState as S } from "../core/editor-state";
+import { describeStep } from "../../shared/map/move-route";
 import {
   h, tIn, nIn, sel, chk, field, row,
   dbOpts, switchOpts, varOpts, cmpOpts, charsetOpts,
   DIR_OPTS, SE_OPTS, MUSIC_OPTS, BGS_OPTS, ME_OPTS, stringSelOpts,
-} from "../dom";
-import { modal, confirmBox } from "../modals";
+} from "../core/dom";
+import { modal, confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 import { openLocationPicker } from "./location-picker";
 
@@ -1186,7 +1186,7 @@ import { openLocationPicker } from "./location-picker";
     // Set Move Route — the cutscene tool. A route is a sequenced pattern any
     // character on the map can be told to play, so one event can walk the whole
     // cast: "the guard steps aside, the king turns to face you, the door fades
-    // out". The step palette below is the engine's full one (shared/move-route.ts
+    // out". The step palette below is the engine's full one (shared/map/move-route.ts
     // runs it); steps that carry a value are `{k, …}` objects, the rest stay the
     // plain strings every route saved before this used.
     { t: "move", label: "Set Move Route", make: () => ({ t: "move", target: "this", steps: [], wait: true }),

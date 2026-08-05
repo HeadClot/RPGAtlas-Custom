@@ -11,9 +11,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { repairLayersAdv, layerView } from "../src/shared/layer-view";
-import { zonesAtTile } from "../src/shared/zone-geom";
-import { evaluateAutomap } from "../src/shared/automap";
+import { repairLayersAdv, layerView } from "../src/shared/map/layer-view";
+import { zonesAtTile } from "../src/shared/map/zone-geom";
+import { evaluateAutomap } from "../src/shared/map/automap";
 
 const project = JSON.parse(
   readFileSync(join(__dirname, "..", "Atlas_Quest.json"), "utf8"),

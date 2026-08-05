@@ -26,7 +26,7 @@ import {
   slugName,
   stripEmbeddedAssets,
   usedAssetKeys,
-} from "../src/shared/asset-library";
+} from "../src/shared/assets/asset-library";
 
 class FakeStore implements AssetStore {
   metas = new Map<string, AssetMeta>();

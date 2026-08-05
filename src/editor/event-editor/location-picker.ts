@@ -5,9 +5,9 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, RA, TILE, LAYER_ORDER, editorState as S } from "../editor-state";
-import { h, sel, field, dbOpts } from "../dom";
-import { modal } from "../modals";
+import { Assets, RA, TILE, LAYER_ORDER, editorState as S } from "../core/editor-state";
+import { h, sel, field, dbOpts } from "../core/dom";
+import { modal } from "../core/modals";
 
   // ============================ visual location picker ============================
   // Shows the chosen map; click a tile to set a destination. cb({ mapId, x, y }).
