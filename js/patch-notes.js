@@ -5,6 +5,26 @@
 export const PATCH_NOTES = [
   {
     date: "August 5, 2026",
+    title: "Parallel CI e2e workers",
+    summary:
+      "Remote Playwright runs now use the same two-worker cap as local runs instead of being forced to a single worker.",
+    items: [
+      "GitHub Actions e2e execution can run independent tests concurrently while retaining the SwiftShader-safe default cap.",
+      "RPGATLAS_E2E_WORKERS provides an explicit runner-specific override when needed.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
+    title: "Verbose Playwright API diagnostics",
+    summary:
+      "E2E runs now expose Playwright browser and assertion activity through the pw:api debug namespace.",
+    items: [
+      "Local and GitHub Actions runs now log navigation, locator, expectation, and browser lifecycle calls.",
+      "Existing list and HTML reporters, traces, screenshots, and videos remain enabled.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
     title: "Faster e2e setup with verbose diagnostics",
     summary:
       "Reduced redundant browser bootstraps and fixed waits in the Playwright harness while making importer build logging verbose.",
