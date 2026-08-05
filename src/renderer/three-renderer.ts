@@ -2024,7 +2024,7 @@ export function createThreeRenderer(): any {
     }
     // Ambient is always the base light level; point-light events (already gated
     // by the host's "Point lights" toggle) add on top of it.
-    let lights = (cfg.lights && extra.lights) || [];
+    const lights = (cfg.lights && extra.lights) || [];
     if (cfg.pointShadows > 0 && lights.length > 1) {
       // Shadow casters are the first MAX_PLS entries — sort by distance to the
       // camera target so the closest lights are the ones that cast. `lights`
