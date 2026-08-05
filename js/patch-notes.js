@@ -5,6 +5,16 @@
 export const PATCH_NOTES = [
   {
     date: "August 4, 2026",
+    title: "Advanced-map startup diagnostics",
+    summary:
+      "Large generalized maps now composite sparse layers more efficiently and expose phase timing when map readiness is delayed.",
+    items: [
+      "Tinted sparse layers reuse a tile-sized scratch canvas instead of allocating a full map-sized intermediate.",
+      "Advanced-map CI diagnostics report the map-load phase, elapsed time, readiness state, and errors.",
+    ],
+  },
+  {
+    date: "August 4, 2026",
     title: "Stable renderer golden captures",
     summary:
       "Renderer golden tests now wait for the completed map frame before comparing HD-2D and generalized-layer output.",

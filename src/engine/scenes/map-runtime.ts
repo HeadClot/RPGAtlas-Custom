@@ -374,6 +374,46 @@ export function setMapParallax(cfg: any): void {
   img.src = src;
   parallaxState = slot;
 }
+
+function mapLoadNow(): number {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+function beginMapLoad(mapId: any): void {
+  Object.assign(ctx.mapLoadDiagnostics, {
+    mapId: Number(mapId),
+    phase: "resolve-map",
+    loading: true,
+    ready: false,
+    elapsedMs: 0,
+    error: null,
+    startedAt: mapLoadNow(),
+  });
+}
+
+function mapLoadPhase(phase: string): void {
+  const d = ctx.mapLoadDiagnostics;
+  d.phase = phase;
+  d.elapsedMs = Math.max(0, mapLoadNow() - d.startedAt);
+}
+
+function finishMapLoad(): void {
+  const d = ctx.mapLoadDiagnostics;
+  d.phase = "ready";
+  d.loading = false;
+  d.ready = true;
+  d.elapsedMs = Math.max(0, mapLoadNow() - d.startedAt);
+}
+
+function failMapLoad(error: unknown): void {
+  const d = ctx.mapLoadDiagnostics;
+  d.phase = "error";
+  d.loading = false;
+  d.ready = false;
+  d.elapsedMs = Math.max(0, mapLoadNow() - d.startedAt);
+  d.error = error instanceof Error ? error.message : String(error);
+}
+
 /** Paint the parallax under the map buffers (Canvas-2D path). MZ origin
  *  semantics: `lock` scrolls 1:1 with the map ("!"-prefixed sources); a loop
  *  axis scrolls at half camera speed plus an s×/2 px-per-tick drift; a
@@ -398,51 +438,65 @@ export function drawMapParallax(g: any, camX: any, camY: any, viewW: any, viewH:
 }
 
 export async function loadMap(mapId: any): Promise<void> {
-  ctx.map = RA.byId(ctx.proj.maps, mapId);
-  if (!ctx.map) {
-    ctx.map = ctx.proj.maps[0];
-    if (!ctx.map) throw new Error("Map " + mapId + " not found");
-    mapId = ctx.map.id;
+  beginMapLoad(mapId);
+  try {
+    ctx.map = RA.byId(ctx.proj.maps, mapId);
+    if (!ctx.map) {
+      ctx.map = ctx.proj.maps[0];
+      if (!ctx.map) throw new Error("Map " + mapId + " not found");
+      mapId = ctx.map.id;
+      ctx.mapLoadDiagnostics.mapId = Number(mapId);
+    }
+    // Saved or start positions can point outside this map (deleted/resized
+    // maps, or the fallback above landing on a smaller map) — keep the player
+    // inside the grid or movement and rendering both misbehave.
+    if (G.player) {
+      const px = clamp(G.player.x | 0, 0, ctx.map.width - 1);
+      const py = clamp(G.player.y | 0, 0, ctx.map.height - 1);
+      if (px !== G.player.x || py !== G.player.y) initPlayer(px, py, G.player.dir);
+    }
+    G.mapId = mapId;
+    G.encSteps = 0;
+    // Maps can pin the day/night clock on entry (blank = keep the current time).
+    if (ctx.map.hd2d && ctx.map.hd2d.timeOfDay != null && ctx.map.hd2d.timeOfDay !== "") {
+      G.timeOfDay = clamp(Number(ctx.map.hd2d.timeOfDay) || 0, 0, 24);
+    }
+    mapFloatTexts.length = 0;
+    mapLoadPhase("prepare-map");
+    // Tile behaviors (M4·A): rebuild the ladder/bush/counter/damage/terrain
+    // cache + presence mask for this map. Zero per-step cost when none painted.
+    rebuildTileBehaviors();
+    // A battle-background override (RM 283) lasts until the next map load, and
+    // the parallax resets to the map's own (RM 284 semantics).
+    G.battlebackOverride = null;
+    setMapParallax(ctx.map.parallax);
+    ctx.evRTs = ctx.map.events.map(makeEvRT);
+    ctx.parallels.clear();
+    mapLoadPhase("prerender");
+    await prerenderMap();
+    mapLoadPhase("connected-maps");
+    await warmConnectedMaps();
+    mapLoadPhase("audio");
+    Music.play(ctx.map.music || "none");
+    // Ambience layers (Phase 6): diffed against the previous map's, so shared
+    // layers keep looping seamlessly across a transfer. A command-owned BGS
+    // (M4·B, RM 245) rides along until a map with its own ambience autoplays
+    // (the MZ replace rule); maps without one take the exact old list.
+    if (G.bgs && Array.isArray(ctx.map.ambience) && ctx.map.ambience.length) G.bgs = null;
+    setAmbience(mergeCommandBgs(ctx.map.ambience || [], G.bgs));
+    mapLoadPhase("plugins");
+    Plugins.fire("mapLoad", ctx.map);
+    // Gameplay zones (Phase 8): bake collision/nav into the pass overlay and reset
+    // presence tracking. Runs AFTER mapLoad so the weather baseline captures the
+    // map's intended weather (the weather plugin sets per-map weather on mapLoad).
+    // Absent `zones` ⇒ empty state, zero per-step work.
+    mapLoadPhase("zones");
+    resetZoneState(ctx.map);
+    finishMapLoad();
+  } catch (error) {
+    failMapLoad(error);
+    throw error;
   }
-  // Saved or start positions can point outside this map (deleted/resized
-  // maps, or the fallback above landing on a smaller map) — keep the player
-  // inside the grid or movement and rendering both misbehave.
-  if (G.player) {
-    const px = clamp(G.player.x | 0, 0, ctx.map.width - 1);
-    const py = clamp(G.player.y | 0, 0, ctx.map.height - 1);
-    if (px !== G.player.x || py !== G.player.y) initPlayer(px, py, G.player.dir);
-  }
-  G.mapId = mapId;
-  G.encSteps = 0;
-  // Maps can pin the day/night clock on entry (blank = keep the current time).
-  if (ctx.map.hd2d && ctx.map.hd2d.timeOfDay != null && ctx.map.hd2d.timeOfDay !== "") {
-    G.timeOfDay = clamp(Number(ctx.map.hd2d.timeOfDay) || 0, 0, 24);
-  }
-  mapFloatTexts.length = 0;
-  // Tile behaviors (M4·A): rebuild the ladder/bush/counter/damage/terrain
-  // cache + presence mask for this map. Zero per-step cost when none painted.
-  rebuildTileBehaviors();
-  // A battle-background override (RM 283) lasts until the next map load, and
-  // the parallax resets to the map's own (RM 284 semantics).
-  G.battlebackOverride = null;
-  setMapParallax(ctx.map.parallax);
-  ctx.evRTs = ctx.map.events.map(makeEvRT);
-  ctx.parallels.clear();
-  await prerenderMap();
-  await warmConnectedMaps();
-  Music.play(ctx.map.music || "none");
-  // Ambience layers (Phase 6): diffed against the previous map's, so shared
-  // layers keep looping seamlessly across a transfer. A command-owned BGS
-  // (M4·B, RM 245) rides along until a map with its own ambience autoplays
-  // (the MZ replace rule); maps without one take the exact old list.
-  if (G.bgs && Array.isArray(ctx.map.ambience) && ctx.map.ambience.length) G.bgs = null;
-  setAmbience(mergeCommandBgs(ctx.map.ambience || [], G.bgs));
-  Plugins.fire("mapLoad", ctx.map);
-  // Gameplay zones (Phase 8): bake collision/nav into the pass overlay and reset
-  // presence tracking. Runs AFTER mapLoad so the weather baseline captures the
-  // map's intended weather (the weather plugin sets per-map weather on mapLoad).
-  // Absent `zones` ⇒ empty state, zero per-step work.
-  resetZoneState(ctx.map);
 }
 
 export function entityAt(x: any, y: any, exclude?: any): any[] {

@@ -117,7 +117,8 @@ test.describe("advanced-map performance budget (Phase 8)", () => {
         .poll(
           () => page.evaluate(() => {
             const atlas = window.Atlas?.atlas;
-            return atlas?.scene === "map" && !!atlas?.player;
+            const diagnostics = window.RPGATLAS_MAP_DIAGNOSTICS;
+            return diagnostics?.ready === true && atlas?.scene === "map" && !!atlas?.player;
           }),
           { timeout: LOAD_BUDGET_MS },
         )
@@ -127,10 +128,12 @@ test.describe("advanced-map performance budget (Phase 8)", () => {
       try {
         state = await page.evaluate(() => {
           const atlas = window.Atlas?.atlas;
+          const diagnostics = window.RPGATLAS_MAP_DIAGNOSTICS;
           const player = atlas?.player;
           return {
             scene: atlas?.scene ?? null,
             player: player ? { x: player.x, y: player.y, moving: !!player.moving } : null,
+            mapDiagnostics: diagnostics ?? null,
             errorOverlay: document.querySelector(".errbox")?.textContent?.trim() || null,
           };
         });
