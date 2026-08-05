@@ -574,9 +574,15 @@ export function createThreeRenderer(): any {
     }
     return o;
   }
+  const hexRGBCache = new Map<string, [number, number, number]>();
   function hexRGB(s: any): [number, number, number] {
-    const v = parseInt(String(s || "").replace("#", ""), 16) || 0;
-    return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
+    const key = String(s || "");
+    const cached = hexRGBCache.get(key);
+    if (cached) return cached;
+    const v = parseInt(key.replace("#", ""), 16) || 0;
+    const rgb: [number, number, number] = [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
+    hexRGBCache.set(key, rgb);
+    return rgb;
   }
   function ortho(l: number, r: number, b: number, t: number, n: number, f: number) {
     return [
@@ -597,6 +603,28 @@ export function createThreeRenderer(): any {
 
   const lightPos = new Float32Array(MAX_LIGHTS * 4);
   const lightCol = new Float32Array(MAX_LIGHTS * 3);
+  const clearColor = new THREE.Color();
+
+  // Renderer timings are deliberately opt-in. The default path does not call
+  // performance.now() or retain timing data, so diagnostics cannot become a
+  // hidden cost in exported games.
+  const perfTraceEnabled = (() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return q.get("perf") === "renderer" || q.get("perfRenderer") === "1";
+    } catch {
+      return false;
+    }
+  })();
+  const perfTrace = {
+    frameMs: 0,
+    setupMs: 0,
+    sunShadowMs: 0,
+    pointShadowMs: 0,
+    reflectionMs: 0,
+    sceneMs: 0,
+    postMs: 0,
+  };
 
   // Shared uniform refs: one object per uniform, referenced by every scene
   // material, so per-frame updates hit all chunk/sprite programs.
@@ -755,6 +783,31 @@ export function createThreeRenderer(): any {
     mesh.frustumCulled = false;
     mesh.matrixAutoUpdate = false;
     return mesh;
+  }
+
+  // Sprite and drop-shadow quads are rewritten every frame. Keeping the
+  // writes scalar avoids allocating a temporary 36-number array for every
+  // visible drawable on every rAF tick.
+  function writeBillboard(a: Float32Array, x0: number, yTop: number, z: number, w: number, h: number, tint = 1): void {
+    const x1 = x0 + w,
+      yBottom = yTop - h;
+    let i = 0;
+    const put = (x: number, y: number, u: number, v: number) => {
+      a[i++] = x; a[i++] = y; a[i++] = z; a[i++] = u; a[i++] = v; a[i++] = tint;
+    };
+    put(x0, yTop, 0, 0); put(x1, yTop, 1, 0); put(x0, yBottom, 0, 1);
+    put(x0, yBottom, 0, 1); put(x1, yTop, 1, 0); put(x1, yBottom, 1, 1);
+  }
+
+  function writeGroundQuad(a: Float32Array, x0: number, y: number, z0: number, w: number, h: number, tint = 1): void {
+    const x1 = x0 + w,
+      z1 = z0 + h;
+    let i = 0;
+    const put = (x: number, z: number, u: number, v: number) => {
+      a[i++] = x; a[i++] = y; a[i++] = z; a[i++] = u; a[i++] = v; a[i++] = tint;
+    };
+    put(x0, z0, 0, 0); put(x1, z0, 1, 0); put(x0, z1, 0, 1);
+    put(x0, z1, 0, 1); put(x1, z0, 1, 0); put(x1, z1, 1, 1);
   }
 
   // ---------------------------- render targets ----------------------------
@@ -924,6 +977,7 @@ export function createThreeRenderer(): any {
       cv!.addEventListener("webglcontextrestored", () => {
         console.warn("HD-2D: WebGL context restored — rebuilding GPU resources.");
         ok = true;
+        mapTextureCache = null;
         // three re-creates its internal GL state; replaying setMap rebuilds our
         // chunk textures/geometry fresh (sprite textures re-upload lazily).
         if (lastMapArgs) setMap(lastMapArgs[0], lastMapArgs[1], lastMapArgs[2]);
@@ -944,6 +998,7 @@ export function createThreeRenderer(): any {
     mapH = 0,
     heights: any = null,
     mapDiag = 0;
+  let lastSunFitKey = "";
   let cfg: any = { tilt: 50, bloom: 0, dof: 0, fog: null, lights: false, ambient: 0.45, shadows: 0, pointShadows: 0 };
 
   // Color-grade presets (map.hd2d.lut): a mat3 + bias applied in the
@@ -1001,7 +1056,22 @@ export function createThreeRenderer(): any {
       elevation: 15 + 60 * daylight,
     };
   }
+  let dayNightCacheHour = NaN;
+  let dayNightCache: ReturnType<typeof dayNightAt> | null = null;
+  function cachedDayNightAt(h: number): ReturnType<typeof dayNightAt> {
+    if (dayNightCache && dayNightCacheHour === h) return dayNightCache;
+    dayNightCacheHour = h;
+    dayNightCache = dayNightAt(h);
+    return dayNightCache;
+  }
   let mapDisposables: Array<{ dispose(): void }> = [];
+  let mapTextureCache: {
+    lowerBuf: HTMLCanvasElement;
+    upperBuf: HTMLCanvasElement;
+    map: any;
+    lower: Array<{ tex: THREE.CanvasTexture; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }>;
+    upper: Array<{ tex: THREE.CanvasTexture; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }>;
+  } | null = null;
 
   function hAt(tx: number, ty: number): number {
     if (!heights || tx < 0 || ty < 0 || tx >= mapW || ty >= mapH) return 0;
@@ -1179,8 +1249,33 @@ export function createThreeRenderer(): any {
   // the flat ground + extruded blocks and the elevated overhead tiles.
   // Remembered so a webglcontextrestored handler can replay the last call.
   let lastMapArgs: any = null;
+  function refreshChunkTextures(
+    source: HTMLCanvasElement,
+    chunks: Array<{ tex: THREE.CanvasTexture; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }>,
+  ): void {
+    for (const ch of chunks) {
+      const dst = ch.canvas.getContext("2d")!;
+      dst.clearRect(0, 0, ch.w, ch.h);
+      dst.drawImage(source, ch.x, ch.y, ch.w, ch.h, 0, 0, ch.w, ch.h);
+      ch.tex.needsUpdate = true;
+    }
+  }
+
   function setMap(lowerBuf: HTMLCanvasElement, upperBuf: HTMLCanvasElement, map: any): void {
     if (!ok) return;
+    // Animated terrain mutates the same prerender buffers and calls setMap on
+    // every frame advance. Refresh the existing CanvasTextures in place rather
+    // than disposing/recreating the whole scene graph and all shadow helpers.
+    if (
+      mapTextureCache &&
+      mapTextureCache.lowerBuf === lowerBuf &&
+      mapTextureCache.upperBuf === upperBuf &&
+      mapTextureCache.map === map
+    ) {
+      refreshChunkTextures(lowerBuf, mapTextureCache.lower);
+      refreshChunkTextures(upperBuf, mapTextureCache.upper);
+      return;
+    }
     lastMapArgs = [lowerBuf, upperBuf, map];
     for (const d of mapDisposables) d.dispose();
     mapDisposables = [];
@@ -1234,6 +1329,7 @@ export function createThreeRenderer(): any {
       dayNight: !!c.dayNight,
       sun: c.sun || null,
     };
+    lastSunFitKey = "";
     // Sun direction (used by water glints now, the day/night cycle later) —
     // available even when sun shadows are off.
     {
@@ -1267,6 +1363,7 @@ export function createThreeRenderer(): any {
 
     const lower = chopBuffer(lowerBuf),
       upper = chopBuffer(upperBuf);
+    mapTextureCache = { lowerBuf, upperBuf, map, lower, upper };
 
     // ground + blocks, batched per lower chunk texture
     for (const ch of lower) {
@@ -1422,7 +1519,10 @@ export function createThreeRenderer(): any {
         }
       }
       if (!verts.length) {
-        ch.tex.dispose(); // chunk has no overhead tiles — no mesh, no texture
+        // Keep the texture in the refresh cache. It is still disposed through
+        // mapDisposables when the map is replaced, and retaining it avoids a
+        // special-case texture list for animated buffer refreshes.
+        mapDisposables.push(ch.tex);
         continue;
       }
       const mesh = batchMesh(verts, ch.tex);
@@ -1698,7 +1798,8 @@ export function createThreeRenderer(): any {
     U.uClipY.value[1] = WATER_Y + 0.5;
     U.uMVP.value.fromArray(mul(mvp, MIRROR_Y));
     r.setRenderTarget(reflectRT);
-    r.setClearColor(new THREE.Color(clear[0], clear[1], clear[2]), 1);
+    clearColor.setRGB(clear[0], clear[1], clear[2]);
+    r.setClearColor(clearColor, 1);
     r.clear(true, true, false);
     r.render(scene, camera);
     U.uMVP.value.fromArray(mvp);
@@ -1861,6 +1962,7 @@ export function createThreeRenderer(): any {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.frustumCulled = false;
       mesh.matrixAutoUpdate = false;
+      mesh.userData.bound = [0, 0, 0];
       spriteGroup.add(mesh);
       spritePool.push({ mesh, buf, mat });
     }
@@ -1873,6 +1975,16 @@ export function createThreeRenderer(): any {
   // sprites: [{canvas, rx, ry, pr}] in tile coords; pr 0|1|2 = below/same/above.
   function renderFrame(w: number, h: number, camX: number, camY: number, sprites: any[], extra: any) {
     if (!ok || !renderer || !gl || gl.isContextLost()) return null;
+    const perfFrameStart = perfTraceEnabled ? performance.now() : 0;
+    if (perfTraceEnabled) {
+      perfTrace.frameMs = 0;
+      perfTrace.setupMs = 0;
+      perfTrace.sunShadowMs = 0;
+      perfTrace.pointShadowMs = 0;
+      perfTrace.reflectionMs = 0;
+      perfTrace.sceneMs = 0;
+      perfTrace.postMs = 0;
+    }
     extra = extra || {};
     const r = renderer;
     if (sizedW !== w || sizedH !== h) {
@@ -1912,12 +2024,14 @@ export function createThreeRenderer(): any {
     }
     // Ambient is always the base light level; point-light events (already gated
     // by the host's "Point lights" toggle) add on top of it.
-    let lights = (cfg.lights && extra.lights) || [];
+    const lights = (cfg.lights && extra.lights) || [];
     if (cfg.pointShadows > 0 && lights.length > 1) {
       // Shadow casters are the first MAX_PLS entries — sort by distance to the
-      // camera target so the closest lights are the ones that cast.
+      // camera target so the closest lights are the ones that cast. `lights`
+      // is a frame-local host array (as is `sprites`, sorted below), so sorting
+      // it in place avoids cloning the whole light list every frame.
       const d2 = (L: any) => ((L.rx + 0.5) * TILE - tX) ** 2 + ((L.ry + 0.5) * TILE - tZ) ** 2;
-      lights = lights.slice().sort((a: any, b: any) => d2(a) - d2(b));
+      lights.sort((a: any, b: any) => d2(a) - d2(b));
     }
     const nLights = Math.min(lights.length, MAX_LIGHTS);
     for (let i = 0; i < nLights; i++) {
@@ -1949,7 +2063,7 @@ export function createThreeRenderer(): any {
       const h24 = Number.isFinite(Number(extra.timeOfDay))
         ? Math.min(24, Math.max(0, Number(extra.timeOfDay)))
         : 12;
-      const dn = dayNightAt(h24);
+      const dn = cachedDayNightAt(h24);
       sunDl = dn.daylight;
       effAmbient = ambient * dn.scale;
       for (let i = 0; i < 3; i++) U.uAmbTint.value[i] = dn.tint[i] * dn.scale;
@@ -1958,11 +2072,14 @@ export function createThreeRenderer(): any {
       U.uSunDir.value[0] = Math.sin(az) * Math.cos(el);
       U.uSunDir.value[1] = Math.sin(el);
       U.uSunDir.value[2] = -Math.cos(az) * Math.cos(el);
-      if (cfg.shadows > 0 && lastMapArgs) {
+      const sunKey = h24 + ":" + dn.azimuth + ":" + dn.elevation;
+      if (cfg.shadows > 0 && lastMapArgs && lastSunFitKey !== sunKey) {
         fitSunCamera(lastMapArgs[2], { azimuth: dn.azimuth, elevation: dn.elevation });
+        lastSunFitKey = sunKey;
       }
     }
     U.uGlow.value = Math.min(1, Math.max(0, (0.45 - effAmbient) / 0.45));
+    if (perfTraceEnabled) perfTrace.setupMs = performance.now() - perfFrameStart;
 
     // far-to-near so soft alpha edges blend correctly between sprites
     sprites.sort((a, b) => a.ry - b.ry);
@@ -1976,13 +2093,13 @@ export function createThreeRenderer(): any {
       // feet sit where the 2D path drew them (8px above the tile's south edge);
       // priority nudges the plane so below/above sprites layer like in 2D
       const z = (s.ry + 1) * TILE - 8 + ((s.pr || 1) - 1) * 6;
-      (p.buf.array as Float32Array).set([
-        x0, base + sh, z, 0, 0, 1, x0 + sw, base + sh, z, 1, 0, 1, x0, base, z, 0, 1, 1,
-        x0, base, z, 0, 1, 1, x0 + sw, base + sh, z, 1, 0, 1, x0 + sw, base, z, 1, 1, 1,
-      ]);
+      writeBillboard(p.buf.array as Float32Array, x0, base + sh, z, sw, sh);
       p.buf.needsUpdate = true;
       p.mat.uniforms.uTex.value = texFor(s.canvas);
-      p.mesh.userData.bound = [x0 + sw / 2, z, Math.max(sw, sh)]; // XZ cull circle
+      const bound = p.mesh.userData.bound as number[];
+      bound[0] = x0 + sw / 2;
+      bound[1] = z;
+      bound[2] = Math.max(sw, sh); // XZ cull circle
       p.mesh.visible = true;
       if (cfg.dropShadows) { // soft blob under the feet
         const d = poolDrop(i);
@@ -1991,10 +2108,7 @@ export function createThreeRenderer(): any {
         const cx = x0 + sw / 2,
           cz2 = z - 4,
           dy = base + 1.5;
-        (d.buf.array as Float32Array).set([
-          cx - dw / 2, dy, cz2 - dh / 2, 0, 0, 1, cx + dw / 2, dy, cz2 - dh / 2, 1, 0, 1, cx - dw / 2, dy, cz2 + dh / 2, 0, 1, 1,
-          cx - dw / 2, dy, cz2 + dh / 2, 0, 1, 1, cx + dw / 2, dy, cz2 - dh / 2, 1, 0, 1, cx + dw / 2, dy, cz2 + dh / 2, 1, 1, 1,
-        ]);
+        writeGroundQuad(d.buf.array as Float32Array, cx - dw / 2, dy, cz2 - dh / 2, dw, dh);
         d.buf.needsUpdate = true;
         d.mesh.visible = true;
       }
@@ -2023,7 +2137,11 @@ export function createThreeRenderer(): any {
     }
 
     // ---- sun depth pass (only when this map casts shadows; none at night) ----
-    if (cfg.shadows > 0 && sunDl > 0.003) renderSunDepth(r, sunDl);
+    if (cfg.shadows > 0 && sunDl > 0.003) {
+      const t0 = perfTraceEnabled ? performance.now() : 0;
+      renderSunDepth(r, sunDl);
+      if (perfTraceEnabled) perfTrace.sunShadowMs = performance.now() - t0;
+    }
     else if (cfg.shadows > 0) U.uShadowStrength.value = 0;
 
     // ---- point-light depth pass (map.hd2d.pointShadows) ----
@@ -2032,7 +2150,11 @@ export function createThreeRenderer(): any {
     if (cfg.pointShadows > 0) {
       ensurePLRT();
       U.uPLMap.value = plRT!.depthTexture; // bound even at 0 casters (sampler is active)
-      if (plCount > 0) renderPointDepth(r, plCount);
+      if (plCount > 0) {
+        const t0 = perfTraceEnabled ? performance.now() : 0;
+        renderPointDepth(r, plCount);
+        if (perfTraceEnabled) perfTrace.pointShadowMs = performance.now() - t0;
+      }
     }
 
     // The GL canvas is the bottom layer (the engine's 2D #gamecanvas sits on
@@ -2044,7 +2166,12 @@ export function createThreeRenderer(): any {
     setViewCull(camX + shX, camY + shZ, w / zoom, h / zoom, true);
 
     // ---- planar-reflection pass (only when this map has water) ----
-    if (cfg.water > 0 && waterGroup.children.length) renderReflection(r, mvp, clear);
+    clearColor.setRGB(clear[0], clear[1], clear[2]);
+    if (cfg.water > 0 && waterGroup.children.length) {
+      const t0 = perfTraceEnabled ? performance.now() : 0;
+      renderReflection(r, mvp, clear);
+      if (perfTraceEnabled) perfTrace.reflectionMs = performance.now() - t0;
+    }
 
     // ---- scene pass (direct to canvas unless a post effect needs a target) ----
     const post =
@@ -2056,13 +2183,16 @@ export function createThreeRenderer(): any {
     } else {
       r.setRenderTarget(null);
     }
-    r.setClearColor(new THREE.Color(clear[0], clear[1], clear[2]), 1);
+    const sceneT0 = perfTraceEnabled ? performance.now() : 0;
+    r.setClearColor(clearColor, 1);
     r.clear(true, true, false);
     r.render(scene, camera);
+    if (perfTraceEnabled) perfTrace.sceneMs = performance.now() - sceneT0;
     setViewCull(0, 0, 0, 0, false); // restore chunk visibility for the next frame's depth passes
 
     // ---- post passes ----
     if (post) {
+      const postT0 = perfTraceEnabled ? performance.now() : 0;
       if (cfg.dof > 0) { // blurred copy of the whole scene → half[0]
         brightU.uTex.value = rt!.scene.texture;
         brightU.uThreshold.value = 0;
@@ -2131,7 +2261,9 @@ export function createThreeRenderer(): any {
         r.setRenderTarget(null);
         r.render(fxaaScene, camera);
       }
+      if (perfTraceEnabled) perfTrace.postMs = performance.now() - postT0;
     }
+    if (perfTraceEnabled) perfTrace.frameMs = performance.now() - perfFrameStart;
     return cv;
   }
 
@@ -2154,6 +2286,7 @@ export function createThreeRenderer(): any {
       geometries: info.memory.geometries,
       textures: info.memory.textures,
       programs: info.programs ? info.programs.length : 0,
+      timings: perfTraceEnabled ? { ...perfTrace } : null,
     };
   }
 

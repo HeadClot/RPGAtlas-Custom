@@ -36,3 +36,43 @@ export function measureFrames(page, { warmup, frames }) {
     { warmup, frames },
   );
 }
+
+/** Collect cadence statistics for a frame window. This is intentionally based
+ * on rAF timestamps rather than wall-clock sleeps so the result stays stable
+ * under Playwright's virtualized browser scheduling. */
+export function measureFrameStats(page, { warmup, frames }) {
+  return page.evaluate(
+    ({ warmup, frames }) =>
+      new Promise((resolve) => {
+        const samples = [];
+        let n = 0;
+        let previous = 0;
+        function tick(now) {
+          if (previous && n >= warmup) samples.push(now - previous);
+          previous = now;
+          n++;
+          if (n >= warmup + frames) {
+            const sorted = samples.slice().sort((a, b) => a - b);
+            resolve({
+              avgMs: samples.reduce((sum, value) => sum + value, 0) / samples.length,
+              minMs: sorted[0] || 0,
+              maxMs: sorted[sorted.length - 1] || 0,
+              p95Ms: sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] || 0,
+            });
+            return;
+          }
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      }),
+    { warmup, frames },
+  );
+}
+
+/** Measure a Playwright action sequence from the same test process. Useful for
+ * editor tools whose cost is DOM/Canvas work rather than a game rAF loop. */
+export async function measureAction(action) {
+  const start = performance.now();
+  await action();
+  return performance.now() - start;
+}

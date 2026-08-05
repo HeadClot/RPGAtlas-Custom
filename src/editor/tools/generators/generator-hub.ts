@@ -91,13 +91,17 @@ export function openGeneratorHub(initialId = "weapon"): void {
   let selected = definitionById(initialId);
   const favorites = loadFavorites();
   let showFavorites = false;
+  let railRaf = 0;
   const optionsById = new Map<string, HubOptions>();
   const resultsById = new Map<string, GeneratedName[]>();
 
   const railList = h("div", { class: "gen-rail-list" });
   const searchInput = h("input", {
     type: "search", class: "gen-search", placeholder: "Find a generator...", "aria-label": "Find a generator",
-    oninput(e: any) { renderRail(e.target.value); },
+    oninput(e: any) {
+      const query = e.target.value;
+      if (!railRaf) railRaf = requestAnimationFrame(() => { railRaf = 0; renderRail(query); });
+    },
   });
   const rail = h("aside", { class: "gen-rail" },
     h("div", { class: "gen-rail-head" },
@@ -271,5 +275,6 @@ export function openGeneratorHub(initialId = "weapon"): void {
   modal({
     title: "Generator Hub", wide: true, class: "generator-hub-modal", content: root,
     buttons: [{ label: "Close", primary: true }],
+    onClose() { if (railRaf) cancelAnimationFrame(railRaf); },
   });
 }

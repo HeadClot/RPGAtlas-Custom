@@ -5,6 +5,18 @@
 export const PATCH_NOTES = [
   {
     date: "August 5, 2026",
+    title: "Renderer and editor tooling performance pass",
+    summary:
+      "Reduced repeated renderer, map-editor, and editor-tool work while preserving existing HD-2D, classic 2D, and serialized project behavior.",
+    items: [
+      "HD terrain animation now refreshes existing chunk textures, with cached lighting/day-night state, reusable draw buffers, and opt-in renderer stage timings.",
+      "Classic 2D and map-editor rendering now skip empty/offscreen work, crop large buffer draws, and coalesce camera and input-driven redraws.",
+      "Asset Browser, Project Scan, Character Generator, Generator Hub, Advanced Map, and HD viewport hot paths now reuse indexes, previews, and static buffers.",
+      "Added deterministic classic 2D, HD diagnostics, and editor-tool performance coverage alongside the existing renderer parity and memory tests.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
     title: "Feature-oriented source layout",
     summary:
       "Regrouped internal TypeScript modules by feature and responsibility while preserving the editor, player, export, server, and plugin compatibility boundaries.",

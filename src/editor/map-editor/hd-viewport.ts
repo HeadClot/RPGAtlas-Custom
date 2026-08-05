@@ -57,6 +57,7 @@ let lastBuild = 0;
 let lastAnimFrame = 0; // terrain-anim frame the buffers were last built at
 let tick = 0; // preview animation clock (water waves etc.)
 let kick: any = null; // one-shot re-render covering rAF pauses in hidden panels
+let cachedVisuals: { map: any; events: any[]; lights: any[]; allLights: any[] } | null = null;
 
 // ---- viewport camera (decoupled from the game camera) ----
 let camX = 0, camY = 0; // look-at center → world box top-left, matching renderFrame
@@ -73,6 +74,7 @@ let lastCam: ViewCam | null = null;
 // ============================ dirty / rebuild ============================
 export function viewportDirty() {
   dirty = true;
+  cachedVisuals = null;
   if (!root) return;
   clearTimeout(kick);
   kick = setTimeout(renderOnce, 400);
@@ -96,11 +98,13 @@ function buildBuffers(m: any, frame = 0) { // same composition as the engine's p
   lg.fillStyle = "#101018"; lg.fillRect(0, 0, lower.width, lower.height);
   if (!m.layersAdv) {
     for (let y = 0; y < m.height; y++) {
+      const row = y * m.width;
       for (let x = 0; x < m.width; x++) {
-        drawLayerCell(lg, m.layers.ground, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, frame);
-        drawLayerCell(lg, m.layers.decor, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, frame);
-        drawLayerCell(lg, m.layers.decor2, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, frame);
-        drawLayerCell(ug, m.layers.over, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, frame);
+        const i = row + x;
+        if (m.layers.ground[i]) drawLayerCell(lg, m.layers.ground, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, frame);
+        if (m.layers.decor[i]) drawLayerCell(lg, m.layers.decor, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, frame);
+        if (m.layers.decor2[i]) drawLayerCell(lg, m.layers.decor2, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, frame);
+        if (m.layers.over[i]) drawLayerCell(ug, m.layers.over, m.width, m.height, x, y, x * TILE, y * TILE, TILE, Assets.drawTile, frame);
       }
     }
   } else {
@@ -164,21 +168,30 @@ function renderOnce() {
   const camYc = Math.max(-hgt, Math.min(camY, m.height * TILE));
   camX = camXc; camY = camYc;
 
-  // Gather sprites + event/light data exactly like the engine's frame builder.
-  const sprites: any[] = [], lights: any[] = [];
-  for (const ev of m.events) {
-    const pg = ev.pages[0];
-    const L = hdParseLight(ev.name);
-    if (L) lights.push({ rx: ev.x, ry: ev.y, color: L.color, radius: L.radius });
-    if (pg && pg.charset) {
-      const ci = Assets.charsetIndex(pg.charset);
-      if (ci >= 0) sprites.push({
-        id: "hdview_ev_" + ev.id,
-        canvas: Assets.charFrameCanvas(ci, pg.dir || 0, 1),
-        rx: ev.x, ry: ev.y, pr: 1,
-      });
+  // Gather static event visuals once per map/dirty edit. Camera movement and
+  // light gizmo changes do not change event sprites, so rebuilding these
+  // arrays on every viewport rAF only creates garbage and repeats charset work.
+  if (!cachedVisuals || cachedVisuals.map !== m) {
+    const events: any[] = [], lights: any[] = [];
+    for (const ev of m.events) {
+      const pg = ev.pages[0];
+      const L = hdParseLight(ev.name);
+      if (L) lights.push({ rx: ev.x, ry: ev.y, color: L.color, radius: L.radius });
+      if (pg && pg.charset) {
+        const ci = Assets.charsetIndex(pg.charset);
+        if (ci >= 0) events.push({
+          id: "hdview_ev_" + ev.id,
+          canvas: Assets.charFrameCanvas(ci, pg.dir || 0, 1),
+          rx: ev.x, ry: ev.y, pr: 1,
+        });
+      }
     }
+    cachedVisuals = { map: m, events, lights, allLights: [] };
   }
+  const sprites = cachedVisuals.events;
+  const lights = cachedVisuals.allLights;
+  lights.length = 0;
+  lights.push(...cachedVisuals.lights);
   const hd2d = m.hd2d || {};
   const lightsOn = hd2d.lights !== false;
   if (lightsOn && Array.isArray(m.lights)) lights.push(...m.lights);
