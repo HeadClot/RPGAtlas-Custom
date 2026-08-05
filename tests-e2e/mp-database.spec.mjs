@@ -21,6 +21,8 @@ test.describe("Database ▸ Multiplayer tab", () => {
     // A fresh project has multiplayer OFF (migrateProject backfills the inert default).
     const before = await readProject(page);
     expect(before.system.multiplayer.enabled).toBe(false);
+    expect(before.meta.formatVersion).toEqual(expect.any(Number));
+    const initialFormatVersion = before.meta.formatVersion;
 
     // Open the Database via the command palette, then the Multiplayer tab.
     await page.keyboard.press("Control+p");
@@ -51,7 +53,7 @@ test.describe("Database ▸ Multiplayer tab", () => {
     expect(mp.presets).toEqual(["Follow me!", "Nice one!"]);
     expect(Object.keys(mp.spawns).length).toBe(1); // one spawn point authored
 
-    // FORMAT_VERSION stays 2 — the multiplayer block is additive.
-    expect(after.meta.formatVersion).toBe(2);
+    // Multiplayer authoring is additive and does not change the current schema version.
+    expect(after.meta.formatVersion).toBe(initialFormatVersion);
   });
 });
