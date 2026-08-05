@@ -1099,7 +1099,7 @@ test.describe("detailed tutorials", () => {
 
     // The index lists the launch guides as clickable cards.
     const cards = page.locator(".tut-card");
-    await expect(cards).toHaveCount(6);
+    await expect(cards).toHaveCount(8);
     await expect(cards.first()).toContainText("Set Up a Multiplayer Server");
 
     // Opening the multiplayer-server guide shows real step-by-step content.
@@ -1109,7 +1109,7 @@ test.describe("detailed tutorials", () => {
 
     // Back returns to the index; Close dismisses the dialog.
     await page.locator(".tut-back").first().click();
-    await expect(page.locator(".tut-card")).toHaveCount(6);
+    await expect(page.locator(".tut-card")).toHaveCount(8);
     await page.locator(".modal-btns button", { hasText: "Close" }).click();
     await expect(page.locator(".modal-title", { hasText: "Detailed Tutorials" })).toHaveCount(0);
   });

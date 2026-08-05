@@ -331,9 +331,17 @@ test.describe("generalized layers (map.layersAdv)", () => {
    * pinMovers doc in fixtures/atlas-quest.mjs), so movers stay pinned here.
    * That costs nothing: this describe guards LAYER COMPOSITING; the walking-
    * mover render path is covered by the committed goldens above. */
+  const stabilizeLayerComparison = (project) => {
+    // Layer comparisons should contain only the map buffers. The player is
+    // unrelated to compositing and can otherwise land on a different sprite
+    // frame between separate deterministic boots.
+    project.system.startTransparent = true;
+    return pinMovers(project);
+  };
+
   async function frame(page, hd, transform) {
     const stableStage = await bootToStableMap(page, hd, (project) =>
-      pinMovers(transform ? (transform(project) ?? project) : project));
+      stabilizeLayerComparison(transform ? (transform(project) ?? project) : project));
     return stableStage || page.locator("#stage").screenshot();
   }
   /** Count RGBA byte differences between two PNG buffers, decoded in-page. */
