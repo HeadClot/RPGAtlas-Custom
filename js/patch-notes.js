@@ -2119,3 +2119,15 @@ PATCH_NOTES.push({
     "Preserved checked-in fallback validation for pull requests and main-only cache generation and saving.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T21:11:45-06:00",
+  title: "Stable point-light shadow captures",
+  summary:
+    "HD-2D point-light shadow captures now wait for compiled shadow programs and a completed depth-atlas scene frame before comparing pixels.",
+  items: [
+    "Added point-shadow readiness, revision, atlas-frame, and scene-frame diagnostics.",
+    "Hardened the renderer-golden harness against first-use SwiftShader shadow frames and stale title-canvas captures without changing the baseline image.",
+  ],
+});

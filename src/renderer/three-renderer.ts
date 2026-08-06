@@ -982,11 +982,17 @@ export function createThreeRenderer(): any {
         e.preventDefault();
         console.warn("HD-2D: WebGL context lost — falling back to Canvas 2D.");
         ok = false;
+        pointShadowReady = false;
+        pointShadowProgramsReady = false;
+        pointShadowFrameId = 0;
+        pointShadowSceneFrameId = 0;
       });
       cv!.addEventListener("webglcontextrestored", () => {
         console.warn("HD-2D: WebGL context restored — rebuilding GPU resources.");
         ok = true;
         mapTextureCache = null;
+        plRT = null;
+        resetPointShadowState();
         // three re-creates its internal GL state; replay the last world/map so
         // chunk textures and geometry are rebuilt (sprite textures re-upload lazily).
         if (lastWorldArgs) setWorld(lastWorldArgs);
@@ -1016,6 +1022,25 @@ export function createThreeRenderer(): any {
     worldSurfaceCount = 1;
   let lastSunFitKey = "";
   let cfg: any = { tilt: 50, bloom: 0, dof: 0, fog: null, lights: false, ambient: 0.45, shadows: 0, pointShadows: 0 };
+  // Point-shadow readiness is deliberately stricter than map-texture
+  // readiness. The atlas must be rendered once, then consumed by a complete
+  // scene frame, so a golden capture cannot sample the first-use SwiftShader
+  // frame while the point-shadow programs are still warming up.
+  let pointShadowRevision = 0;
+  let pointShadowFrameId = 0;
+  let pointShadowSceneFrameId = 0;
+  let pointShadowReady = false;
+  let pointShadowProgramsReady = false;
+  let pointShadowKey = "";
+
+  function resetPointShadowState() {
+    pointShadowRevision++;
+    pointShadowFrameId = 0;
+    pointShadowSceneFrameId = 0;
+    pointShadowReady = cfg.pointShadows <= 0;
+    pointShadowProgramsReady = false;
+    pointShadowKey = "";
+  }
 
   // Color-grade presets (map.hd2d.lut): a mat3 + bias applied in the
   // composite. Procedural stand-ins for image LUTs — deterministic, tiny, and
@@ -1496,6 +1521,7 @@ export function createThreeRenderer(): any {
       dayNight: !!c.dayNight,
       sun: c.sun || null,
     };
+    resetPointShadowState();
     lastSunFitKey = "";
     // Sun direction (used by water glints now, the day/night cycle later) —
     // available even when sun shadows are off.
@@ -1816,6 +1842,17 @@ export function createThreeRenderer(): any {
     for (const [mesh, mat] of swapped) mesh.material = mat;
   }
 
+  // Compile both the scene and depth variants before the first point-shadow
+  // atlas render. Three.js otherwise discovers these programs lazily during
+  // the first depth/scene pass, which leaves the capture boundary dependent on
+  // the host's shader compilation timing.
+  function ensurePointShadowPrograms(r: THREE.WebGLRenderer) {
+    if (pointShadowProgramsReady) return;
+    withDepthMaterials(() => r.compile(scene, camera));
+    r.compile(scene, camera);
+    pointShadowProgramsReady = true;
+  }
+
   // Render the sun depth map. `dl` scales strength (day/night fades shadows
   // toward dusk; 1 when the cycle is off).
   function renderSunDepth(r: THREE.WebGLRenderer, dl = 1) {
@@ -2133,6 +2170,7 @@ export function createThreeRenderer(): any {
       mesh.userData.bound = [0, 0, 0];
       spriteGroup.add(mesh);
       spritePool.push({ mesh, buf, mat });
+      if (cfg.pointShadows > 0) pointShadowProgramsReady = false;
     }
     return spritePool[i];
   }
@@ -2340,11 +2378,38 @@ export function createThreeRenderer(): any {
     const plCount = cfg.pointShadows > 0 ? Math.min(nLights, MAX_PLS) : 0;
     U.uPLCount.value = plCount;
     if (cfg.pointShadows > 0) {
+      const nextPointShadowKey = plCount > 0
+        ? [
+            plCount,
+            ...Array.from({ length: plCount }, (_, i) => [
+              lightPos[i * 4], lightPos[i * 4 + 1], lightPos[i * 4 + 2], lightPos[i * 4 + 3],
+              lightCol[i * 3], lightCol[i * 3 + 1], lightCol[i * 3 + 2],
+            ].join(",")),
+          ].join(";")
+        : "none";
+      if (nextPointShadowKey !== pointShadowKey) {
+        pointShadowRevision++;
+        pointShadowKey = nextPointShadowKey;
+        pointShadowReady = false;
+        pointShadowSceneFrameId = 0;
+      } else if (
+        plCount > 0 &&
+        pointShadowFrameId > 0 &&
+        pointShadowSceneFrameId === pointShadowFrameId
+      ) {
+        // The previous frame rendered and consumed this exact atlas. This
+        // frame is the first one eligible for a stable capture boundary.
+        pointShadowReady = true;
+      } else if (plCount === 0) {
+        pointShadowReady = true;
+      }
       ensurePLRT();
       U.uPLMap.value = plRT!.depthTexture; // bound even at 0 casters (sampler is active)
       if (plCount > 0) {
+        ensurePointShadowPrograms(r);
         const t0 = perfTraceEnabled ? performance.now() : 0;
         renderPointDepth(r, plCount);
+        pointShadowFrameId++;
         if (perfTraceEnabled) perfTrace.pointShadowMs = performance.now() - t0;
       }
     }
@@ -2379,6 +2444,9 @@ export function createThreeRenderer(): any {
     r.setClearColor(clearColor, 1);
     r.clear(true, true, false);
     r.render(scene, camera);
+    if (cfg.pointShadows > 0 && plCount > 0) {
+      pointShadowSceneFrameId = pointShadowFrameId;
+    }
     if (perfTraceEnabled) perfTrace.sceneMs = performance.now() - sceneT0;
     setViewCull(0, 0, 0, 0, false); // restore chunk visibility for the next frame's depth passes
 
@@ -2487,6 +2555,12 @@ export function createThreeRenderer(): any {
       renderFrameId,
       renderedEngineTick,
       surfaceCount: worldSurfaceCount,
+      pointShadowEnabled: cfg.pointShadows > 0,
+      pointShadowReady: cfg.pointShadows > 0 && pointShadowReady,
+      pointShadowRevision,
+      pointShadowFrameId,
+      pointShadowSceneFrameId,
+      pointShadowProgramsReady,
       timings: perfTraceEnabled ? { ...perfTrace } : null,
     };
   }

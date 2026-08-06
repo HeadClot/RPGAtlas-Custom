@@ -41,6 +41,24 @@ entry in `js/patch-notes.js`.
 - Small bug fixes, formatting-only edits, and internal maintenance do not require an entry unless
   they materially affect users.
 
+## General Contribution Guidelines
+
+- Use `cmd` for terminal commands. PowerShell is unreliable in this project.
+- Use many small classes in separate files.
+- Keep every file below 1000 lines.
+- If a file approaches 1000 lines, stop adding code to it and split the relevant code into new
+  classes and files immediately.
+- Keep related systems in dedicated child folders instead of scattering files throughout the
+  project.
+- Keep the test directory structure as close as possible to the source directory structure.
+- Use a clear directory structure so future agents can quickly locate features and systems.
+- Prefer modifying an existing reusable base class over duplicating an existing solution.
+- Create base classes for groups of related classes, then derive specialized classes from those
+  base classes.
+- Put reusable systems, such as menus, in shared directories such as `ui/menu/`.
+- Design shared base classes to support all expected use cases before adding specialized overrides.
+- Do not add other third-party libraries.
+
 ## Repository Structure
 
 This repository is organized by application boundary and responsibility. Use the existing tree as
