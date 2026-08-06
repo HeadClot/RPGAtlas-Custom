@@ -80,7 +80,6 @@ import {
   markDead,
   respawnIfReady,
   startAttack,
-  swordHitsEntity,
   tickAttack,
   toCombatNetState,
 } from "../../shared/sim/action-combat.js";
