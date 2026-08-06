@@ -11,7 +11,7 @@ import { RA, LAYER_ORDER, editorState as S, curMap } from "../core/editor-state"
 import { touch } from "../persistence";
 import { renderMap } from "./map-render";
 import { pushUndo } from "./history";
-import { eventAt, heightsOf, shadowsOf } from "./painting";
+import { eventAt, heightsOf, shadowsOf, platformerCollisionOf } from "./painting";
 import { setStatus, flashStatus } from "./status";
 import { setMode, refreshToolbar } from "../core/workspace";
 
@@ -38,15 +38,16 @@ import { setMode, refreshToolbar } from "../core/workspace";
     if (S.mode !== "map" || !S.selection) { flashStatus("Shift+drag on the map to select an area first"); return; }
     const m = curMap(), r = S.selection;
     const w = r.x2 - r.x1 + 1, h2 = r.y2 - r.y1 + 1;
-    const clip: any = { w, h: h2, layers: {}, shadows: [], heights: [] };
+    const clip: any = { w, h: h2, layers: {}, shadows: [], heights: [], platformerCollision: [] };
     for (const ln of LAYER_ORDER) clip.layers[ln] = [];
-    const hts = heightsOf(m), shs = shadowsOf(m);
+    const hts = heightsOf(m), shs = shadowsOf(m), pcs = platformerCollisionOf(m);
     for (let y = r.y1; y <= r.y2; y++) {
       for (let x = r.x1; x <= r.x2; x++) {
         const i = y * m.width + x;
         for (const ln of LAYER_ORDER) clip.layers[ln].push(m.layers[ln][i]);
         clip.shadows.push(shs[i]);
         clip.heights.push(hts[i] || 0);
+        clip.platformerCollision.push(pcs[i] || 0);
       }
     }
     S.clipTiles = clip;
@@ -59,6 +60,7 @@ import { setMode, refreshToolbar } from "../core/workspace";
           for (const ln of LAYER_ORDER) m.layers[ln][i] = 0;
           shs[i] = 0;
           heightsOf(m)[i] = 0;
+          pcs[i] = 0;
         }
       }
       touch(); renderMap();
@@ -83,7 +85,7 @@ import { setMode, refreshToolbar } from "../core/workspace";
   export function stampPaste(cell: any) {
     if (S.pasteMode === "tiles" && S.clipTiles) {
       pushUndo("Paste tiles");
-      const m = curMap(), shs = shadowsOf(m);
+      const m = curMap(), shs = shadowsOf(m), pcs = platformerCollisionOf(m);
       for (let dy = 0; dy < S.clipTiles.h; dy++) {
         for (let dx = 0; dx < S.clipTiles.w; dx++) {
           const x = cell.x + dx, y = cell.y + dy;
@@ -92,6 +94,7 @@ import { setMode, refreshToolbar } from "../core/workspace";
           for (const ln of LAYER_ORDER) m.layers[ln][di] = S.clipTiles.layers[ln][si];
           shs[di] = S.clipTiles.shadows[si];
           heightsOf(m)[di] = (S.clipTiles.heights && S.clipTiles.heights[si]) || 0;
+          pcs[di] = (S.clipTiles.platformerCollision && S.clipTiles.platformerCollision[si]) || 0;
         }
       }
       touch(); renderMap();

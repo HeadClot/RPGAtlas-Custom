@@ -3,6 +3,23 @@
 Maps are the stage your whole game plays out on. This page covers building them well: layers,
 passability, shadows, map properties, encounters, and the optional HD-2D height system.
 
+## What a map controls
+
+A map controls the space the player sees and moves through. Its tiles provide the appearance and
+usually suggest where the player can walk. Its events provide interaction. Its **Map Properties**
+control music, encounters, connected-world behavior, and optional visual effects.
+
+For a first map, use this order:
+
+1. Give the map a clear name, such as `Town`, `Forest`, or `Cave`.
+2. Paint the ground with **Auto layer**.
+3. Add decoration and overhead scenery.
+4. Check movement in **Passability mode**.
+5. Set the player start position on a safe, walkable tile.
+6. Add events only after the player can enter, explore, and leave the map.
+
+This order keeps artwork, movement, and story problems easy to tell apart.
+
 ---
 
 ## Creating and managing maps

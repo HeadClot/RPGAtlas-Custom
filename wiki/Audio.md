@@ -6,6 +6,20 @@ update you can also **import your own OGG/MP3/WAV files** (via [The Asset Browse
 and use them everywhere the procedural audio works; game exports embed only the audio your game
 actually uses, so procedural-only games still ship without a single audio file.
 
+## A simple audio pass
+
+1. Open **Tools ▸ Audio Manager** and listen to the built-in themes and effects.
+2. Give each map a background track in **Map Properties**.
+3. Give important actions a short **Play Sound** effect: opening a chest, confirming a purchase,
+   healing, or activating a switch.
+4. Add ambience only where it helps the place feel different. Rain, surf, wind, and crowds work
+   best as a quiet background layer rather than a second loud music track.
+5. Playtest with the game's music, sound, and ambience volume sliders. A sound that is pleasant at
+   full volume may be tiring for a player.
+
+You can finish a complete game using only generated audio. Import music or effects when you have
+the rights to distribute them and want a sound that is uniquely yours.
+
 ---
 
 ## The Audio Manager

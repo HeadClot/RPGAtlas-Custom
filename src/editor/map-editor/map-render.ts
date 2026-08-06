@@ -22,7 +22,7 @@ import { drawEntryTiles } from "../../shared/map/layer-composite";
    *  advState. Fields mirror the S fields the monolith body read. */
   export interface MapView {
     zoom: number;
-    mode: string;              // map | event | pass | start | height | region
+    mode: string;              // map | event | pass | platformerCollision | start | height | region
     layer: string;             // auto | ground | decor | decor2 | over
     tool: string;
     selection: any;            // {x1,y1,x2,y2} | null
@@ -42,6 +42,7 @@ import { drawEntryTiles } from "../../shared/map/layer-composite";
      *  byte-identical draw; the anim loop advances it when a map has animated
      *  terrain painted on it. */
     frame?: number;
+    platformerVal?: number;
     /** Advanced editor Objects mode (Phase 8 Stage D): when set, gameplay
      *  zones are drawn as a translucent overlay on top of the tile render,
      *  with the selected zone highlighted and the in-progress draft shown.
@@ -71,6 +72,7 @@ import { drawEntryTiles } from "../../shared/map/layer-composite";
       rectStart: S.rectStart, painting: S.painting, pasteMode: S.pasteMode,
       clipTiles: S.clipTiles, selectedEvent: S.selectedEvent,
       system: S.proj.system, frame: mapAnimFrame(),
+      platformerVal: S.platformerVal,
     };
   }
   function layerAlpha(v: MapView, li: any) {
@@ -178,6 +180,21 @@ import { drawEntryTiles } from "../../shared/map/layer-composite";
           g.stroke();
         }
       }
+    }
+  }
+  function drawPlatformerCollisionOverlay(g: any, m: any, v: MapView) {
+    const arr = Array.isArray(m.platformerCollision) ? m.platformerCollision : [];
+    for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) {
+      const i = y * m.width + x;
+      const value = Number(arr[i]) || 0;
+      const color = value === 1 ? "rgba(255,92,92,0.35)" : value === 2 ? "rgba(120,210,255,0.22)" : value === 3 ? "rgba(255,210,80,0.42)" : "rgba(160,235,170,0.12)";
+      g.fillStyle = color;
+      g.fillRect(x * TILE, y * TILE, TILE, TILE);
+      g.strokeStyle = value === 1 ? "#ff6868" : value === 2 ? "#7ac8ff" : value === 3 ? "#ffd86a" : "rgba(170,245,180,0.7)";
+      g.lineWidth = 2 / v.zoom;
+      if (value === 3) {
+        g.beginPath(); g.moveTo(x * TILE, y * TILE + 2); g.lineTo((x + 1) * TILE, y * TILE + 2); g.stroke();
+      } else if (value === 1) g.strokeRect(x * TILE + 1, y * TILE + 1, TILE - 2, TILE - 2);
     }
   }
   function drawHeightOverlay(g: any, m: any) {
@@ -379,11 +396,12 @@ import { drawEntryTiles } from "../../shared/map/layer-composite";
       g.stroke();
     }
     if (v.mode === "pass") drawPassOverlay(g, m, v);
+    if (v.mode === "platformerCollision") drawPlatformerCollisionOverlay(g, m, v);
     if (v.mode === "height") drawHeightOverlay(g, m);
     if (v.mode === "region") drawRegionOverlay(g, m);
     // Event pins stay visible while painting so placed events do not appear to
     // vanish when leaving Event mode. Passability/Height keep their overlays clean.
-    if (!v.preview && v.mode !== "pass" && v.mode !== "height" && v.mode !== "region") {
+    if (!v.preview && v.mode !== "pass" && v.mode !== "platformerCollision" && v.mode !== "height" && v.mode !== "region") {
       const interactiveEvents = v.mode === "event" || v.mode === "start";
       for (const ev of m.events) {
         g.fillStyle = interactiveEvents

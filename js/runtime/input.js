@@ -83,7 +83,7 @@ function createInputSystem(deps) {
   function buildReverse(map) {
     const r = {};
     for (const action in map)
-      for (const code of map[action] || []) r[code] = action;
+      for (const code of map[action] || []) (r[code] || (r[code] = [])).push(action);
     return r;
   }
   // Union of every action named in either device's bindings — the stable list the
@@ -186,26 +186,29 @@ function createInputSystem(deps) {
       if (capture.ignoreKb[e.code]) return; // still held since capture began
       return endCapture({ device: "keyboard", code: e.code });
     }
-    const action = kbReverse[e.code];
-    if (!action) return;
+    const actions = kbReverse[e.code];
+    if (!actions) return;
     e.preventDefault();
-    keyboard.down[action] = true;
+    for (const action of actions) keyboard.down[action] = true;
     heldCodes[e.code] = true;
     lastDevice = "keyboard";
     // Suppress OS key-repeat for confirm/cancel exactly as the old handler did,
     // so a held Z/X doesn't machine-gun those actions.
-    if (e.repeat && (action === "ok" || action === "cancel")) return;
+    if (e.repeat && actions.some((action) => action === "ok" || action === "cancel")) return;
     // Dispatch to exactly one destination: menu (UIStack) > map edge. While any UI
     // is open the press only reaches the menu, so e.g. a cancel that closes a menu
     // can't also queue a map edge that instantly reopens it.
-    if (isMenuOpen()) onMenuNav(action, e.repeat);
-    else edgeQueue.push(action);
+    if (isMenuOpen()) {
+      for (const action of actions) if (action !== "jump") onMenuNav(action, e.repeat);
+    } else {
+      for (const action of actions) edgeQueue.push(action);
+    }
   }
   function onKeyUp(e) {
     delete heldCodes[e.code];
     if (capture) delete capture.ignoreKb[e.code]; // released → a fresh re-press now counts
-    const action = kbReverse[e.code];
-    if (action) keyboard.down[action] = false;
+    const actions = kbReverse[e.code];
+    if (actions) for (const action of actions) keyboard.down[action] = false;
   }
   function onPadConnected(e) {
     lastDevice = "gamepad";
@@ -234,8 +237,8 @@ function createInputSystem(deps) {
       const b = btns[i];
       const isDown = b && (typeof b === "number" ? b > 0.5 : (b.pressed || b.value > 0.5));
       if (!isDown) continue;
-      const action = padReverse[PAD_BUTTONS[i]];
-      if (action) active[action] = true;
+      const actions = padReverse[PAD_BUTTONS[i]];
+      if (actions) for (const action of actions) active[action] = true;
     }
     const ax = gp.axes || [];
     let sx = ax[0] || 0;
@@ -256,8 +259,8 @@ function createInputSystem(deps) {
     return active;
   }
   function addSynthetic(active, name) {
-    const action = padReverse[name];
-    if (action) active[action] = true;
+    const actions = padReverse[name];
+    if (actions) for (const action of actions) active[action] = true;
   }
   // Like readPad, but returns the set of physical PAD_BUTTONS *names* asserted (not the
   // actions they map to) — what the rebinder needs to record a new gamepad binding.
@@ -327,8 +330,9 @@ function createInputSystem(deps) {
         const wasDown = !!prev[a];
         if (isDown && !wasDown) {
           // fresh press — route by precedence (menu > map edge).
-          if (isMenuOpen()) onMenuNav(a, false);
-          else edges[a] = true;
+          if (isMenuOpen()) {
+            if (a !== "jump") onMenuNav(a, false);
+          } else edges[a] = true;
           slot.navHeld[a] = 0;
         } else if (isDown && wasDown) {
           // held — auto-repeat nav actions while a menu is open

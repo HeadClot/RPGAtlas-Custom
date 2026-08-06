@@ -4,6 +4,29 @@ The editor (`index.html`) uses a classic RPG-maker layout: a **menu bar** along 
 toolbar** with one-click actions, and a **dockable workspace** of panels (Maps, Tiles, Map) below.
 This page is your map of the map-maker.
 
+## The basic work pattern
+
+You do not need to understand every panel before you begin. Use this short routine:
+
+1. Select a map in the **Maps** panel.
+2. Paint or change one small area.
+3. Press **▶ Playtest** and try the exact thing you changed.
+4. Close the playtest, fix what felt wrong, and press **Ctrl+Z** if you need to undo.
+5. Save a backup with **File ▸ Export Project As File…** at the end of a work session.
+
+The editor remembers panel arrangement and browser settings, but the project itself is the
+important thing to back up. In the desktop app it lives in the game's folder; in the browser
+version use the project-file export.
+
+## What the main areas are for
+
+- **Maps** chooses the place you are editing.
+- **Tiles** chooses the artwork you paint.
+- **Map** is the canvas where you paint, place events, and inspect the current map.
+- The **menu bar** contains every command, including commands that do not fit on the toolbar.
+- **Playtest** opens the game using the project as it currently exists, so it is the fastest way
+  to find problems.
+
 ---
 
 ## The dockable workspace

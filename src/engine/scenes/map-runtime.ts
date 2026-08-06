@@ -55,6 +55,7 @@ import {
   applyActionState, canUseActionAbility, resolveActionAbility,
   resolveActorHotbar, selectEnemyCombatAbility, spendActionAbility, tickActionCooldowns, tickActionStates,
 } from "../../shared/sim/combat-abilities.js";
+import { ensurePlatformerPlayer } from "./platformer-runtime.js";
 
 const TILE = Assets.TILE;
 
@@ -74,6 +75,7 @@ function browserLoadout(): any {
 const hdOverride = new URLSearchParams(location.search).get("hd2d");
 export function hdMapEnabled(candidateMap: any): boolean {
   if (!candidateMap) return false;
+  if (ctx.proj?.system?.gameMode === "platformer") return false;
   const hd = candidateMap.hd2d;
   if (hd && Object.prototype.hasOwnProperty.call(hd, "enabled")) return hd.enabled === true;
   if (hd && (hd.lights || hd.tilt != null || hd.ambient != null)) return true;
@@ -547,6 +549,7 @@ export function drawMapParallax(g: any, camX: any, camY: any, viewW: any, viewH:
 }
 
 export async function loadMap(mapId: any): Promise<void> {
+  const previousMapId = G.mapId;
   beginMapLoad(mapId);
   try {
     ctx.map = RA.byId(ctx.proj.maps, mapId);
@@ -565,6 +568,10 @@ export async function loadMap(mapId: any): Promise<void> {
       if (px !== G.player.x || py !== G.player.y) initPlayer(px, py, G.player.dir);
     }
     G.mapId = mapId;
+    if (ctx.proj?.system?.gameMode === "platformer" && previousMapId !== mapId) {
+      ctx.platformerCameraX = null;
+      ctx.platformerCameraY = null;
+    }
     G.encSteps = 0;
     // Maps can pin the day/night clock on entry (blank = keep the current time).
     if (ctx.map.hd2d && ctx.map.hd2d.timeOfDay != null && ctx.map.hd2d.timeOfDay !== "") {
@@ -602,6 +609,7 @@ export async function loadMap(mapId: any): Promise<void> {
     // Absent `zones` ⇒ empty state, zero per-step work.
     mapLoadPhase("zones");
     resetZoneState(ctx.map);
+    ensurePlatformerPlayer();
     finishMapLoad();
   } catch (error) {
     failMapLoad(error);

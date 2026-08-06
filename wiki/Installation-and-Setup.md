@@ -5,6 +5,15 @@ block the saving and asset features that the editor needs unless the files are *
 local web address (`http://localhost`). Don't worry: you don't have to understand any of that. On
 Windows there's a one-click launcher that runs the right server for you.
 
+## Which version should I use?
+
+- Use the **desktop app** when you want each game to be a normal folder that you can copy, back up,
+  and open by double-clicking.
+- Use the **browser launcher** when you want to try RPGAtlas quickly or are working from a downloaded
+  folder.
+- Use the **source checkout instructions** only if you are developing RPGAtlas itself or need the
+  contributor toolchain. They are optional for making games.
+
 ---
 
 ## Windows: the easy way (recommended)
@@ -106,6 +115,14 @@ there so you can poke around immediately:
 
 When you're ready to make your own, choose **File ▸ New Project** — and head to
 [Make Your First Game](Your-First-Game).
+
+## Your first five minutes
+
+1. Open the editor and press **▶ Playtest** to see the sample game.
+2. Close the playtest and choose **File ▸ New Project**.
+3. Give the project a title in **Tools ▸ Database… ▸ System**.
+4. Paint one small map, double-click a tile in **Event mode**, and add **Show Text**.
+5. Press **▶ Playtest** again. This edit → playtest → edit loop is the normal way to work.
 
 ---
 

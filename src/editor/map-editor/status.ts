@@ -18,6 +18,7 @@ import { tileId } from "../../shared/map/tile-flags";
     s += "  ·  " + (S.mode === "map" ? t(TOOL_LABELS[S.tool]) + " / " + t(LAYER_LABELS[S.layer])
       : S.mode === "event" ? t("Event mode (double-click = new/edit, drag = move, right-click = menu)")
       : S.mode === "pass" ? t("Passability (click cycles auto → ✕ block → ○ pass → ⌒ ledge)")
+      : S.mode === "platformerCollision" ? "Platformer collision — painting " + ["auto", "solid", "empty", "one-way"][S.platformerVal] + " (0–3 select, click cycles)"
       : S.mode === "height" ? t("Heights — painting {value} with {tool} (keys 0–9 set the value, right-click picks, Eraser clears)", {
         value: S.heightVal,
         tool: t(TOOL_LABELS[S.tool]),
@@ -37,6 +38,10 @@ import { tileId } from "../../shared/map/tile-flags";
       if (S.mode === "pass") {
         s += "  ·  " + (effectivePass(S.hoverCell.x, S.hoverCell.y) ? "○ " + t("passable") : "✕ " + t("blocked")) +
           (m.passOv[S.hoverCell.y * m.width + S.hoverCell.x] ? " (" + t("override") + ")" : "");
+      }
+      if (S.mode === "platformerCollision") {
+        const value = Number(m.platformerCollision?.[S.hoverCell.y * m.width + S.hoverCell.x]) || 0;
+        s += "  ·  " + ["auto", "solid", "empty", "one-way"][value];
       }
       const ev = S.mode !== "pass" && S.mode !== "height" && eventAt(S.hoverCell.x, S.hoverCell.y);
       if (ev) s += "  ·  " + ev.name;

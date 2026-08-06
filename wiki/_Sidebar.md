@@ -4,9 +4,9 @@
 - [Home](Home)
 - [Installation & Setup](Installation-and-Setup)
 - [Make Your First Game](Your-First-Game)
+- [Making a Platformer](Making-a-Platformer)
 - [Your Game Is a Folder](Your-Game-Is-a-Folder)
 - [The Editor Interface](The-Editor-Interface)
-- [Coming from RPG Maker](Coming-from-RPG-Maker)
 
 **Building your world**
 - [Maps & Tiles](Maps-and-Tiles)
@@ -27,7 +27,9 @@
 - [Online Safety (Parents & Teachers)](Online-Safety)
 
 **Polish & ship**
+- [Visual UI and HUD Designer](Visual-UI-and-HUD-Designer)
 - [Message Text Codes](Message-Text-Codes)
+- [Coming from RPG Maker](Coming-from-RPG-Maker)
 - [Plugins](Plugins)
 - [Publishing Your Game](Publishing-Your-Game)
 

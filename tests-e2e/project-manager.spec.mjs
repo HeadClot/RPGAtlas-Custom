@@ -96,7 +96,7 @@ test.describe("Project Manager — New Project flow (H2·B)", () => {
     await expect(preview.locator("b")).toHaveText("Hero Quest"); // reserved chars → space, trimmed
     await name.fill("   ");
     await expect(preview.locator("b")).toHaveText("Untitled Game"); // empty → fallback
-    await expect(page.locator(".pm-template")).toHaveCount(3); // Blank / Starter / Atlas Quest
+    await expect(page.locator(".pm-template")).toHaveCount(4); // Blank / Starter / Platformer / Atlas Quest
   });
 
   test("name + folder + template creates the game and boots the editor", async ({ page }) => {

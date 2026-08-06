@@ -76,6 +76,16 @@ import { counterAt, damageFloorAt } from "./tile-behavior.js";
 import { autosaveNow } from "../state/save.js";
 import { resolveBoundaryCrossing } from "../../shared/map/map-connections.js";
 import { knockbackStep } from "../../shared/sim/action-combat-adapter.js";
+import {
+  platformerEnabled,
+  platformerPlayerInput,
+  platformerEvents,
+  platformerActionEvent,
+  setPlatformerCheckpoint,
+  respawnAtPlatformerCheckpoint,
+  platformerPlayerInvulnerable,
+  platformerBodyFitsAt,
+} from "./platformer-runtime.js";
 
 let frameWaiters: any[] = [];
 let seamlessCrossing = false;
@@ -241,6 +251,72 @@ async function crossConnectedMap(cross: any, dir: number): Promise<void> {
   }
 }
 
+/** Cross a continuous platformer seam without a transfer fade. The physics
+ * body is moved to destination-local coordinates before loadMap so the normal
+ * load pipeline can initialize the destination without showing an out-of-range
+ * source-map position. */
+async function crossConnectedPlatformerMap(cross: any): Promise<void> {
+  if (seamlessCrossing || !G.player?.platformer) return;
+  seamlessCrossing = true;
+  const oldMapId = G.mapId;
+  const oldPlayer = {
+    x: G.player.x, y: G.player.y, tx: G.player.tx, ty: G.player.ty,
+    rx: G.player.rx, ry: G.player.ry, prx: G.player.prx, pry: G.player.pry,
+    dir: G.player.dir, moving: G.player.moving, route: G.player.route,
+  };
+  const oldBody = { ...G.player.platformer };
+  const oldCheckpoint = G.platformerCheckpoint ? { ...G.platformerCheckpoint } : null;
+  const setPlayerPosition = (player: any, x: number, y: number): void => {
+    player.x = player.tx = x; player.y = player.ty = y;
+    player.rx = player.prx = x; player.ry = player.pry = y;
+    player.route = null; player.jumping = null;
+  };
+  const safeSourcePosition = (): { x: number; y: number } => {
+    const map = ctx.map;
+    if (!map) return { x: oldBody.x, y: oldBody.y };
+    const clamp = (value: number, limit: number, size: number): number =>
+      Math.max(0, Math.min(value, limit - size));
+    const safeX = clamp(oldBody.x, map.width, oldBody.width);
+    const safeY = clamp(oldBody.y, map.height, oldBody.height);
+    if (cross.fromSide === "east") return { x: map.width - oldBody.width, y: safeY };
+    if (cross.fromSide === "west") return { x: 0, y: safeY };
+    if (cross.fromSide === "south") return { x: safeX, y: map.height - oldBody.height };
+    return { x: safeX, y: 0 };
+  };
+  const restore = async (): Promise<void> => {
+    if (G.mapId !== oldMapId) await loadMap(oldMapId);
+    const player = G.player;
+    const safe = safeSourcePosition();
+    setPlayerPosition(player, safe.x, safe.y);
+    player.tx = safe.x; player.ty = safe.y;
+    player.rx = safe.x; player.ry = safe.y;
+    player.prx = safe.x; player.pry = safe.y;
+    player.dir = oldPlayer.dir; player.moving = false; player.route = null;
+    if (player.platformer) Object.assign(player.platformer, oldBody, { x: safe.x, y: safe.y, vx: 0, vy: 0 });
+    G.platformerCheckpoint = oldCheckpoint;
+  };
+  try {
+    const body = G.player.platformer;
+    setPlayerPosition(G.player, cross.toX, cross.toY);
+    body.x = cross.toX; body.y = cross.toY;
+    await loadMap(cross.toMapId);
+    const destinationPlayer = G.player;
+    setPlayerPosition(destinationPlayer, cross.toX, cross.toY);
+    if (destinationPlayer.platformer) Object.assign(destinationPlayer.platformer, oldBody, { x: cross.toX, y: cross.toY });
+    if (!platformerBodyFitsAt(cross.toX, cross.toY)) {
+      await restore();
+      return;
+    }
+    G.platformerCheckpoint = { mapId: G.mapId, x: cross.toX, y: cross.toY, dir: destinationPlayer.dir || oldPlayer.dir };
+    await render();
+  } catch (error) {
+    console.error("Connected platformer map crossing failed", error);
+    try { await restore(); } catch (restoreError) { console.error("Connected platformer map rollback failed", restoreError); }
+  } finally {
+    seamlessCrossing = false;
+  }
+}
+
 // ============================ map scene update ============================
 function activePlayerControl(): boolean {
   return ctx.scene === "map" && !UIStack.length && !ctx.blockingRun && !ctx.menuOpen;
@@ -266,6 +342,7 @@ export function update(): void {
   if (ctx.scene !== "map" || ctx.menuOpen) {
     return;
   }
+  if (seamlessCrossing) return;
 
   const p = G.player;
   // Presentation layer (Project Compass M2·A): advance picture/tint/scroll
@@ -304,17 +381,46 @@ export function update(): void {
   // next one immediately, so there's no dead frame at each tile. activePlayerControl()
   // stays false during events/battles, so chaining can't spawn a spurious move.
   const playerSpeed = wantsDash() ? 0.13 : 0.085;
-  if (p.jumping) {
+  if (platformerEnabled()) {
+    const control = activePlayerControl();
+    const axis = control && ctx.Input.pressed("right") ? 1 : control && ctx.Input.pressed("left") ? -1 : 0;
+    const jumpPressed = control && ctx.Input.consume("jump");
+    const jumpHeld = control && ctx.Input.pressed("jump");
+    const downHeld = control && ctx.Input.pressed("down");
+    const platformerResult = platformerPlayerInput({ axis, jumpPressed, jumpHeld, downHeld });
+    if (platformerResult.crossing) {
+      void crossConnectedPlatformerMap(platformerResult.crossing);
+      return;
+    }
+    if (platformerResult.fell) respawnAtPlatformerCheckpoint();
+    if (control && !jumpPressed && ctx.Input.consume("ok")) {
+      const actionEvent = platformerActionEvent();
+      if (actionEvent) runEventBlocking(actionEvent, PLAYER_CTX);
+    }
+    if (control && ctx.Input.consume("cancel")) fns.openMenu();
+    for (const rt of platformerEvents()) {
+      const role = rt.page.platformer.role;
+      if (role === "hazard") {
+        if (!platformerPlayerInvulnerable()) respawnAtPlatformerCheckpoint();
+        if (rt.page.commands.length) runEventBlocking(rt, PLAYER_CTX);
+      } else if (role === "checkpoint") {
+        if (setPlatformerCheckpoint(rt, !!rt.page.platformer.saveOnReach)) autosaveNow();
+        if (rt.page.commands.length) runEventBlocking(rt, PLAYER_CTX);
+      } else if (role === "goal" && rt.page.commands.length) {
+        runEventBlocking(rt, PLAYER_CTX);
+      }
+    }
+  } else if (p.jumping) {
     if (updateJumpMotion(p)) onPlayerStep(); // landed: triggers/encounters fire
   } else if (p.moving) {
     const arrived = updateEntityMotion(p, playerSpeed);
     if (arrived) onPlayerStep();
   }
   // touch-to-move routes yield to the player: any directional press cancels
-  if (p.route && p.route.touch && ctx.Input.dir() >= 0) p.route = null;
-  if (!p.moving && !p.jumping && p.route) {
+  if (!platformerEnabled() && p.route && p.route.touch && ctx.Input.dir() >= 0) p.route = null;
+  if (!platformerEnabled() && !p.moving && !p.jumping && p.route) {
     updateRoute(p);
-  } else if (!p.moving && !p.jumping && activePlayerControl()) {
+  } else if (!platformerEnabled() && !p.moving && !p.jumping && activePlayerControl()) {
     // Project Beacon MP2·B: player map-control input rides the protocol. The
     // CLIENT reads the device and emits move/attack/act intents; they cross the
     // in-process LoopbackTransport to the WORLD host, which hands them back for
@@ -351,19 +457,26 @@ export function update(): void {
     if (cancel) fns.openMenu();
   }
   if (p.moving) p.animT = (p.animT || 0) + 0; // animT advanced in motion fn
-  updateFollowers(playerSpeed);
-  updateMapCombat();
+  if (!platformerEnabled()) {
+    updateFollowers(playerSpeed);
+    updateMapCombat();
+  }
   // MP4·B (host): advance remote players' in-progress steps. No-op in solo.
   if (defaultWorld.roster.players.size) advanceRemotePlayers();
 
   // events
   for (const rt of ctx.evRTs) {
     if (rt.erased || !rt.page) continue;
+    if (platformerEnabled()) {
+      rt.moving = false;
+      rt.jumping = null;
+      rt.route = null;
+    }
     // Same no-dead-frame pattern as the player above: a finished step chains into the next
     // route/random step this same tick instead of pausing a frame at each tile.
-    if (rt.jumping) {
+    if (!platformerEnabled() && rt.jumping) {
       updateJumpMotion(rt); // route "jump" steps: NPC hops advance like the player's
-    } else if (rt.moving) {
+    } else if (!platformerEnabled() && rt.moving) {
       const arrived = updateEntityMotion(rt, rt.combat && rt.combat.knockback ? 0.18 : rt.speed);
       if (arrived && rt.combat && Number(rt.combat.knockback) > 0) {
         const remaining = Number(rt.combat.knockback) || 0;
@@ -371,9 +484,9 @@ export function update(): void {
         else rt.combat.knockback = 0;
       }
     }
-    if (!rt.moving && !rt.jumping && rt.route) {
+    if (!platformerEnabled() && !rt.moving && !rt.jumping && rt.route) {
       updateRoute(rt);
-    } else if (!rt.moving && !rt.jumping) {
+    } else if (!platformerEnabled() && !rt.moving && !rt.jumping) {
       const chaseDir = combatChaseDir(rt);
       if (chaseDir >= 0) {
         startMove(rt, chaseDir);

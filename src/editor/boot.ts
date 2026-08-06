@@ -107,6 +107,10 @@ const EDITOR_KEYS: KeyBinding[] = [
             "Numpad0", "Numpad1", "Numpad2", "Numpad3", "Numpad4", "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9"],
     when: () => S.mode === "region",
     run(e) { S.regionVal = Number(e.code.slice(-1)); setStatus(); } },
+  // Platformer collision mode uses 0=auto, 1=solid, 2=empty, 3=one-way.
+  { codes: ["Digit0", "Digit1", "Digit2", "Digit3", "Numpad0", "Numpad1", "Numpad2", "Numpad3"],
+    when: () => S.mode === "platformerCollision",
+    run(e) { S.platformerVal = Math.min(3, Number(e.code.slice(-1))); setStatus(); } },
   { codes: ["Minus"], when: () => S.mode === "region",
     run() { S.regionVal = Math.max(0, S.regionVal - 1); setStatus(); } },
   { codes: ["Equal"], when: () => S.mode === "region",

@@ -7,6 +7,19 @@ damage, stagger, and knockback. It works in solo play and in server-authoritativ
 rooms/worlds. Existing turn-based behavior remains unchanged when a Skill, Item, or State has no
 enabled Action Combat profile.
 
+## Start with one simple enemy
+
+Action Combat has many settings, but you can learn it in a small slice:
+
+1. Enable Action Combat in **Database ▸ System**.
+2. Keep one hotbar slot and use the default Attack control.
+3. Create one Attack Profile with a short wind-up, a small hitbox, and a generous recovery time.
+4. Give one enemy event that profile and place it in a small empty arena.
+5. Playtest until the player can clearly see when the enemy is preparing, attacking, recovering,
+   and defeated.
+6. Add Skills, Items, States, and enemy abilities one at a time. If several things change at once,
+   it becomes difficult to tell which setting caused a problem.
+
 ## Configure the action layer
 
 Action Combat is configured in layers so a project can start with simple enemy contact attacks and

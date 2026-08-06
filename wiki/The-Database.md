@@ -7,6 +7,23 @@ click a tab to edit that category.
 You don't have to fill in everything before you start. The default project already has working
 actors, classes, skills, items, and enemies. Tweak as you go.
 
+## A beginner's Database workflow
+
+You can build a game with the defaults, then customize only what the story needs:
+
+1. Open **Tools ▸ Database…** and set the **System** tab first: title, screen style, battle view,
+   controls, and game mode.
+2. Check **Actors** and **Classes** so the starting party has the right names, sprites, equipment,
+   and skills.
+3. Add or adjust a few **Items** and **Skills** before designing encounters.
+4. Create the **Enemies** and **Troops** used by your first dungeon or boss.
+5. Name **Switches** and **Variables** only when an event needs them. Clear names such as
+   `MetVillageElder` are much easier to understand later than unnamed numbers.
+6. Playtest a small slice of the game after each group of changes.
+
+The Database stores reusable definitions. An event can give a Potion, start a Troop, or turn on a
+Switch because those things were defined here first.
+
 ---
 
 ## The tabs

@@ -1,77 +1,110 @@
-# Welcome to the RPGAtlas Wiki
+# RPGAtlas User Guide
 
 <p align="center"><i>Chart your world. Tell your story.</i></p>
 
-**RPGAtlas 2.1** is a free, open-source RPG-making engine in the spirit of the classic 2D RPG
-makers. You paint maps, place characters, write events, design turn-based or real-time battles,
-and hit **▶ Playtest** — no programming required for the creator workflow. Downloaded builds need
-no install or build step; source checkouts use Node.js for development, server hosting, and docs.
-When your game is ready, you export it as a single file anyone can play.
+RPGAtlas is a game-making program for building 2D role-playing games and side-on platformers.
+You create maps, place characters, write conversations, design battles, and press **▶ Playtest**
+to try the result. You do not need to know how to program to make a complete game.
 
-This wiki is the friendly manual. If you've never made a game before, **start at the top and work
-down** — each page builds on the last. If you already know RPG makers, jump straight to whatever
-you need from the sidebar.
+This manual is written for first-time creators. Read it from the top if you are new, or use the
+sidebar to jump to a feature you are ready to use.
 
----
+## The short version
 
-## New here? Follow this path
+Most RPGAtlas projects follow this loop:
 
-1. **[Installation & Setup](Installation-and-Setup)** — get RPGAtlas running in about two minutes.
-2. **[Make Your First Game](Your-First-Game)** — a guided, 30-minute walkthrough: a map, a talking
-   villager, a treasure chest, a battle, and a playable export. This is the best place to begin.
-3. **[Your Game Is a Folder](Your-Game-Is-a-Folder)** — in the desktop app, each game is a real
-   folder you can see, back up, and double-click to open. This is where your work lives.
-4. **[The Editor Interface](The-Editor-Interface)** — a tour of every menu, tool, and shortcut.
-5. **[Visual UI and HUD Designer](Visual-UI-and-HUD-Designer)** — arrange HUD widgets, bind gauges and variables, build custom menus, and lay out message windows.
+1. **Start a project** and choose a game title.
+2. **Paint a map** with the tile palette.
+3. **Place events** for people, doors, treasure, dialogue, and battles.
+4. **Set up the Database** for actors, items, skills, enemies, and system rules.
+5. **Playtest often** and fix one small problem at a time.
+6. **Export the game** when someone else can play it from beginning to end.
 
-**Already made a game in RPG Maker MV or MZ?** Bring it straight in — see
-**[Coming from RPG Maker](Coming-from-RPG-Maker)**.
+You can make a small game with only one map, one character, and a few events. Start small; a
+finished five-minute game teaches more than an unfinished epic.
 
-## Build your world
+## Start here
 
-- **[Maps & Tiles](Maps-and-Tiles)** — painting terrain, layers, passability, shadows, and HD-2D heights.
-- **[Advanced Map Editor](Advanced-Map-Editor)** — unlimited layers, terrain brushes, stamps, gameplay zones, and Automap rules.
-- **[Events](Events)** — the heart of your game: dialogue, doors, chests, switches, cutscenes.
-- **[Dialogue & Cutscenes](Dialogue-and-Cutscenes)** — reusable conversation trees with speakers, portraits, voice, conditions, localization keys, and preview.
-- **[The Database](The-Database)** — actors, classes, skills, items, and everything that defines your world.
-- **[Battles & States](Battles-and-States)** — enemies, troops, side-view vs. front-view, and status effects.
-- **[Action Combat](Action-Combat)** — real-time attack profiles, telegraphs, enemy AI, knockback,
-  defeat, respawn, and authoritative multiplayer combat.
-- **[Characters & Custom Assets](Characters-and-Custom-Assets)** — the Character Generator and adding your own art.
-- **[Generators](Generators)** — 20 name and story-hook generators for worldbuilding, encounters, treasure, and adventures.
-- **[Audio](Audio)** — the procedural music and sound effects, and how to assign them.
+1. **[Installation & Setup](Installation-and-Setup)** — open RPGAtlas and understand where your
+   project is saved.
+2. **[Make Your First Game](Your-First-Game)** — build a town, villager, chest, cave, and battle
+   in one guided tutorial.
+3. **[The Editor Interface](The-Editor-Interface)** — learn where the tools are and how to undo,
+   zoom, and playtest.
+4. **[Maps & Tiles](Maps-and-Tiles)** — make places the player can explore.
+5. **[Events](Events)** — make those places respond to the player.
+6. **[The Database](The-Database)** — customize the people, items, enemies, and rules.
+7. **[Publishing Your Game](Publishing-Your-Game)** — package a finished project for other people.
 
-## Play together (online)
+## Choose a project type
 
-- **[Making Your Game Multiplayer](Making-Your-Game-Multiplayer)** — one checkbox lets friends
-  join your game with a room code: walk together, emote, party up, and fight side by side.
-- **[Hosting a World](Hosting-a-World)** — run the open-source Beacon server yourself for a big,
-  persistent world, plus exactly what crosses the network (the part to show a parent or teacher).
+### Classic RPG
 
-## Polish & ship
+Use the default RPG mode for exploration, dialogue, quests, shops, turn-based battles, and
+optional real-time Action Combat. Follow [Make Your First Game](Your-First-Game) first.
 
-- **[Message Text Codes](Message-Text-Codes)** — icons, colors, and variables inside dialogue.
-- **[Plugins](Plugins)** — extend the engine with a little JavaScript (optional, for the curious).
-- **[Publishing Your Game](Publishing-Your-Game)** — export a Windows `.exe` or a single `.html` to share.
+### Side-on platformer
 
-## When you're stuck
+Platformer mode uses RPGAtlas maps and events for running, jumping, hazards, checkpoints, and
+goals. Start with [Making a Platformer](Making-a-Platformer). Existing RPG projects stay RPG
+projects unless you deliberately change the game mode.
 
-- **[Troubleshooting & FAQ](Troubleshooting-and-FAQ)** — the fixes for the most common snags.
-- **[Resources & Glossary](Resources-and-Glossary)** — plain-language definitions and further reading.
+## Build your game
 
----
+- **[Maps & Tiles](Maps-and-Tiles)** — painting, layers, walkable areas, shadows, connected maps,
+  encounters, and optional HD-2D presentation.
+- **[Advanced Map Editor](Advanced-Map-Editor)** — extra layers, terrain brushes, stamps, zones,
+  and automatic detailing.
+- **[Events](Events)** — the building blocks for dialogue, doors, chests, shops, quests,
+  cutscenes, transfers, and battles.
+- **[Dialogue & Cutscenes](Dialogue-and-Cutscenes)** — reusable conversations and branching choices.
+- **[The Database](The-Database)** — actors, classes, skills, items, equipment, enemies, troops,
+  states, switches, variables, and system settings.
+- **[Battles & States](Battles-and-States)** — turn-based battle views, battle timing, enemies,
+  status effects, and balance advice.
+- **[Action Combat](Action-Combat)** — optional real-time attacks, hotbars, telegraphs, enemy
+  abilities, knockback, and defeat behavior.
+- **[Characters & Custom Assets](Characters-and-Custom-Assets)** — generated characters,
+  portraits, tiles, enemies, and your own art.
+- **[The Asset Browser](The-Asset-Browser)** and **[Audio](Audio)** — import and organize pictures,
+  music, ambience, and sound effects.
+- **[Visual UI and HUD Designer](Visual-UI-and-HUD-Designer)** — customize gauges, text, minimaps,
+  menus, and message windows.
+- **[Generators](Generators)** — create names, items, enemies, locations, quests, and story ideas.
 
-## What makes RPGAtlas different
+## Optional features
 
-- **Everything is generated.** Tiles, sprites, monsters, sound effects, and even the music are
-  created procedurally in plain JavaScript. Nothing is copied from another game, so anything you
-  make is free of asset licensing worries.
-- **No runtime dependency for players.** Exported games run from the bundled HTML/EXE and a modern
-  browser; contributors can use the Node/Vite toolchain when working from source.
-- **Your games are yours.** The engine is GPL-licensed, but the maps, story, and content you create
-  are entirely yours to sell or share, no credit required. See [Resources & Glossary](Resources-and-Glossary#licensing-in-plain-language).
+- **[Making Your Game Multiplayer](Making-Your-Game-Multiplayer)** — let friends join with a room
+  code. Multiplayer is off until you enable it.
+- **[Online Safety](Online-Safety)** — a plain-language guide for parents, teachers, and creators.
+- **[Coming from RPG Maker](Coming-from-RPG-Maker)** — import an MV or MZ project.
+- **[Message Text Codes](Message-Text-Codes)** — add icons, colors, variables, and formatting.
+- **[Plugins](Plugins)** and **[Plugin & Script API](Plugin-and-Script-API)** — optional advanced
+  extensions for creators who want to customize behavior with code.
+- **[Hosting a World](Hosting-a-World)** — optional advanced instructions for running your own
+  multiplayer server.
 
-> **A note for parents, teachers, and younger creators:** RPGAtlas needs nothing installed and runs
-> entirely on your own computer for single-player work — there are no accounts or cloud service
-> required, and no internet is needed once you have the folder. Play Together is an optional online
-> mode. It's a friendly first step into game design.
+## When something goes wrong
+
+Use **[Troubleshooting & FAQ](Troubleshooting-and-FAQ)** for startup, saving, map, event, battle,
+performance, and publishing problems. The most useful habit is to playtest after every small
+change. If a feature stops working, undo the last change or check the event's page conditions.
+
+## A few words you will see often
+
+- A **map** is a place in your game.
+- An **event** is something that happens when the player interacts with a map.
+- A **page** is one version of an event, used when a condition is true.
+- A **switch** is an on/off story flag, such as `BridgeRepaired`.
+- A **variable** is a number your game remembers, such as a quest counter.
+- A **self-switch** belongs to one event, which makes it useful for chests and doors.
+- The **Database** is where you define reusable game content such as actors, items, skills, and
+  enemies.
+
+## The important promise
+
+Your maps, story, characters, and game content belong to you. RPGAtlas can work offline for
+single-player creation, and exported games contain the runtime and the assets they use. See
+[Resources & Glossary](Resources-and-Glossary) for plain-language licensing information.
+
+**Next:** [Installation & Setup →](Installation-and-Setup)

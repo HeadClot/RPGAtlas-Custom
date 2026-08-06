@@ -50,6 +50,7 @@ export async function newGame(start?: { mapId: number; x: number; y: number }): 
   if (!G.party.length && ctx.proj.actors.length)
     G.party = [makeActor(ctx.proj.actors[0].id)];
   G.steps = 0;
+  G.platformerCheckpoint = null;
   G.timeOfDay = 12; // fresh day/night clock (loadMap applies the map's pin below)
   G.vehicles = {}; // fresh vehicle placements (lazily seeded from System)
   G.vehicle = null;
@@ -60,6 +61,8 @@ export async function newGame(start?: { mapId: number; x: number; y: number }): 
   G.savedBgm = null;
   G.jingles = null;
   ctx.cameraZoom = 1;
+  ctx.platformerCameraX = null;
+  ctx.platformerCameraY = null;
   resetPresentation(); // clear pictures/tint/timer/scroll (Project Compass M2·A)
   // System toggles (Project Compass M2·C): fresh game re-enables everything and
   // clears any window-colour override back to the project default.

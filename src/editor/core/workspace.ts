@@ -194,6 +194,7 @@ act("deselect", { label: "Clear Selection", key: "Esc", enabled: () => !!(S.sele
 act("mode-map", { label: "Map (Tile) Mode", icon: "map", key: "Tab ⇆", tip: "Tile layer — draw the map", active: () => S.mode === "map", run: () => setMode("map") });
 act("mode-event", { label: "Event Mode", icon: "event", key: "Tab ⇆", tip: "Event layer — place and edit events", active: () => S.mode === "event", run: () => setMode("event") });
 act("mode-pass", { label: "Passability Mode", icon: "pass", key: "Tab ⇆", tip: "Passability — click tiles to cycle auto → ✕ block → ○ pass → ⌒ ledge (jumped over)", active: () => S.mode === "pass", run: () => setMode("pass") });
+act("mode-platformer-collision", { label: "Platformer Collision Mode", icon: "pass", tip: "Paint platformer collision: solid, empty, one-way, or auto", active: () => S.mode === "platformerCollision", run: () => setMode("platformerCollision") });
 act("mode-height", { label: "Height Mode (HD-2D)", icon: "height", key: "Tab ⇆",
   tip: "Heights — paint HD-2D elevation with the Pen / Rectangle / Circle / Fill tools (digits 0–9 set the value)",
   active: () => S.mode === "height", run: () => setMode("height") });
@@ -252,7 +253,7 @@ const TOOLBAR = [
   ["new", "open", "save"],
   ["cut", "copy", "paste"],
   ["undo", "redo"],
-  ["mode-map", "mode-event", "mode-pass", "mode-height", "mode-region"],
+  ["mode-map", "mode-event", "mode-pass", "mode-platformer-collision", "mode-height", "mode-region"],
   ["layer-auto", "layer-ground", "layer-decor", "layer-decor2", "layer-over"],
   ["tool-pen", "tool-erase", "tool-rect", "tool-circle", "tool-fill", "tool-shadow"],
   ["zoomin", "zoomout", "zoom1"],
@@ -296,7 +297,7 @@ const FILE_ITEMS = managerActive()
 const MENUS = [
   { label: "File", items: FILE_ITEMS },
   { label: "Edit", items: ["undo", "redo", "-", "cut", "copy", "paste", "-", "deselect"] },
-  { label: "Mode", items: ["mode-map", "mode-event", "mode-pass", "mode-height", "mode-region", "-", "mode-start"] },
+  { label: "Mode", items: ["mode-map", "mode-event", "mode-pass", "mode-platformer-collision", "mode-height", "mode-region", "-", "mode-start"] },
   { label: "Draw", items: ["tool-pen", "tool-erase", "tool-rect", "tool-circle", "tool-fill", "tool-shadow"] },
   { label: "Layer", items: ["layer-auto", "layer-ground", "layer-decor", "layer-decor2", "layer-over"] },
   { label: "Advanced", items: ["panel-advanced", "terrain-studio", "-", "adv-automap", "adv-automap-preview", "adv-automap-apply", "-", "adv-flip-h", "adv-flip-v", "adv-rotate", "-", "adv-capture-stamp", "adv-stamp-random"] },
@@ -397,7 +398,7 @@ export function setMode(m: any) {
   S.pasteMode = null;
   renderMap(); refreshToolbar(); setStatus();
 }
-const MODE_CYCLE = ["map", "event", "pass", "height", "region"]; // "start" intentionally excluded
+const MODE_CYCLE = ["map", "event", "pass", "platformerCollision", "height", "region"]; // "start" intentionally excluded
 export function cycleMode(dir: any) {
   let i = MODE_CYCLE.indexOf(S.mode);
   if (i < 0) i = 0; // "start"/unexpected -> enter at "map"

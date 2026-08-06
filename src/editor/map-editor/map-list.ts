@@ -11,7 +11,7 @@ import { $, h, tIn, nIn, sel, chk, field, row, dbOpts, MUSIC_OPTS, BGS_OPTS } fr
 import { modal, confirmBox } from "../core/modals";
 import { touch } from "../persistence";
 import { renderMap } from "./map-render";
-import { heightsOf, regionsOf, shadowsOf, passOvOf } from "./painting";
+import { heightsOf, regionsOf, shadowsOf, passOvOf, platformerCollisionOf } from "./painting";
 import { setStatus, flashStatus } from "./status";
 import { viewportDirty } from "./hd-viewport";
 import { walkCommands } from "../event-editor/command-list";
@@ -916,6 +916,7 @@ import { subTabs } from "../database/shared";
     m.shadows = remap(shadowsOf(m), 0);
     m.passOv = remap(passOvOf(m), 0);
     m.heights = remap(heightsOf(m), 0);
+    m.platformerCollision = remap(platformerCollisionOf(m), 0);
     m.regions = remap(regionsOf(m), 0);
     // Advanced Map Editor tile layers own their OWN width×height array, and
     // every draw path indexes it with the map's CURRENT width. Resizing without

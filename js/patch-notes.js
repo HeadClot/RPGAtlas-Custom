@@ -2257,3 +2257,42 @@ PATCH_NOTES.push({
     "Replicated cooldowns, active ability metadata, and real-time states to remote player entities, and restored self-target selection semantics.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T13:30:00-06:00",
+  title: "Platformer game mode",
+  summary:
+    "Added an opt-in side-on platformer mode that reuses RPGAtlas maps and events for a playable run, jump, checkpoint, hazard, and goal slice.",
+  items: [
+    "Added forgiving acceleration, friction, gravity, variable jumps, coyote time, jump buffering, solid and one-way collision, drop-through, fall recovery, and checkpoint respawn.",
+    "Added platformer collision painting, hazard/checkpoint/goal event roles, a remappable jump action, Canvas side-follow camera behavior, and save/load state support.",
+    "Platformer projects keep HD-2D and Beacon multiplayer disabled in this release while existing RPG projects remain unchanged.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T15:00:00-06:00",
+  title: "Platformer map connections",
+  summary:
+    "Platformer players can now run, fall, or jump across touching maps arranged in Map Connections without a transfer fade.",
+  items: [
+    "Connected east, west, north, and south seams now provide neighboring platformer collision data and preserve movement velocity across the boundary.",
+    "Destination placement is validated before a crossing is committed, while gaps, blocked destinations, legacy maps, and malformed layouts keep their existing boundaries.",
+    "Map Connections continues to use the existing worldOrigin editor workflow and project format.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T05:44:51-06:00",
+  title: "Beginner-first creator manual",
+  summary:
+    "Reorganized the user documentation around a plain-language learning path with practical workflows for RPGs and platformers.",
+  items: [
+    "Added a new Making a Platformer guide covering project setup, collision, hazards, checkpoints, goals, connected maps, and playtesting.",
+    "Expanded beginner workflows for maps, events, dialogue, Database setup, battles, Action Combat, assets, audio, HUD design, and publishing.",
+    "Updated wiki navigation and authoring guidance while keeping the wiki Markdown as the source for the generated documentation site.",
+  ],
+});

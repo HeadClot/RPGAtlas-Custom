@@ -51,7 +51,7 @@ export interface EditorState {
   curMapId: number;
   layer: string;             // auto | ground | decor | decor2 | over
   tool: string;              // pen | erase | rect | circle | fill | shadow
-  mode: string;              // map | event | pass | start | height | region
+  mode: string;              // map | event | pass | platformerCollision | start | height | region
   selectedTile: number;
   brushSize: number;         // pen/erase footprint (odd; 1 = single cell)
   heightVal: number;         // HD-2D elevation value painted in height mode (0–9)
@@ -66,6 +66,7 @@ export interface EditorState {
   painting: boolean;
   shadowSet: boolean;        // shadow pen: adding (left button) or erasing (right)
   passVal: number;           // passability value being painted during a drag
+  platformerVal: number;     // platformer collision: 0 auto, 1 solid, 2 empty, 3 one-way
   selecting: boolean;        // shift-drag marquee in progress
   selAnchor: any;
   selection: any;            // {x1,y1,x2,y2} inclusive (map mode)
@@ -107,6 +108,7 @@ export const editorState: EditorState = {
   painting: false,
   shadowSet: true,
   passVal: 0,
+  platformerVal: 1,
   selecting: false,
   selAnchor: null,
   selection: null,

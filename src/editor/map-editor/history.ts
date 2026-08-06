@@ -15,7 +15,7 @@
 import { RA, editorState as S } from "../core/editor-state";
 import { touch } from "../persistence";
 import { renderMap } from "./map-render";
-import { heightsOf, shadowsOf, passOvOf } from "./painting";
+import { heightsOf, shadowsOf, passOvOf, platformerCollisionOf } from "./painting";
 import { rebuildMapList } from "./map-list";
 import { flashStatus } from "./status";
 import { refreshToolbar } from "../core/workspace";
@@ -35,12 +35,12 @@ const STACK_MAX = 60;
     // tags are captured too so a Region-mode paint and an Automap `setRegion`
     // Apply both undo (this closed a latent gap — region edits pushed undo but
     // regions was not in the snapshot). Absent ⇒ undefined round-trips.
-    return { kind: "map", label: label || "Map edit", mapId, layers: RA.clone(m.layers), shadows: shadowsOf(m).slice(), passOv: passOvOf(m).slice(), heights: heightsOf(m).slice(), events: RA.clone(m.events), layersAdv: m.layersAdv ? RA.clone(m.layersAdv) : undefined, zones: m.zones ? RA.clone(m.zones) : undefined, regions: m.regions ? m.regions.slice() : undefined };
+    return { kind: "map", label: label || "Map edit", mapId, layers: RA.clone(m.layers), shadows: shadowsOf(m).slice(), passOv: passOvOf(m).slice(), heights: heightsOf(m).slice(), platformerCollision: platformerCollisionOf(m).slice(), events: RA.clone(m.events), layersAdv: m.layersAdv ? RA.clone(m.layersAdv) : undefined, zones: m.zones ? RA.clone(m.zones) : undefined, regions: m.regions ? m.regions.slice() : undefined };
   }
   export function applySnapshot(s: any) {
     const m = RA.byId(S.proj.maps, s.mapId);
     if (!m) return;
-    m.layers = s.layers; m.shadows = s.shadows; m.passOv = s.passOv; m.heights = s.heights; m.events = s.events;
+    m.layers = s.layers; m.shadows = s.shadows; m.passOv = s.passOv; m.heights = s.heights; m.platformerCollision = s.platformerCollision; m.events = s.events;
     m.layersAdv = s.layersAdv;
     m.zones = s.zones;
     m.regions = s.regions;

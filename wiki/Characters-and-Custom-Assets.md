@@ -4,6 +4,17 @@ Everything in RPGAtlas is generated, so you can build a whole game without drawi
 But you can also make it unmistakably *yours* — design original sprites in the Character Generator,
 or drop your own art into the engine's shared image folders.
 
+## The easiest asset workflow
+
+1. Use the built-in art or open **Tools ▸ Character Generator**.
+2. Make the player and important NPCs first; ordinary background characters can stay generated.
+3. Save the generated characters with names you will recognize in the actor and event pickers.
+4. Add portraits only after the dialogue is working.
+5. If you import outside art, use **Tools ▸ Asset Browser ▸ Import Files…** so RPGAtlas can show
+   where the asset is used and include it in exports.
+6. Playtest every custom sprite at the game's actual size. A picture that looks good when zoomed in
+   may be too small or too busy during play.
+
 ---
 
 ## The Character Generator

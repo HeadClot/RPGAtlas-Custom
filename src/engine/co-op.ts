@@ -510,6 +510,7 @@ export const DEFAULT_RELAY_URL = "wss://beacon.rpgatlas.app";
  *  Together" title entry). Additive + absent in the frozen fixtures → the title
  *  screen stays byte-identical. The DB toggle that sets it is MP7. */
 export function multiplayerEnabled(): boolean {
+  if (ctx.proj?.system?.gameMode === "platformer") return false;
   const mp = ctx.proj && ctx.proj.system && (ctx.proj.system as any).multiplayer;
   return !!(mp && mp.enabled);
 }

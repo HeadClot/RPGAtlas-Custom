@@ -1,8 +1,9 @@
 # RPGAtlas Wiki (source)
 
-This folder holds the RPGAtlas user manual as plain Markdown, written to GitHub Wiki conventions.
-Keeping it in the repo means the docs are versioned and reviewable alongside the code; from here you
-can publish it as the project's **GitHub Wiki** (or any Markdown site).
+This folder holds the RPGAtlas beginner-first user manual as plain Markdown, written to GitHub Wiki
+conventions. It is the canonical source for creator-facing help. Keeping it in the repo means the
+instructions are versioned and reviewable alongside the program; from here they can be published as
+the project's **GitHub Wiki** or rendered as the committed static docs site.
 
 ## Pages
 
@@ -13,6 +14,7 @@ can publish it as the project's **GitHub Wiki** (or any Markdown site).
 | `_Footer.md` | Footer (shown on every wiki page) |
 | `Installation-and-Setup.md` | Getting RPGAtlas running |
 | `Your-First-Game.md` | The flagship 30-minute tutorial |
+| `Making-a-Platformer.md` | A first platformer tutorial |
 | `The-Editor-Interface.md` | Menus, tools, modes, shortcuts |
 | `Maps-and-Tiles.md` | Layers, passability, shadows, HD-2D |
 | `Events.md` | Pages, triggers, full command reference, recipes |
@@ -21,6 +23,7 @@ can publish it as the project's **GitHub Wiki** (or any Markdown site).
 | `Battles-and-States.md` | Turn-based combat, enemies, troops, formulas, and states |
 | `Action-Combat.md` | Real-time attack profiles, field enemies, and multiplayer combat |
 | `Characters-and-Custom-Assets.md` | Character Generator, custom art |
+| `Visual-UI-and-HUD-Designer.md` | Visual HUD and message-window layout |
 | `Audio.md` | Procedural music & SFX |
 | `Message-Text-Codes.md` | Icons, colors, variables in dialogue |
 | `Plugins.md` | Extending the engine with JavaScript |
@@ -29,8 +32,20 @@ can publish it as the project's **GitHub Wiki** (or any Markdown site).
 | `Resources-and-Glossary.md` | Glossary, primers, licensing, links |
 
 Links between pages use the page name without `.md` (e.g. `[Events](Events)`), which is what GitHub
-Wiki expects. The committed `docs-site/` mirror is generated from these Markdown files with
-`npm run docs:build`; do not edit its HTML by hand.
+Wiki expects. Use the exact menu, button, and mode names shown in the editor so readers can follow
+the instructions without knowing the file layout.
+
+## Writing rules
+
+- Write for a first-time creator who has never used an RPG maker.
+- Explain what a feature is before listing its controls.
+- Prefer numbered steps for tasks and short tables for comparisons.
+- Explain specialist words the first time they appear; link to the glossary when useful.
+- Keep programming, server, and source-checkout instructions in clearly marked optional sections.
+- End practical pages with a playtest check and a link to the next useful page.
+- Update the wiki source, then regenerate `docs-site/`; never edit generated HTML by hand.
+
+The committed `docs-site/` mirror is generated from these Markdown files with `npm run docs:build`.
 
 ## Publishing to the GitHub Wiki
 
