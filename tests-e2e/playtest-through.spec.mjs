@@ -37,13 +37,34 @@ async function playerTile(page) {
   }));
 }
 
-async function tapMovement(page, key, withControl = false) {
+async function tapMovement(page, key, withControl = false, expected = null) {
   if (withControl) await page.keyboard.down("Control");
   await page.keyboard.down(key);
-  await page.waitForTimeout(50);
+  // Keep the edge held through two browser frames so the engine can poll the
+  // key while Ctrl is still down; this replaces the old 50 ms key hold.
+  await page.evaluate(() => new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  }));
   await page.keyboard.up(key);
   if (withControl) await page.keyboard.up("Control");
-  await page.waitForTimeout(350);
+  if (expected) {
+    // A Through-enabled movement is complete only when the player reaches
+    // the requested tile; this is the meaningful state transition and stays
+    // bounded on a stalled page.
+    await expect
+      .poll(() => page.evaluate(() => ({
+        x: window.Atlas.atlas.player.x,
+        y: window.Atlas.atlas.player.y,
+      })), { timeout: 3000 })
+      .toEqual(expected);
+  } else {
+    // A blocked attempt intentionally has no observable state transition.
+    // Yield through two browser frames so the queued key edge is consumed,
+    // without paying the old fixed 400 ms delay.
+    await page.evaluate(() => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    }));
+  }
 }
 
 test("Ctrl walks through blocked tiles in an editor playtest", async ({
@@ -58,7 +79,7 @@ test("Ctrl walks through blocked tiles in an editor playtest", async ({
   await tapMovement(page, "ArrowRight");
   expect(await playerTile(page)).toEqual({ x: START_X, y: START_Y });
 
-  await tapMovement(page, "ArrowRight", true);
+  await tapMovement(page, "ArrowRight", true, { x: TARGET_X, y: START_Y });
   expect(await playerTile(page)).toEqual({ x: TARGET_X, y: START_Y });
 });
 

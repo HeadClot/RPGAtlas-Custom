@@ -12,22 +12,27 @@ import { test, expect } from "@playwright/test";
 import { atlasQuestJson } from "./fixtures/atlas-quest.mjs";
 
 const SEED_ROOT = "/Games/Seed Game";
+let seedScriptId = 0;
 
 /** Seed the fake host's localStorage (docs + recents) with one openable game,
- *  then navigate to the manager. Mirrors the atlas-quest seed pattern: prime the
- *  origin, write storage, then load ?fakehost so start() installs the fake host
- *  and reads the seed. */
+ *  then navigate to the manager. The init script runs before the manager's
+ *  boot script, avoiding the throwaway prime navigation while its unique
+ *  sessionStorage marker prevents a later reload in this test from restoring
+ *  the original seed over user changes. */
 async function gotoManagerWithSeed(page, { recents = [], docs = {} } = {}) {
-  // Prime the origin under ?fakehost so the manager mounts (as on desktop) instead of the
-  // browser editor booting and writing a meta-less rpgatlas_project mirror — which the
-  // H6·A migration offer would then read as a "legacy game" (see H6·A §1.1).
-  await page.goto("/index.html?fakehost");
-  await page.evaluate(
-    ({ r, d }) => {
+  const seedKey = `__rpgatlas_e2e_manager_seed_${++seedScriptId}`;
+  await page.addInitScript(
+    ({ r, d, key }) => {
+      if (location.origin === "null" || sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
       localStorage.setItem("atlas.fakehost.recents", r);
       localStorage.setItem("atlas.fakehost.docs", d);
     },
-    { r: JSON.stringify(recents), d: JSON.stringify(docs) },
+    {
+      r: JSON.stringify(recents),
+      d: JSON.stringify(docs),
+      key: seedKey,
+    },
   );
   await page.goto("/index.html?fakehost");
 }
@@ -476,7 +481,12 @@ test.describe("External changes on focus (H3·B)", () => {
   });
 
   test("Load the newer version with unsaved edits DISCARDS them — nothing flushes them back", async ({ page }) => {
+    // Install the clock before navigation, then pause it after boot so the
+    // editor's 700 ms autosave debounce cannot erase the deliberate unsaved
+    // state while a busy CI runner is processing the paint click.
+    await page.clock.install();
     await bootGame(page, "Mine Base");
+    await page.clock.pauseAt(Date.now() + 1000);
 
     // An unsaved local edit (paint), still ● when the file changes on disk. The
     // leaving-the-page flush must stand down for this deliberate discard-reload —
@@ -496,7 +506,12 @@ test.describe("External changes on focus (H3·B)", () => {
     );
 
     await expect(page.locator(".modal-body", { hasText: "aren't saved yet" })).toBeVisible();
+    const navigation = page.waitForEvent("framenavigated", {
+      predicate: (frame) => frame === page.mainFrame(),
+    });
     await page.locator(".modal-btns button", { hasText: "Load the newer version" }).click();
+    await page.clock.resume();
+    await navigation;
 
     // Boots straight into the disk version — no crash-recovery prompt trying to
     // resurrect the discarded edits, and the folder still holds the disk version.

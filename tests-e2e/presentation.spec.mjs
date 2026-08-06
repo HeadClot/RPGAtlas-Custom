@@ -91,12 +91,15 @@ test.describe("M2·A presentation — Show Picture over the map", () => {
   test("an Erase Picture command clears the slot (nothing paints)", async ({ page }) => {
     await startGame(page, (p) => addPictureCommonEvent(p, { erase: true }));
 
-    // Give the show+erase common event several frames to run, then confirm the
-    // picture pixel never shows magenta (erased in the same pass it was shown).
-    await page.waitForTimeout(600);
-    for (let i = 0; i < 5; i++) {
-      expect(isMagenta(await pixel(page, 110, 110))).toBe(false);
-      await page.waitForTimeout(80);
-    }
+    // The common event flips its one-shot gate after show+erase. Waiting on
+    // that authored state is both faster and stronger than sleeping for a
+    // guessed number of frames; the erased picture cannot be resurrected by
+    // its async image load because the runtime checks the live picture map.
+    await expect
+      .poll(() => page.evaluate((id) => window.Atlas?.game?.getSwitch(id) === true, GATE), {
+        timeout: 6000,
+      })
+      .toBe(true);
+    expect(isMagenta(await pixel(page, 110, 110))).toBe(false);
   });
 });

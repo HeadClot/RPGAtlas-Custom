@@ -5,6 +5,57 @@
 export const PATCH_NOTES = [
   {
     date: "August 5, 2026",
+    title: "Uncapped remote CI e2e workers",
+    summary:
+      "Remote Playwright builds now use the runner's CPU-based worker default while local runs retain their two-worker cap.",
+    items: [
+      "GitHub Actions is no longer constrained to two Playwright workers.",
+      "RPGATLAS_E2E_WORKERS remains available for explicit CI or local tuning.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
+    title: "Restored standard Playwright output",
+    summary:
+      "Removed Playwright API-level debug tracing while retaining the normal list and HTML test reporters.",
+    items: [
+      "E2E runs no longer emit pw:api browser-action diagnostics by default.",
+      "Existing failure traces, screenshots, videos, and importer verbose logs remain unchanged.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
+    title: "Parallel CI e2e workers",
+    summary:
+      "Remote Playwright runs now use the same two-worker cap as local runs instead of being forced to a single worker.",
+    items: [
+      "GitHub Actions e2e execution can run independent tests concurrently while retaining the SwiftShader-safe default cap.",
+      "RPGATLAS_E2E_WORKERS provides an explicit runner-specific override when needed.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
+    title: "Verbose Playwright API diagnostics",
+    summary:
+      "E2E runs now expose Playwright browser and assertion activity through the pw:api debug namespace.",
+    items: [
+      "Local and GitHub Actions runs now log navigation, locator, expectation, and browser lifecycle calls.",
+      "Existing list and HTML reporters, traces, screenshots, and videos remain enabled.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
+    title: "Faster e2e setup with verbose diagnostics",
+    summary:
+      "Reduced redundant browser bootstraps and fixed waits in the Playwright harness while making importer build logging verbose.",
+    items: [
+      "Atlas Quest and Project Manager e2e fixtures now seed their test state before the first application navigation.",
+      "Presentation, playtest, terrain, and renderer-memory checks wait on live state instead of unconditional sleeps.",
+      "RPG Maker importer bundling now emits verbose diagnostics during e2e runs.",
+    ],
+  },
+  {
+    date: "August 5, 2026",
     title: "Renderer and editor tooling performance pass",
     summary:
       "Reduced repeated renderer, map-editor, and editor-tool work while preserving existing HD-2D, classic 2D, and serialized project behavior.",
@@ -1964,3 +2015,42 @@ export const PATCH_NOTES = [
     ],
   },
 ];
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T16:16:58-06:00",
+  title: "Conflict-resistant patch note timestamps",
+  summary:
+    "Patch notes now accept immutable local timestamps and can be appended safely without changing the existing history.",
+  items: [
+    "New patch-note entries can be added as independent append-only blocks with the author’s local UTC offset.",
+    "The Help → Patch Notes dialog sorts timestamped entries newest-first and formats them in the viewer’s local date and time.",
+    "Legacy date-only entries remain supported and continue to appear in the historical list.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T16:50:08-06:00",
+  title: "Stable CI E2E performance and quieter importer builds",
+  summary:
+    "GitHub Actions now runs SwiftShader-heavy E2E tests deterministically, while RPG Maker importer bundling no longer emits verbose import-resolution diagnostics.",
+  items: [
+    "CI Playwright execution uses one worker; local runs retain the two-worker cap and explicit RPGATLAS_E2E_WORKERS override.",
+    "MZ importer fixture bundling is silent while normal test summaries and failure artifacts remain available.",
+    "Project-manager discard-reload coverage now controls autosave timing and waits for the replacement document to navigate before asserting its title.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T17:28:19-06:00",
+  title: "Deterministic HD terrain texture updates",
+  summary:
+    "Animated terrain now refreshes only the HD chunks it changes, with explicit renderer readiness diagnostics for reliable frozen-clock captures.",
+  items: [
+    "Animated water updates the lower texture chunks touched by the current terrain frame instead of rebuilding every HD texture.",
+    "Renderer diagnostics expose texture revisions and completed render frames so automated captures wait on state rather than screenshot coincidence.",
+    "The animated-terrain and renderer golden tests now use the explicit readiness handshake, reducing SwiftShader timing flakes.",
+  ],
+});
