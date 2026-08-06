@@ -43,7 +43,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     env:
-      RENDERER_GOLDEN_CACHE_KEY: rpgatlas-renderer-goldens-linux-v2
+      RENDERER_GOLDEN_CACHE_PREFIX: rpgatlas-renderer-goldens-linux-v3
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -55,19 +55,33 @@ jobs:
         run: node server/build.mjs
       - name: Install Playwright's Chromium (+ OS deps)
         run: npx playwright install --with-deps chromium
+      - name: Compute Linux renderer golden baseline hash
+        id: renderer-goldens-hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline_hash="${{ hashFiles('tests-e2e/__snapshots__/linux/renderer-golden.spec.mjs/*.png') }}"
+          if [[ -z "${baseline_hash}" ]]; then
+            echo "Unable to compute the Linux renderer golden baseline hash." >&2
+            exit 1
+          fi
+          echo "hash=${baseline_hash}" >> "$GITHUB_OUTPUT"
       - name: Restore Linux renderer golden baseline
         id: renderer-goldens
         uses: actions/cache/restore@v5
         with:
           path: tests-e2e/__snapshots__/linux
-          key: ${{ env.RENDERER_GOLDEN_CACHE_KEY }}
+          key: ${{ env.RENDERER_GOLDEN_CACHE_PREFIX }}-${{ steps.renderer-goldens-hash.outputs.hash }}
       - name: Report Linux renderer golden cache status
         shell: bash
         env:
           CACHE_HIT: ${{ steps.renderer-goldens.outputs.cache-hit }}
+          BASELINE_HASH: ${{ steps.renderer-goldens-hash.outputs.hash }}
+          CACHE_KEY: ${{ env.RENDERER_GOLDEN_CACHE_PREFIX }}-${{ steps.renderer-goldens-hash.outputs.hash }}
         run: |
           set -euo pipefail
-          echo "Linux renderer golden cache key: ${RENDERER_GOLDEN_CACHE_KEY}"
+          echo "Linux renderer golden baseline hash: ${BASELINE_HASH}"
+          echo "Linux renderer golden cache key: ${CACHE_KEY}"
           echo "Cache hit: ${CACHE_HIT:-false}"
           echo "Workflow event: ${GITHUB_EVENT_NAME}"
           echo "Git ref: ${GITHUB_REF}"
@@ -144,7 +158,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: tests-e2e/__snapshots__/linux
-          key: ${{ env.RENDERER_GOLDEN_CACHE_KEY }}
+          key: ${{ env.RENDERER_GOLDEN_CACHE_PREFIX }}-${{ steps.renderer-goldens-hash.outputs.hash }}
       - name: E2E + golden-image tests (builds first — see playwright.config.mjs webServer)
         run: npm run test:e2e
       - name: Upload Playwright report
