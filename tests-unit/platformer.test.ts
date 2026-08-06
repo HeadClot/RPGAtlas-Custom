@@ -61,6 +61,17 @@ describe("platformer simulation", () => {
     expect(buffered.jumpBufferFrames).toBeGreaterThan(0);
   });
 
+  it("arms coyote time when walking off a ledge", () => {
+    const ledge = world([".....", "#####"]);
+    const body = createPlatformerBody(4.2, 0.1);
+    body.grounded = true;
+
+    for (let i = 0; i < 13; i++) stepPlatformerBody(body, { ...idle, axis: 1 }, ledge);
+    expect(body.grounded).toBe(false);
+    expect(body.coyoteFrames).toBeGreaterThan(0);
+    expect(stepPlatformerBody(body, { ...idle, jumpPressed: true, jumpHeld: true }, ledge).jumped).toBe(true);
+  });
+
   it("resolves full solids, ceilings, one-way platforms, and drop-through", () => {
     const w = world([".....", "..#..", "..-..", "#####"]);
     const body = createPlatformerBody(1.1, 1.4);

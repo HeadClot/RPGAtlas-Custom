@@ -231,9 +231,11 @@ async function applySave(d: any): Promise<void> {
   if (p.combat && (G.player as any).combat) Object.assign((G.player as any).combat, p.combat);
   await loadMap(d.mapId);
   if (p.platformer && (G.player as any).platformer) {
+    const savedX = p.platformer.x == null ? NaN : Number(p.platformer.x);
+    const savedY = p.platformer.y == null ? NaN : Number(p.platformer.y);
     Object.assign((G.player as any).platformer, {
-      x: Number(p.platformer.x) || (G.player as any).platformer.x,
-      y: Number(p.platformer.y) || (G.player as any).platformer.y,
+      x: Number.isFinite(savedX) ? savedX : (G.player as any).platformer.x,
+      y: Number.isFinite(savedY) ? savedY : (G.player as any).platformer.y,
       vx: 0, vy: 0, grounded: !!p.platformer.grounded,
     });
     G.player.x = (G.player as any).platformer.x;

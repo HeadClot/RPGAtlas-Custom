@@ -549,6 +549,7 @@ export function drawMapParallax(g: any, camX: any, camY: any, viewW: any, viewH:
 }
 
 export async function loadMap(mapId: any): Promise<void> {
+  const previousMapId = G.mapId;
   beginMapLoad(mapId);
   try {
     ctx.map = RA.byId(ctx.proj.maps, mapId);
@@ -567,6 +568,10 @@ export async function loadMap(mapId: any): Promise<void> {
       if (px !== G.player.x || py !== G.player.y) initPlayer(px, py, G.player.dir);
     }
     G.mapId = mapId;
+    if (ctx.proj?.system?.gameMode === "platformer" && previousMapId !== mapId) {
+      ctx.platformerCameraX = null;
+      ctx.platformerCameraY = null;
+    }
     G.encSteps = 0;
     // Maps can pin the day/night clock on entry (blank = keep the current time).
     if (ctx.map.hd2d && ctx.map.hd2d.timeOfDay != null && ctx.map.hd2d.timeOfDay !== "") {

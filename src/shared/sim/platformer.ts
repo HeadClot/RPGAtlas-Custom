@@ -243,6 +243,8 @@ export function stepPlatformerBody(
   }
 
   if (body.grounded) body.coyoteFrames = settings.coyoteFrames;
+  else if (wasGrounded && !result.jumped && !result.droppedThrough && body.vy >= 0)
+    body.coyoteFrames = settings.coyoteFrames;
   if (body.y > world.height + settings.fallMargin) result.fell = true;
   return result;
 }

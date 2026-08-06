@@ -57,7 +57,9 @@ function collisionKindAt(x: number, y: number): PlatformerCollisionKind {
 
 function bodyOf(ent: any): PlatformerBody {
   if (!ent.platformer) {
-    ent.platformer = createPlatformerBody(Number(ent.x) || 0.15, Number(ent.y) || 0.1);
+    const x = Number(ent.x);
+    const y = Number(ent.y);
+    ent.platformer = createPlatformerBody(Number.isFinite(x) ? x : 0.15, Number.isFinite(y) ? y : 0.1);
   }
   return ent.platformer;
 }
