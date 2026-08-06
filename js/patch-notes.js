@@ -2322,3 +2322,15 @@ PATCH_NOTES.push({
     "Updated staging, packaging, the root RPGAtlas-Desktop.exe rebuild, desktop documentation, and focused native contract tests.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T13:50:00-06:00",
+  title: "Windows relative launch paths",
+  summary:
+    "Electrobun now resolves relative project arguments with Windows path semantics when launched from a Windows working directory.",
+  items: [
+    "Opening a relative .rpgatlas path from the desktop host now preserves the drive and separator format.",
+    "Absolute Windows, UNC, and POSIX launch paths remain accepted without host-platform rewriting.",
+  ],
+});
