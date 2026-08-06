@@ -44,16 +44,19 @@ function createInputSystem(deps) {
   let padReverse = buildReverse(bindings.gamepad);
   let actionList = buildActionList();
 
-  // Device slots: slot 0 is the keyboard; gamepad slots (one per connected pad index)
+  // Device slots: slot 0 is the keyboard; virtual controls are transient and do not
+  // participate in bindings; gamepad slots (one per connected pad index)
   // are appended/removed lazily by the poller. Each slot holds the live-held set per
   // action. Single-player reads the aggregate across slots; the per-slot split is what
   // keeps future co-op possible (a second player would read only its own slot).
   const keyboard = { kind: "keyboard", down: {} };
-  const slots = [keyboard];
+  const virtual = { kind: "virtual", down: {}, navHeld: {} };
+  const slots = [keyboard, virtual];
   const padSlots = {}; // gamepad index -> slot (also a member of `slots`)
 
   // Edges queued by keydown since the last poll(), drained into `edges` each frame.
   let edgeQueue = [];
+  let virtualEdges = {};
   let edges = {}; // action -> true (fresh this frame)
   let lastDevice = "keyboard";
   let lastPadId = ""; // Gamepad.id of the most-recently-used pad, for controller-family display
@@ -129,6 +132,29 @@ function createInputSystem(deps) {
     return bindings;
   }
 
+  // ---- virtual controls --------------------------------------------------
+  // Touch controls inject named actions directly instead of pretending to be
+  // keyboard keys or gamepad buttons. A press is queued as an edge immediately
+  // so a very short tap still reaches the next fixed-timestep poll; held state
+  // remains available for movement until the matching release.
+  function setVirtualAction(action, held) {
+    action = String(action || "");
+    if (!action) return;
+    if (held) {
+      if (!virtual.down[action]) virtualEdges[action] = true;
+      virtual.down[action] = true;
+    } else {
+      delete virtual.down[action];
+      virtual.navHeld[action] = 0;
+    }
+  }
+
+  function clearVirtualActions() {
+    virtual.down = {};
+    virtual.navHeld = {};
+    virtualEdges = {};
+  }
+
   // ---- DOM / device attach ------------------------------------------------
   function attachDOM(targetDoc) {
     const d = targetDoc || doc;
@@ -154,6 +180,7 @@ function createInputSystem(deps) {
     keyboard.down = {};
     for (const code in heldCodes) delete heldCodes[code];
     for (const idx in padSlots) padSlots[idx].down = {};
+    clearVirtualActions();
     edgeQueue = [];
     edges = {};
   }
@@ -440,10 +467,36 @@ function createInputSystem(deps) {
   // Rebuilds the fresh-edge set from queued keyboard edges plus gamepad button/stick
   // diffs, and routes gamepad menu nav. Because it runs every tick, no edge stays
   // latched across menu frames.
+  function pollVirtual() {
+    const queued = virtualEdges;
+    virtualEdges = {};
+    const names = {};
+    for (const action in virtual.down) names[action] = true;
+    for (const action in queued) names[action] = true;
+    for (const action in names) {
+      const isDown = !!virtual.down[action];
+      if (queued[action]) {
+        if (isMenuOpen()) {
+          if (action !== "jump") onMenuNav(action, false);
+        } else {
+          edges[action] = true;
+        }
+        virtual.navHeld[action] = 0;
+      } else if (isDown && NAV[action] && isMenuOpen()) {
+        virtual.navHeld[action] = (virtual.navHeld[action] || 0) + 1;
+        const over = virtual.navHeld[action] - DAS_DELAY;
+        if (over >= 0 && over % ARR_RATE === 0) onMenuNav(action, true);
+      } else if (!isDown) {
+        virtual.navHeld[action] = 0;
+      }
+    }
+  }
+
   function poll() {
     edges = {};
     for (let i = 0; i < edgeQueue.length; i++) edges[edgeQueue[i]] = true;
     edgeQueue = [];
+    pollVirtual();
     pollGamepads();
   }
 
@@ -494,6 +547,8 @@ function createInputSystem(deps) {
     poll,
     setBindings,
     getBindings,
+    setVirtualAction,
+    clearVirtualActions,
     pressed,
     justPressed,
     consume,

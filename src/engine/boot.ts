@@ -86,6 +86,7 @@ import { consumePlaytestStart, initPlaytestBridge } from "./playtest-bridge.js";
 import { gameOver, requestGameOver } from "./scenes/gameover.js";
 import { playMapAnimation } from "./anim-glue.js";
 import { initPerfHud } from "./perf-hud.js";
+import { mountTouchControls } from "./touch-controls.js";
 import { Renderer } from "../renderer/index.js";
 import { initAssetLibrary } from "../shared/assets/asset-library.js";
 import { createDefaultAssetStore } from "../platform/default-asset-store.js";
@@ -362,6 +363,9 @@ async function boot(): Promise<void> {
   Sfx.setSeVolume(av.se == null ? 1 : av.se);
   if (ctx.setMsgSpeed && ctx.playerOptions.textSpeed) ctx.setMsgSpeed(ctx.playerOptions.textSpeed);
   applyScreenSettings();
+  // Android/browser player controls are presentation-only. The touch module
+  // detects coarse pointers and stays inert in ordinary desktop sessions.
+  mountTouchControls(ctx.stage, ctx.Input);
   // Accessibility (Phase 7): restore text scale + reduced-motion class, and
   // track live prefers-reduced-motion changes while the option is "auto".
   applyTextScale();

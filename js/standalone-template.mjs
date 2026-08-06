@@ -49,7 +49,7 @@ export function assembleStandaloneHtml(project, files, usedAssets, iconSet) {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${htmlText(title)}</title>
 <style>${scriptText(files[0])}</style>
 </head>
@@ -101,10 +101,12 @@ export function webManifestFor(title) {
   return JSON.stringify({
     name,
     short_name: name.length > 12 ? name.slice(0, 12).trim() : name,
+    id: "./index.html",
     start_url: "./index.html",
     scope: "./",
     display: "standalone",
     orientation: "landscape",
+    categories: ["games"],
     background_color: "#0a0b10",
     theme_color: "#101018",
     icons: [

@@ -28,11 +28,68 @@ body { font: 15px/1.5 "Segoe UI", system-ui, sans-serif; color: #f0f2f8; }
   font-size: calc(var(--font-size) * var(--ui-scale, 1));
 }
 #glcanvas { position: absolute; inset: 0; z-index: 0; image-rendering: pixelated; }
-#gamecanvas { position: absolute; inset: 0; z-index: 1; image-rendering: pixelated; }
+#gamecanvas { position: absolute; inset: 0; z-index: 1; image-rendering: pixelated; touch-action: none; }
+#stage[data-touch-controls="enabled"] { touch-action: none; }
 /* map-side battle-animation layer (Phase 5 playAnim): over the canvas, under the UI */
 .map-fx { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
 .uilayer { position: absolute; inset: 0; pointer-events: none; }
 .uilayer > * { pointer-events: auto; }
+
+/* ---------- Android / coarse-pointer controls ---------- */
+.touch-controls {
+  --touch-size: clamp(82px, 12vmin, 108px);
+  position: absolute; inset: 0; z-index: 8; pointer-events: none;
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  padding: max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+}
+.touch-dpad, .touch-actions { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); display: grid; gap: 10px; }
+.touch-dpad {
+  left: max(18px, env(safe-area-inset-left)); width: calc(var(--touch-size) * 3 + 20px);
+  height: calc(var(--touch-size) * 3 + 20px); grid-template-columns: repeat(3, var(--touch-size));
+  grid-template-rows: repeat(3, var(--touch-size));
+}
+.touch-actions {
+  right: max(18px, env(safe-area-inset-right));
+  grid-template-columns: repeat(3, var(--touch-size));
+  grid-template-rows: repeat(2, var(--touch-size));
+  grid-template-areas: "y x a" "hud . b";
+}
+.touch-dpad-up { grid-column: 2; grid-row: 1; }
+.touch-dpad-left { grid-column: 1; grid-row: 2; }
+.touch-dpad-right { grid-column: 3; grid-row: 2; }
+.touch-dpad-down { grid-column: 2; grid-row: 3; }
+.touch-action-y { grid-area: y; }
+.touch-action-x { grid-area: x; }
+.touch-action-a { grid-area: a; }
+.touch-action-b { grid-area: b; }
+.touch-action-hud { grid-area: hud; font-size: 12px !important; }
+.touch-control {
+  width: var(--touch-size); height: var(--touch-size); padding: 0;
+  pointer-events: auto; touch-action: none; cursor: pointer;
+  border: 2px solid rgba(220,232,255,.72); border-radius: 28%;
+  color: #f5f7ff; background: rgba(18,28,52,.72);
+  box-shadow: 0 4px 12px rgba(0,0,0,.45), inset 0 0 12px rgba(120,160,240,.12);
+  font: 900 26px/1 system-ui, sans-serif; text-shadow: 0 1px 3px #000;
+}
+.touch-dpad .touch-control { border-radius: 20%; }
+.touch-control:hover, .touch-control:focus-visible { border-color: #ffd86a; outline: 2px solid rgba(255,216,106,.5); outline-offset: 2px; }
+.touch-control.is-pressed, .touch-control:active {
+  color: #101018; background: rgba(255,216,106,.88); border-color: #fff2b8;
+  transform: translateY(2px) scale(.97);
+}
+.touch-rotate-hint {
+  position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; padding: 28px;
+  color: #f0f2f8; background: rgba(10,11,16,.97); text-align: center;
+  font: 16px/1.45 system-ui, sans-serif;
+}
+.touch-rotate-hint strong { color: #ffd86a; font-size: 24px; }
+.touch-rotate-hint span { color: #b8c2dc; }
+.touch-rotate-icon { color: #9adcff; font-size: 62px; line-height: 1; }
+.touch-controls[hidden], .touch-rotate-hint[hidden] { display: none !important; }
 .fader {
   position: absolute; inset: 0; background: #000; pointer-events: none;
   transition: opacity 0.25s linear; z-index: 90;

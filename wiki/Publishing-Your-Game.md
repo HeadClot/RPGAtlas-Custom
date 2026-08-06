@@ -80,6 +80,23 @@ anyway**. If that worries your audience, the **Standalone HTML** export sidestep
 - **A direct file** — share the single HTML (or EXE) via Discord or cloud storage.
 - **Game jams** — the single-file HTML build is ideal for quick judging.
 
+### Android phones and tablets
+
+Use **Web / itch.io (.zip)** for Android players. Host the extracted files on HTTPS (or upload the
+zip to itch.io), then open the game in Chrome. Chrome can offer **Install app** / **Add to Home
+screen** because the export includes a web-app manifest, icons, and an offline service worker.
+
+Android player controls are built into the exported game on touch devices:
+
+- The lower-left D-pad moves in the four directions.
+- A confirms and jumps, B cancels or opens the menu, X attacks, and Y dashes.
+- The HUD button toggles the authored HUD where supported.
+- Tapping a destination on the map still uses tap-to-move and pathfinding.
+
+Games are landscape-first. In portrait, the player shows a rotate-device message until the phone is
+turned sideways. The authoring editor remains a desktop workflow; Android support covers playing
+published games.
+
 ### A proper native desktop app
 
 Working from the RPGAtlas repo with the Rust toolchain installed, you can package any exported
