@@ -778,6 +778,7 @@ export function createThreeRenderer(): any {
     scene,
     camera,
     clearColor,
+    fov: FOV,
     setViewCull,
   });
 
@@ -915,37 +916,37 @@ export function createThreeRenderer(): any {
     if (perfTraceEnabled) perfTrace.setupMs = performance.now() - perfFrameStart;
 
     const clear = cfg.fog ? cfg.fog.color : [16 / 255, 16 / 255, 24 / 255];
-    framePipeline.render({
-      renderer: r,
-      sprites,
-      cfg,
-      extra,
-      width: w,
-      height: h,
-      runtimeWidth: runtime.width,
-      runtimeHeight: runtime.height,
-      camX,
-      camY,
-      shakeX: shX,
-      shakeZ: shZ,
-      worldBaseX,
-      worldBaseY,
-      tile: TILE,
-      zoom,
-      targetX: tX,
-      targetZ: tZ,
-      mvp,
-      clear,
-      near,
-      far,
-      distance: dist,
-      eye,
-      sunDaylight: sunDl,
-      lightCount: nLights,
-      sampleHeight: sampleH,
-      timing: perfTrace,
-      perfTraceEnabled,
-    });
+    const frame = framePipeline.frame;
+    frame.renderer = r;
+    frame.sprites = sprites;
+    frame.cfg = cfg;
+    frame.extra = extra;
+    frame.width = w;
+    frame.height = h;
+    frame.runtimeWidth = runtime.width;
+    frame.runtimeHeight = runtime.height;
+    frame.camX = camX;
+    frame.camY = camY;
+    frame.shakeX = shX;
+    frame.shakeZ = shZ;
+    frame.worldBaseX = worldBaseX;
+    frame.worldBaseY = worldBaseY;
+    frame.tile = TILE;
+    frame.zoom = zoom;
+    frame.targetX = tX;
+    frame.targetZ = tZ;
+    frame.mvp = mvp;
+    frame.clear = clear;
+    frame.near = near;
+    frame.far = far;
+    frame.distance = dist;
+    frame.eye = eye;
+    frame.sunDaylight = sunDl;
+    frame.lightCount = nLights;
+    frame.sampleHeight = sampleH;
+    frame.timing = perfTrace;
+    frame.perfTraceEnabled = perfTraceEnabled;
+    framePipeline.render(frame);
     renderFrameId++;
     renderedTextureRevision = mapTextureRevision;
     renderedEngineTick = Number.isFinite(Number(extra.t)) ? Number(extra.t) : -1;

@@ -2143,3 +2143,15 @@ PATCH_NOTES.push({
     "Kept deterministic engine-tick animation, render ordering, diagnostics, revision counters, and context-restoration replay unchanged.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T22:43:37-06:00",
+  title: "Stabilized renderer golden captures",
+  summary:
+    "Renderer golden tests now wait for completed map frames and expose title-transition diagnostics before capturing pixels.",
+  items: [
+    "Hardened point-shadow and generalized-layer capture handshakes without changing committed baselines.",
+    "Removed avoidable per-frame coordination allocations and added focused point-shadow readiness coverage.",
+  ],
+});

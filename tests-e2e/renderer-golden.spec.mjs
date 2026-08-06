@@ -53,6 +53,15 @@ async function rendererStats(page) {
   return page.evaluate(() => window.RPGATLAS_RENDERER_STATS?.() || null);
 }
 
+async function captureDiagnostics(page) {
+  return page.evaluate(() => ({
+    stats: window.RPGATLAS_RENDERER_STATS?.() || null,
+    titleWindows: document.querySelectorAll(".titlewin").length,
+    titleMenus: document.querySelectorAll(".titlemenu").length,
+    glCanvas: !!document.querySelector("#glcanvas"),
+  }));
+}
+
 async function waitForRendererStats(page, predicate, label) {
   for (let attempt = 0; attempt < 120; attempt++) {
     const stats = await rendererStats(page);
@@ -63,6 +72,36 @@ async function waitForRendererStats(page, predicate, label) {
     await page.clock.runFor(16);
   }
   throw new Error(`HD renderer did not reach ${label}: ${JSON.stringify(await rendererStats(page))}`);
+}
+
+async function waitForCompletedMapFrames(page, { frames = 3, requirePointShadows = false } = {}) {
+  let previous = null;
+  let completed = 0;
+  for (let attempt = 0; attempt < 120; attempt++) {
+    const current = await captureDiagnostics(page);
+    const stats = current.stats;
+    const pointStable = !requirePointShadows || (
+      stats &&
+      stats.pointShadowEnabled === true &&
+      stats.pointShadowReady === true &&
+      stats.pointShadowProgramsReady === true &&
+      stats.pointShadowFrameId > 0 &&
+      stats.pointShadowSceneFrameId === stats.pointShadowFrameId
+    );
+    const frameAdvanced = !!stats && (!previous || stats.renderFrameId > previous.renderFrameId);
+    const mapStable = !!stats &&
+      stats.mapTextureReady === true &&
+      stats.renderedTextureRevision === stats.mapTextureRevision;
+    if (current.titleWindows === 0 && current.titleMenus === 0 && frameAdvanced && mapStable && pointStable) {
+      completed++;
+      if (completed >= frames) return current;
+    } else {
+      completed = 0;
+    }
+    previous = stats;
+    await page.clock.runFor(16);
+  }
+  throw new Error(`HD renderer did not complete ${frames} stable map frames: ${JSON.stringify(await captureDiagnostics(page))}`);
 }
 
 /** Wait for the initial map upload, then optionally wait through additional
@@ -97,6 +136,8 @@ async function waitForRendererReady(page, { stabilize = false, requirePointShado
     );
   }
 
+  await waitForCompletedMapFrames(page, { frames: 3, requirePointShadows });
+
   if (!stabilize) return rendererStats(page);
 
   // Let Playwright complete the current compositor readback before sampling
@@ -111,10 +152,10 @@ async function waitForRendererReady(page, { stabilize = false, requirePointShado
     settled.renderedTextureRevision !== settled.mapTextureRevision ||
     afterWindow.mapTextureRevision !== settled.mapTextureRevision
   ) {
-    throw new Error(`HD renderer did not reach a stable map-revision frame: ${JSON.stringify({ afterWindow, settled })}`);
+    throw new Error(`HD renderer did not reach a stable map-revision frame: ${JSON.stringify({ afterWindow, settled, capture: await captureDiagnostics(page) })}`);
   }
   if (!pointShadowStable(afterWindow) || !pointShadowStable(settled)) {
-    throw new Error(`HD renderer point-shadow state did not reach a stable capture frame: ${JSON.stringify({ afterWindow, settled })}`);
+    throw new Error(`HD renderer point-shadow state did not reach a stable capture frame: ${JSON.stringify({ afterWindow, settled, capture: await captureDiagnostics(page) })}`);
   }
   return settled;
 }
@@ -141,7 +182,7 @@ async function bootToStableMap(page, hdParam, transformProject, {
   // newGame(): fadeTo(1,300) -> loadMap -> render() -> fadeTo(0,300); each
   // fadeTo awaits sleep(ms+30). 700ms of virtual time clears both fades.
   await page.clock.runFor(700);
-  await expect(page.locator(".titlewin")).toHaveCount(0);
+  await expect(page.locator(".titlewin, .titlemenu")).toHaveCount(0);
   // Extra fixed run so the walk-cycle/idle animation and any light flicker
   // settle on a specific, reproducible tick rather than whatever frame the
   // fade happened to land on.
@@ -166,7 +207,7 @@ async function expectStableMapScreenshot(page, hdParam, transformProject, snapsh
   } catch (error) {
     if (options.requirePointShadows) {
       const stats = await rendererStats(page);
-      error.message += `\nPoint-shadow diagnostics: ${JSON.stringify(stats)}`;
+      error.message += `\nPoint-shadow diagnostics: ${JSON.stringify({ stats, capture: await captureDiagnostics(page) })}`;
     }
     throw error;
   }
@@ -298,7 +339,6 @@ test.describe("renderer golden images", () => {
     await expectStableMapScreenshot(page, 0, null, "classic2d-meridian-village.png");
   });
 });
-
 // Phase 8 Stage B: the generalized layer stack (map.layersAdv). The engine and
 // HD-2D buffer composition branch on layersAdv; these guard both sides of that
 // branch. Rather than commit new baseline PNGs (fragile — the classic 2D
@@ -364,6 +404,7 @@ test.describe("generalized layers (map.layersAdv)", () => {
     return {
       png: stableStage || page.locator("#stage").screenshot(),
       stats: hd === 1 ? await rendererStats(page) : null,
+      capture: hd === 1 ? await captureDiagnostics(page) : null,
     };
   }
   /** Count RGBA byte differences between two PNG buffers, decoded in-page. */
@@ -420,7 +461,7 @@ test.describe("generalized layers (map.layersAdv)", () => {
     const folded = await pixelDiff(page, a.png, composite.png);
     expect(
       folded,
-      `HD layer capture diagnostics: ${JSON.stringify({ control, folded, a: a.stats, b: b.stats, composite: composite.stats })}`,
+      `HD layer capture diagnostics: ${JSON.stringify({ control, folded, a: a.stats, b: b.stats, composite: composite.stats, captures: { a: a.capture, b: b.capture, composite: composite.capture } })}`,
     ).toBeLessThanOrEqual(control * 2 + 5000);
   });
 });

@@ -116,7 +116,7 @@ export class ShadowPassRenderer {
   renderPoint(renderer: THREE.WebGLRenderer, count: number): void {
     this.ensurePointTarget();
     this.withDepthMaterials((meshes) => {
-      const { pointWidth, pointHeight, pointFace, pointNear, tile, uniforms, depthMVP, scene, camera, lightPos } = this.pointInputs();
+      const { pointWidth, pointHeight, pointFace, pointNear, tile, uniforms, depthMVP, scene, camera, lightPos } = this.options;
       this.pointRT!.viewport.set(0, 0, pointWidth, pointHeight);
       renderer.setRenderTarget(this.pointRT);
       renderer.clear(true, true, false);
@@ -153,7 +153,7 @@ export class ShadowPassRenderer {
 
   renderPointPass(renderer: THREE.WebGLRenderer, count: number, trace: boolean): number {
     const uniforms = this.options.uniforms;
-    const { lightPos, lightCol } = this.pointInputs();
+    const { lightPos, lightCol } = this.options;
     const nextKey = count > 0
       ? [count, ...Array.from({ length: count }, (_, i) => [
         lightPos[i * 4], lightPos[i * 4 + 1], lightPos[i * 4 + 2], lightPos[i * 4 + 3],
@@ -180,22 +180,6 @@ export class ShadowPassRenderer {
 
   markSceneFrame(count: number): void {
     if (count > 0) this.pointSceneFrameId = this.pointFrameId;
-  }
-
-  private pointInputs(): { lightPos: Float32Array; lightCol: Float32Array; uniforms: Record<string, { value: any }>; depthMVP: { value: THREE.Matrix4 }; scene: THREE.Scene; camera: THREE.Camera; pointWidth: number; pointHeight: number; pointFace: number; pointNear: number; tile: number } {
-    return {
-      lightPos: this.options.lightPos,
-      lightCol: this.options.lightCol,
-      uniforms: this.options.uniforms,
-      depthMVP: this.options.depthMVP,
-      scene: this.options.scene,
-      camera: this.options.camera,
-      pointWidth: this.options.pointWidth,
-      pointHeight: this.options.pointHeight,
-      pointFace: this.options.pointFace,
-      pointNear: this.options.pointNear,
-      tile: this.options.tile,
-    };
   }
 
   private ensureShadowTarget(): void {

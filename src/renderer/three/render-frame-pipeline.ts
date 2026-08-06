@@ -57,11 +57,14 @@ export interface FramePipelineOptions {
   scene: THREE.Scene;
   camera: THREE.Camera;
   clearColor: THREE.Color;
+  fov: number;
   setViewCull(camX: number, camY: number, viewW: number, viewH: number, on: boolean): void;
 }
 
 /** Keeps the frame's pass order and pass-local timing in one place. */
 export class RenderFramePipeline {
+  readonly frame = {} as FramePipelineFrame;
+
   constructor(private readonly options: FramePipelineOptions) {}
 
   render(frame: FramePipelineFrame): void {
@@ -115,7 +118,7 @@ export class RenderFramePipeline {
       timing.postMs = postProcess.render(renderer, {
         cfg, width: frame.width, height: frame.height, near: frame.near, far: frame.far,
         distance: frame.distance, eye: frame.eye, extra, worldBaseX: frame.worldBaseX,
-        worldBaseY: frame.worldBaseY, tile: frame.tile, fov: Math.PI / 4,
+        worldBaseY: frame.worldBaseY, tile: frame.tile, fov: this.options.fov,
         sampleHeight: frame.sampleHeight, perfTraceEnabled,
       });
     }
