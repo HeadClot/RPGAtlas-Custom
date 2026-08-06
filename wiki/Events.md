@@ -145,6 +145,11 @@ Defeated action-combat enemies also count for Kill quest objectives that target 
 For player-facing instructions, write text such as `Press \input[attack] to swing.` The prompt shows
 the player's current keyboard or gamepad binding instead of assuming a specific key.
 
+Hotbar Skills and Items do not need a separate event command. Enable Action Combat in **System** or
+the current map's **Map Properties**, place the action-enabled record in the actor/class hotbar, and
+press its configured **Combat slot 1–8** control. The runtime checks availability, resources,
+cooldown, target selection, and Item inventory before starting the action.
+
 ---
 
 ## Common events

@@ -2206,3 +2206,16 @@ PATCH_NOTES.push({
     "Added shared ability resolution, target selection, resource/cooldown checks, state ticking, server intent validation, combat snapshots, and authored map VFX playback.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T02:00:08-06:00",
+  title: "Documented Action-RPG authoring",
+  summary:
+    "Expanded creator documentation for real-time Skills, Items, States, hotbars, enemy abilities, and map combat rules.",
+  items: [
+    "Updated the Action Combat guide with System/map setup, hotbar authoring, resource and cooldown behavior, real-time States, and troubleshooting.",
+    "Updated Database, Events, and Battles & States guidance with the new Action Combat tabs and 60 Hz frame-based behavior.",
+    "Updated the architecture overview to describe shared ability resolution and combat snapshot fields.",
+  ],
+});
