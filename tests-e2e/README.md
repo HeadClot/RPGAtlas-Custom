@@ -185,12 +185,13 @@ SwiftShader forcing the same rasterizer.
 
 **Linux CI baseline:** Windows keeps its committed baselines, while Ubuntu's
 complete set is stored in the versioned GitHub Actions cache key configured in
-`.github/workflows/ci.yml`. A cache miss on `main` bootstraps the Linux set
-with `--update-snapshots`, runs the golden tests, and saves the result. Pull
-requests restore that known-good set and fail clearly if it is unavailable;
-they never regenerate baselines from the code under test. Bump the cache key
-version deliberately when an intentional Linux visual baseline change is
-approved.
+`.github/workflows/ci.yml`. The committed `linux` set is a cold-cache fallback
+copied from the deterministic Windows set; a cache miss on `main` bootstraps it
+with genuine Ubuntu captures using `--update-snapshots`, runs the golden tests,
+and saves the result. Pull requests restore that known-good cache when
+available, or use the checked-in fallback without regenerating baselines from
+the code under test. Bump the cache key version deliberately when an
+intentional Linux visual baseline change is approved.
 
 The golden spec does not skip for missing platform baselines. Local Windows
 runs continue to use `tests-e2e/__snapshots__/win32/`, and Linux CI compares

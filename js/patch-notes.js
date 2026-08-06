@@ -2080,3 +2080,16 @@ PATCH_NOTES.push({
     "Linux baseline bootstrapping is limited to main; pull requests compare against the restored known-good cache.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T20:08:07-06:00",
+  title: "Cold-cache Linux renderer fallback",
+  summary:
+    "Renderer golden tests now retain a complete checked-in fallback while Ubuntu CI seeds and refreshes the authoritative Linux cache.",
+  items: [
+    "Added all eleven Linux renderer baseline images so a pull request does not fail solely because the cache has not been seeded.",
+    "Main-branch cache bootstrapping still regenerates the Linux set with Ubuntu's genuine SwiftShader captures.",
+    "Documented the cold-cache fallback and the cache-backed Linux verification flow.",
+  ],
+});
