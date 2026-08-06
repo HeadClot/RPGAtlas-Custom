@@ -13,19 +13,22 @@
 <div class="tag">Chart your world. Tell your story.</div>
 <h3 id="rpgatlas-wiki">RPGAtlas Wiki</h3>
 <p><strong>Getting started</strong></p>
-<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
+<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Making-a-Platformer.html">Making a Platformer</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li></ul>
 <p><strong>Building your world</strong></p>
 <ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a class="active" href="Battles-and-States.html">Battles & States</a></li><li><a href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
 <p><strong>Play together (online)</strong></p>
 <ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
 <p><strong>Polish & ship</strong></p>
-<ul><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
+<ul><li><a href="Visual-UI-and-HUD-Designer.html">Visual UI and HUD Designer</a></li><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
 <p><strong>Reference</strong></p>
 <ul><li><a href="Plugin-and-Script-API.html">Plugin & Script API</a></li><li><a href="Migration-Guide.html">Migration Guide</a></li><li><a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a></li><li><a href="Resources-and-Glossary.html">Resources & Glossary</a></li></ul>
 </nav>
 <main>
 <h1 id="battles-states">Battles & States</h1>
 <p>RPGAtlas ships a complete battle system with three scheduling modes. This page explains how fights are built, the battle views and systems, status effects, and how to keep combat fun and fair.</p>
+<h2 id="a-first-battle-in-five-steps">A first battle in five steps</h2>
+<ol><li>Open <strong>Database ▸ Enemies</strong> and choose an existing enemy or create one with modest stats.</li><li>Open <strong>Database ▸ Troops</strong> and make a troop containing one or two of those enemies.</li><li>On a map, create an event and add <strong>Start Battle</strong>, or use the <strong>Monster</strong> Quick Event.</li><li>Playtest with the starting party. Confirm that the player can win, escape when intended, and receive the expected experience and gold.</li><li>Only after the basic fight feels good, add states, special skills, battle events, or a different battle schedule.</li></ol>
+<p>For a first project, keep <strong>Turn-based</strong> combat and the default <strong>Side view</strong>. You can change the battle view or timing later without rebuilding your enemies and troops.</p>
 <hr>
 <h2 id="how-a-battle-happens">How a battle happens</h2>
 <p>A battle always pits the party against a <strong>troop</strong> (a group of enemies defined in the <a href="The-Database.html#troops">Database</a>). You start one in two ways:</p>

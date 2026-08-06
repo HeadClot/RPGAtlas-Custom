@@ -3,6 +3,19 @@
 RPGAtlas ships a complete battle system with three scheduling modes. This page explains how fights
 are built, the battle views and systems, status effects, and how to keep combat fun and fair.
 
+## A first battle in five steps
+
+1. Open **Database ▸ Enemies** and choose an existing enemy or create one with modest stats.
+2. Open **Database ▸ Troops** and make a troop containing one or two of those enemies.
+3. On a map, create an event and add **Start Battle**, or use the **Monster** Quick Event.
+4. Playtest with the starting party. Confirm that the player can win, escape when intended, and
+   receive the expected experience and gold.
+5. Only after the basic fight feels good, add states, special skills, battle events, or a different
+   battle schedule.
+
+For a first project, keep **Turn-based** combat and the default **Side view**. You can change the
+battle view or timing later without rebuilding your enemies and troops.
+
 ---
 
 ## How a battle happens

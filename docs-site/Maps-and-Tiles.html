@@ -13,19 +13,24 @@
 <div class="tag">Chart your world. Tell your story.</div>
 <h3 id="rpgatlas-wiki">RPGAtlas Wiki</h3>
 <p><strong>Getting started</strong></p>
-<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
+<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Making-a-Platformer.html">Making a Platformer</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li></ul>
 <p><strong>Building your world</strong></p>
 <ul><li><a class="active" href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
 <p><strong>Play together (online)</strong></p>
 <ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
 <p><strong>Polish & ship</strong></p>
-<ul><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
+<ul><li><a href="Visual-UI-and-HUD-Designer.html">Visual UI and HUD Designer</a></li><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
 <p><strong>Reference</strong></p>
 <ul><li><a href="Plugin-and-Script-API.html">Plugin & Script API</a></li><li><a href="Migration-Guide.html">Migration Guide</a></li><li><a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a></li><li><a href="Resources-and-Glossary.html">Resources & Glossary</a></li></ul>
 </nav>
 <main>
 <h1 id="maps-tiles">Maps & Tiles</h1>
 <p>Maps are the stage your whole game plays out on. This page covers building them well: layers, passability, shadows, map properties, encounters, and the optional HD-2D height system.</p>
+<h2 id="what-a-map-controls">What a map controls</h2>
+<p>A map controls the space the player sees and moves through. Its tiles provide the appearance and usually suggest where the player can walk. Its events provide interaction. Its <strong>Map Properties</strong> control music, encounters, connected-world behavior, and optional visual effects.</p>
+<p>For a first map, use this order:</p>
+<ol><li>Give the map a clear name, such as <code>Town</code>, <code>Forest</code>, or <code>Cave</code>.</li><li>Paint the ground with <strong>Auto layer</strong>.</li><li>Add decoration and overhead scenery.</li><li>Check movement in <strong>Passability mode</strong>.</li><li>Set the player start position on a safe, walkable tile.</li><li>Add events only after the player can enter, explore, and leave the map.</li></ol>
+<p>This order keeps artwork, movement, and story problems easy to tell apart.</p>
 <hr>
 <h2 id="creating-and-managing-maps">Creating and managing maps</h2>
 <ul><li><strong>Add a map</strong> from the map list. A project can have as many maps as you like, connected by <a href="Events.html#movement-the-world">Transfer Player</a> events.</li><li><strong>Map Properties</strong> (the <strong>Map</strong> menu, or right-click a map in the list) lets you:<ul><li>Rename and <strong>resize</strong> the map.</li><li>Set the map's <strong>music</strong>.</li><li>Configure <strong>random encounters</strong> (troops + rate).</li><li>Enable <strong>HD-2D</strong> rendering and its options (camera tilt, bloom, depth of field, fog, lights).</li></ul></li></ul>

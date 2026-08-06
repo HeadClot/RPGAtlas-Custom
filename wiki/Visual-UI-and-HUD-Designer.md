@@ -5,6 +5,20 @@ The designer shows the game screen at the project's real aspect ratio. Drag a wi
 drag its lower-right corner to resize it. Positions and sizes are saved as percentages, so the same
 layout remains aligned when the game resolution changes.
 
+## A first HUD layout
+
+1. Open the designer with **Database ▸ System ▸ Visual UI / HUD**.
+2. Choose a theme preset that matches the mood of the game.
+3. Keep the first layout simple: a minimap, a quest tracker, and one or two gauges are enough.
+4. Drag each widget away from the play area so it does not hide characters, doors, or important
+   clues.
+5. Resize the message-window rectangle only after you have written a few real conversations.
+6. Playtest at the project's normal resolution and with the HUD hidden, using the **HUD** action,
+   to make sure the game remains understandable without it.
+
+The HUD is presentation: it shows information the game already knows. Use events, switches,
+variables, quests, and the Database to create the information first; then bind a widget to it.
+
 ## Widgets
 
 - **Minimap** shows the live map, event and vehicle markers, and the player. It still respects the

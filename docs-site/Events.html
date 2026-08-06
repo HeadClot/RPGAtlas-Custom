@@ -13,13 +13,13 @@
 <div class="tag">Chart your world. Tell your story.</div>
 <h3 id="rpgatlas-wiki">RPGAtlas Wiki</h3>
 <p><strong>Getting started</strong></p>
-<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
+<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Making-a-Platformer.html">Making a Platformer</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li></ul>
 <p><strong>Building your world</strong></p>
 <ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a class="active" href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
 <p><strong>Play together (online)</strong></p>
 <ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
 <p><strong>Polish & ship</strong></p>
-<ul><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
+<ul><li><a href="Visual-UI-and-HUD-Designer.html">Visual UI and HUD Designer</a></li><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
 <p><strong>Reference</strong></p>
 <ul><li><a href="Plugin-and-Script-API.html">Plugin & Script API</a></li><li><a href="Migration-Guide.html">Migration Guide</a></li><li><a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a></li><li><a href="Resources-and-Glossary.html">Resources & Glossary</a></li></ul>
 </nav>
@@ -27,6 +27,12 @@
 <h1 id="events">Events</h1>
 <p>Events are how your game <em>does</em> anything: a villager talks, a chest opens, a door unlocks, a cutscene plays, a battle begins. If maps are the stage, events are the actors and the script. Master events and you can build almost any RPG.</p>
 <blockquote><p>New to eventing? Walk through <a href="Your-First-Game.html">Make Your First Game</a> first — it builds an NPC, a chest, a transfer, and a battle step by step. This page is the deeper reference.</p></blockquote>
+<h2 id="the-four-questions-to-ask-about-every-event">The four questions to ask about every event</h2>
+<p>When an event does not behave as expected, check these in order:</p>
+<ol><li><strong>Where is it?</strong> The event must be on a tile the player can reach or face.</li><li><strong>Which page is active?</strong> A later page with satisfied conditions replaces an earlier page.</li><li><strong>What starts it?</strong> Action Button, Player Touch, Autorun, and Parallel behave differently.</li><li><strong>What commands run?</strong> Commands happen from top to bottom; a missing switch, wait, or transfer can change the result.</li></ol>
+<h2 id="a-reliable-event-building-routine">A reliable event-building routine</h2>
+<ol><li>Decide what the player should see and what should happen after interacting.</li><li>Create the event or choose a <strong>Quick Event</strong> template.</li><li>Give it a graphic and choose the simplest trigger that fits.</li><li>Add one command, playtest it, then add the next command.</li><li>Add a switch, variable, or self-switch only when the event needs to remember something.</li><li>Add a second page for the changed state, such as an open chest or defeated monster.</li><li>Test both the first visit and the return visit from a fresh playtest.</li></ol>
+<p>The best event is usually a short one. Put reusable sequences in a <strong>Common Event</strong> and call them from several maps instead of copying a long command list everywhere.</p>
 <hr>
 <h2 id="the-anatomy-of-an-event">The anatomy of an event</h2>
 <p>Create an event by <strong>double-clicking a tile in Event mode</strong>. An event has:</p>

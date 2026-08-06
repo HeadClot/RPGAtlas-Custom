@@ -21,6 +21,21 @@ the portrait without changing the speaker. Voice cues can use built-in effects o
 from the Asset Browser; referenced portraits and audio are included automatically when the game is
 exported.
 
+## Build a first conversation
+
+1. Create a dialogue asset and name it for its purpose, such as `ElderGreeting`.
+2. Add the speaker and choose a portrait if the conversation uses one.
+3. Write the opening line in plain language.
+4. Add a choice only when the player's answer changes what happens next.
+5. Put a condition on a branch when it should appear only after a switch, quest, or other story
+   change.
+6. Preview the conversation, then use **Play Dialogue** in an event to call it.
+7. Playtest the first visit and the repeat visit. Add a switch or condition if the conversation
+   should change after it has happened.
+
+Use the dialogue workspace for conversations you expect to reuse or revise. Use ordinary **Show
+Text** commands for a one-line sign or a tiny interaction.
+
 The tree begins at the card marked **START**. Select any card to edit it, make it the start node,
 or link it to another node. Unlinked nodes stay visible in a separate section so drafts are not
 lost.

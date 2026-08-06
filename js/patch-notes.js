@@ -2283,3 +2283,16 @@ PATCH_NOTES.push({
     "Map Connections continues to use the existing worldOrigin editor workflow and project format.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T05:44:51-06:00",
+  title: "Beginner-first creator manual",
+  summary:
+    "Reorganized the user documentation around a plain-language learning path with practical workflows for RPGs and platformers.",
+  items: [
+    "Added a new Making a Platformer guide covering project setup, collision, hazards, checkpoints, goals, connected maps, and playtesting.",
+    "Expanded beginner workflows for maps, events, dialogue, Database setup, battles, Action Combat, assets, audio, HUD design, and publishing.",
+    "Updated wiki navigation and authoring guidance while keeping the wiki Markdown as the source for the generated documentation site.",
+  ],
+});

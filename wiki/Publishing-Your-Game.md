@@ -3,6 +3,17 @@
 When your game is ready for other people, you **export** it into a single self-contained file.
 Players don't need RPGAtlas, the editor, a local server, or your project file — just the export.
 
+## The beginner publishing workflow
+
+1. Export a project backup with **File ▸ Export Project As File…** and keep it somewhere safe.
+2. Playtest from a fresh start. Walk through the game as someone who has never seen it before.
+3. Check every transfer, chest, quest, battle, shop, cutscene, and ending.
+4. Choose **File ▸ Export Standalone Game…**.
+5. Pick **Standalone HTML** for the easiest cross-platform share, **Windows EXE** for Windows
+   players, or **Web / itch.io (.zip)** for a website or itch.io page.
+6. Test the exported file itself. Do not rely only on the editor playtest.
+7. Send the export and keep the project backup private as your editable master copy.
+
 ---
 
 ## Export from the editor

@@ -7,6 +7,29 @@ and you can build almost any RPG.
 > New to eventing? Walk through [Make Your First Game](Your-First-Game) first — it builds an NPC, a
 > chest, a transfer, and a battle step by step. This page is the deeper reference.
 
+## The four questions to ask about every event
+
+When an event does not behave as expected, check these in order:
+
+1. **Where is it?** The event must be on a tile the player can reach or face.
+2. **Which page is active?** A later page with satisfied conditions replaces an earlier page.
+3. **What starts it?** Action Button, Player Touch, Autorun, and Parallel behave differently.
+4. **What commands run?** Commands happen from top to bottom; a missing switch, wait, or transfer
+   can change the result.
+
+## A reliable event-building routine
+
+1. Decide what the player should see and what should happen after interacting.
+2. Create the event or choose a **Quick Event** template.
+3. Give it a graphic and choose the simplest trigger that fits.
+4. Add one command, playtest it, then add the next command.
+5. Add a switch, variable, or self-switch only when the event needs to remember something.
+6. Add a second page for the changed state, such as an open chest or defeated monster.
+7. Test both the first visit and the return visit from a fresh playtest.
+
+The best event is usually a short one. Put reusable sequences in a **Common Event** and call them
+from several maps instead of copying a long command list everywhere.
+
 ---
 
 ## The anatomy of an event

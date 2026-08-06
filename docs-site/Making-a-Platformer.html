@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Making a Platformer — RPGAtlas Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+<nav>
+<a class="brand" href="index.html">RPG<span>Atlas</span></a>
+<div class="tag">Chart your world. Tell your story.</div>
+<h3 id="rpgatlas-wiki">RPGAtlas Wiki</h3>
+<p><strong>Getting started</strong></p>
+<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a class="active" href="Making-a-Platformer.html">Making a Platformer</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a href="The-Editor-Interface.html">The Editor Interface</a></li></ul>
+<p><strong>Building your world</strong></p>
+<ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
+<p><strong>Play together (online)</strong></p>
+<ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
+<p><strong>Polish & ship</strong></p>
+<ul><li><a href="Visual-UI-and-HUD-Designer.html">Visual UI and HUD Designer</a></li><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
+<p><strong>Reference</strong></p>
+<ul><li><a href="Plugin-and-Script-API.html">Plugin & Script API</a></li><li><a href="Migration-Guide.html">Migration Guide</a></li><li><a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a></li><li><a href="Resources-and-Glossary.html">Resources & Glossary</a></li></ul>
+</nav>
+<main>
+<h1 id="making-a-platformer">Making a Platformer</h1>
+<p>RPGAtlas can make a side-on platformer as well as a classic grid-based RPG. Platformer mode gives the player continuous running, jumping, falling, solid floors, one-way platforms, hazards, checkpoints, and goals. You still use the familiar map editor, event editor, Database, playtest, and export tools.</p>
+<blockquote><p><strong>Important:</strong> Platformer mode is a project-wide choice. In this release it uses the classic Canvas presentation, so HD-2D and Beacon multiplayer are unavailable for platformer projects. Existing RPG projects are not changed unless you select Platformer as their game mode.</p></blockquote>
+<h2 id="what-you-will-build">What you will build</h2>
+<p>This tutorial makes a small platformer with a starting floor, a raised platform, a hazard, a checkpoint, and a goal. It is designed to take about 20 minutes.</p>
+<h2 id="1-create-a-platformer-project">1. Create a platformer project</h2>
+<ol><li>Choose <strong>File ▸ New Project</strong>.</li><li>Select the <strong>Platformer</strong> starter template if it is offered. The template includes a playable starting floor and platformer controls.</li><li>If you started with a blank project, open <strong>Tools ▸ Database… ▸ System</strong>.</li><li>Set <strong>Game mode</strong> to <strong>Platformer (side-on movement)</strong>.</li><li>Set the game title and confirm that the start position is somewhere above a floor.</li></ol>
+<p>The player now moves freely from side to side instead of stepping from tile to tile. Hold the movement controls to run. Press the action assigned to <strong>Jump</strong>; the default keyboard binding is <strong>Space</strong>.</p>
+<h2 id="2-paint-the-level">2. Paint the level</h2>
+<ol><li>Open a map and switch to <strong>Map mode</strong>.</li><li>Paint a long floor with tiles that look solid.</li><li>Add a few raised platforms with empty space below them.</li><li>Add walls or scenery on the upper and lower layers as decoration.</li><li>Press <strong>Playtest</strong> and check that the player starts above a floor and can reach every platform.</li></ol>
+<p>Platformer collision starts by reading the walkable or blocked nature of the tiles. This is a useful starting point, but you should paint explicit collision anywhere the visual art does not match the gameplay surface.</p>
+<h2 id="3-paint-collision">3. Paint collision</h2>
+<ol><li>Choose <strong>Mode ▸ Platformer Collision Mode</strong>.</li><li>Click a tile to cycle through <strong>Auto</strong>, <strong>Solid</strong>, <strong>Empty</strong>, and <strong>One-way</strong>.</li><li>Use <strong>Solid</strong> for floors, walls, and ceilings.</li><li>Use <strong>One-way</strong> for a platform the player can jump up through and land on from above.</li><li>Use <strong>Empty</strong> for decorative tiles that should never stop the player.</li><li>Playtest after each group of changes. Walk into walls, land on platforms, and try jumping up through one-way platforms.</li></ol>
+<p>When you hold down while standing on a one-way platform, the player briefly drops through it. This is useful for multi-level stages without adding a separate ladder system.</p>
+<h2 id="4-add-a-hazard">4. Add a hazard</h2>
+<p>Hazards are events that react when the player touches them.</p>
+<ol><li>Switch to <strong>Event mode</strong> and double-click the tile where the hazard should be.</li><li>Give the event a graphic, such as spikes, fire, or an invisible damage area.</li><li>In the event page, set <strong>Platformer role</strong> to <strong>Hazard</strong>.</li><li>Add the commands that should happen when the player touches it. A simple first hazard can use <strong>Game Over</strong>, or you can use a defeat command that sends the player back to a checkpoint.</li><li>Playtest by touching the hazard and confirm that the intended result happens only once per contact.</li></ol>
+<p>The event's normal command list is reused for the hazard. This means you can add a message, sound, screen flash, switch, or other event action before the player is defeated.</p>
+<h2 id="5-add-a-checkpoint">5. Add a checkpoint</h2>
+<ol><li>Create or open an event at the place where the player should respawn.</li><li>Give it a visible flag, crystal, sign, or other graphic.</li><li>Set <strong>Platformer role</strong> to <strong>Checkpoint</strong>.</li><li>Turn on <strong>Save on checkpoint</strong> if reaching it should also create a save.</li><li>Playtest by touching the checkpoint, then touch a hazard. The player should return to the checkpoint instead of the original start position.</li></ol>
+<p>Checkpoints are local to the current map. If the player reaches a checkpoint on a different map, the new map becomes the checkpoint location.</p>
+<h2 id="6-add-a-goal">6. Add a goal</h2>
+<ol><li>Create an event at the end of the level.</li><li>Give it a flag, doorway, treasure, or other goal graphic.</li><li>Set <strong>Platformer role</strong> to <strong>Goal</strong>.</li><li>Add commands for the ending: show a message, turn on a victory switch, transfer to a results map, or return to the title screen.</li><li>Playtest from a fresh start and reach the goal without using editor-only shortcuts.</li></ol>
+<p>Goals are ordinary events with a special touch condition, so you can make a short level or a full story ending with the same tools.</p>
+<h2 id="7-connect-levels">7. Connect levels</h2>
+<p>You can build a platformer as several touching maps.</p>
+<ol><li>Create a second map and paint its first floor so it lines up with the edge of the first map.</li><li>Open <strong>View ▸ Map Connections</strong>.</li><li>Drag the map cards until their borders touch at the intended seam.</li><li>Check the map's collision near the seam. The destination side must contain a usable floor or landing space.</li><li>Playtest by running, jumping, or falling across the edge.</li></ol>
+<p>Connected platformer maps keep the player's movement speed and momentum while crossing. A gap, overlap, or blocked destination prevents the crossing, so use the connection view to diagnose the layout before adding more decoration.</p>
+<h2 id="8-tune-the-feel">8. Tune the feel</h2>
+<p>In <strong>Database ▸ System</strong>, the Platformer settings control the overall movement feel:</p>
+<table><thead><tr><th>Setting</th><th>What it changes</th></tr></thead><tbody><tr><td><strong>Run speed</strong></td><td>How quickly the player reaches top speed.</td></tr><tr><td><strong>Gravity</strong></td><td>How quickly the player falls.</td></tr><tr><td><strong>Jump speed</strong></td><td>How high and fast a jump begins.</td></tr><tr><td><strong>Jump cut</strong></td><td>How much releasing Jump early shortens the jump.</td></tr><tr><td><strong>Coyote frames</strong></td><td>How long a jump still works after walking off an edge.</td></tr><tr><td><strong>Jump buffer frames</strong></td><td>How early a jump press can be remembered before landing.</td></tr><tr><td><strong>Respawn invulnerability</strong></td><td>How long the player cannot be hurt after respawning.</td></tr></tbody></table>
+<p>For a first level, leave the defaults in place. Make the level easier by lowering gravity, adding more coyote time, widening platforms, or placing checkpoints before difficult jumps.</p>
+<h2 id="9-playtest-checklist">9. Playtest checklist</h2>
+<p>Start from a fresh playtest and verify:</p>
+<ul><li>The player appears on a floor and cannot fall through it.</li><li>Walls stop the player without trapping them inside scenery.</li><li>One-way platforms can be jumped through and landed on.</li><li>A short jump and a held jump both feel intentional.</li><li>Hazards return the player to the correct checkpoint.</li><li>Checkpoints save only when you intended them to.</li><li>The goal works after restarting the level.</li><li>Connected maps have no gaps, invisible walls, or unreachable landing tiles.</li></ul>
+<h2 id="common-problems">Common problems</h2>
+<ul><li><strong>The player falls through the floor:</strong> select the floor in Platformer Collision Mode and make it <strong>Solid</strong>.</li><li><strong>A decorative wall blocks movement:</strong> make its collision <strong>Empty</strong>, or move the decoration to a layer that is not being used as the gameplay surface.</li><li><strong>A platform cannot be jumped through:</strong> change it from <strong>Solid</strong> to <strong>One-way</strong>.</li><li><strong>The hazard triggers repeatedly:</strong> add a short wait, erase the event after use, or use a switch and a second page to control what happens after contact.</li><li><strong>A map connection does not work:</strong> check that the maps touch exactly, the destination side is placed, and the landing area is not solid.</li><li><strong>The game still behaves like an RPG:</strong> return to <strong>Database ▸ System</strong> and confirm that <strong>Game mode</strong> is set to <strong>Platformer (side-on movement)</strong>.</li></ul>
+<p>When the level is enjoyable from start to goal, use <a href="Publishing-Your-Game.html">Publishing Your Game</a> to export it. Platformer projects follow the same export steps as RPG projects.</p>
+<p><strong>Next:</strong> <a href="The-Editor-Interface.html">The Editor Interface →</a></p>
+<footer><p>RPGAtlas is free software under the <strong>GNU GPL v3.0 or later</strong>. Your games are yours. · <a href="index.html">Home</a> · <a href="Troubleshooting-and-FAQ.html">Troubleshooting</a> · <a href="Resources-and-Glossary.html">Glossary</a></p>
+<p>Generated from the <a href="https://github.com/DriftwoodGaming/RPGAtlas/tree/main/wiki">project wiki</a> by <code>scripts/build-docs-site.mjs</code>.</p></footer>
+</main>
+</div>
+</body>
+</html>

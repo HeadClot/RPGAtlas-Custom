@@ -13,19 +13,25 @@
 <div class="tag">Chart your world. Tell your story.</div>
 <h3 id="rpgatlas-wiki">RPGAtlas Wiki</h3>
 <p><strong>Getting started</strong></p>
-<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a class="active" href="The-Editor-Interface.html">The Editor Interface</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li></ul>
+<ul><li><a href="index.html">Home</a></li><li><a href="Installation-and-Setup.html">Installation & Setup</a></li><li><a href="Your-First-Game.html">Make Your First Game</a></li><li><a href="Making-a-Platformer.html">Making a Platformer</a></li><li><a href="Your-Game-Is-a-Folder.html">Your Game Is a Folder</a></li><li><a class="active" href="The-Editor-Interface.html">The Editor Interface</a></li></ul>
 <p><strong>Building your world</strong></p>
 <ul><li><a href="Maps-and-Tiles.html">Maps & Tiles</a></li><li><a href="Advanced-Map-Editor.html">Advanced Map Editor</a></li><li><a href="Events.html">Events</a></li><li><a href="Dialogue-and-Cutscenes.html">Dialogue & Cutscenes</a></li><li><a href="The-Database.html">The Database</a></li><li><a href="Battles-and-States.html">Battles & States</a></li><li><a href="Action-Combat.html">Action Combat</a></li><li><a href="Characters-and-Custom-Assets.html">Characters & Custom Assets</a></li><li><a href="Adding-Your-Own-Art-and-Music.html">Adding Your Own Art and Music</a></li><li><a href="The-Asset-Browser.html">The Asset Browser</a></li><li><a href="Audio.html">Audio</a></li></ul>
 <p><strong>Play together (online)</strong></p>
 <ul><li><a href="Making-Your-Game-Multiplayer.html">Making Your Game Multiplayer</a></li><li><a href="Hosting-a-World.html">Hosting a World</a></li><li><a href="Online-Safety.html">Online Safety (Parents & Teachers)</a></li></ul>
 <p><strong>Polish & ship</strong></p>
-<ul><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
+<ul><li><a href="Visual-UI-and-HUD-Designer.html">Visual UI and HUD Designer</a></li><li><a href="Message-Text-Codes.html">Message Text Codes</a></li><li><a href="Coming-from-RPG-Maker.html">Coming from RPG Maker</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Publishing-Your-Game.html">Publishing Your Game</a></li></ul>
 <p><strong>Reference</strong></p>
 <ul><li><a href="Plugin-and-Script-API.html">Plugin & Script API</a></li><li><a href="Migration-Guide.html">Migration Guide</a></li><li><a href="Troubleshooting-and-FAQ.html">Troubleshooting & FAQ</a></li><li><a href="Resources-and-Glossary.html">Resources & Glossary</a></li></ul>
 </nav>
 <main>
 <h1 id="the-editor-interface">The Editor Interface</h1>
 <p>The editor (<code>index.html</code>) uses a classic RPG-maker layout: a <strong>menu bar</strong> along the top, an <strong>icon toolbar</strong> with one-click actions, and a <strong>dockable workspace</strong> of panels (Maps, Tiles, Map) below. This page is your map of the map-maker.</p>
+<h2 id="the-basic-work-pattern">The basic work pattern</h2>
+<p>You do not need to understand every panel before you begin. Use this short routine:</p>
+<ol><li>Select a map in the <strong>Maps</strong> panel.</li><li>Paint or change one small area.</li><li>Press <strong>▶ Playtest</strong> and try the exact thing you changed.</li><li>Close the playtest, fix what felt wrong, and press <strong>Ctrl+Z</strong> if you need to undo.</li><li>Save a backup with <strong>File ▸ Export Project As File…</strong> at the end of a work session.</li></ol>
+<p>The editor remembers panel arrangement and browser settings, but the project itself is the important thing to back up. In the desktop app it lives in the game's folder; in the browser version use the project-file export.</p>
+<h2 id="what-the-main-areas-are-for">What the main areas are for</h2>
+<ul><li><strong>Maps</strong> chooses the place you are editing.</li><li><strong>Tiles</strong> chooses the artwork you paint.</li><li><strong>Map</strong> is the canvas where you paint, place events, and inspect the current map.</li><li>The <strong>menu bar</strong> contains every command, including commands that do not fit on the toolbar.</li><li><strong>Playtest</strong> opens the game using the project as it currently exists, so it is the fastest way to find problems.</li></ul>
 <hr>
 <h2 id="the-dockable-workspace">The dockable workspace</h2>
 <p>The Maps, Tiles, and Map views are <strong>panels</strong> you can rearrange freely:</p>
