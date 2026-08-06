@@ -2131,3 +2131,15 @@ PATCH_NOTES.push({
     "Hardened the renderer-golden harness against first-use SwiftShader shadow frames and stale title-canvas captures without changing the baseline image.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T22:24:15-06:00",
+  title: "Modular Three.js renderer internals",
+  summary:
+    "Reorganized the HD-2D renderer into focused internal services while preserving its public API and visual parity behavior.",
+  items: [
+    "Separated WebGL lifecycle, scene graph, settings, shader/material creation, map composition, sprites, weather, shadows, reflections, post-processing, and frame ordering.",
+    "Kept deterministic engine-tick animation, render ordering, diagnostics, revision counters, and context-restoration replay unchanged.",
+  ],
+});
