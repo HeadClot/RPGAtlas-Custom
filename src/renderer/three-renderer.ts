@@ -1065,6 +1065,10 @@ export function createThreeRenderer(): any {
     return dayNightCache;
   }
   let mapDisposables: Array<{ dispose(): void }> = [];
+  let mapTextureRevision = 0;
+  let renderedTextureRevision = 0;
+  let renderFrameId = 0;
+  let renderedEngineTick = -1;
   let mapTextureCache: {
     lowerBuf: HTMLCanvasElement;
     upperBuf: HTMLCanvasElement;
@@ -1249,16 +1253,45 @@ export function createThreeRenderer(): any {
   // the flat ground + extruded blocks and the elevated overhead tiles.
   // Remembered so a webglcontextrestored handler can replay the last call.
   let lastMapArgs: any = null;
+  interface DirtyMapCell { x: number; y: number; }
+
   function refreshChunkTextures(
     source: HTMLCanvasElement,
     chunks: Array<{ tex: THREE.CanvasTexture; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }>,
+    dirtyCells?: readonly DirtyMapCell[],
   ): void {
+    const dirtyChunks = dirtyCells && dirtyCells.length
+      ? new Set(dirtyCells.map((cell) => `${Math.floor(cell.x * TILE / CHUNK)}:${Math.floor(cell.y * TILE / CHUNK)}`))
+      : null;
     for (const ch of chunks) {
+      if (dirtyChunks && !dirtyChunks.has(`${Math.floor(ch.x / CHUNK)}:${Math.floor(ch.y / CHUNK)}`)) continue;
       const dst = ch.canvas.getContext("2d")!;
       dst.clearRect(0, 0, ch.w, ch.h);
       dst.drawImage(source, ch.x, ch.y, ch.w, ch.h, 0, 0, ch.w, ch.h);
       ch.tex.needsUpdate = true;
     }
+  }
+
+  /** Refresh only the lower HD texture chunks touched by animated terrain.
+   * The caller has already atomically recomposed the source buffer; this seam
+   * only invalidates the corresponding GPU uploads. A full setMap rebuild is
+   * still used for initial loads, map changes, and context restoration. */
+  function updateMapTextures(
+    lowerBuf: HTMLCanvasElement,
+    upperBuf: HTMLCanvasElement,
+    map: any,
+    dirtyCells: readonly DirtyMapCell[],
+  ): boolean {
+    if (!ok || !dirtyCells.length) return false;
+    if (
+      !mapTextureCache ||
+      mapTextureCache.lowerBuf !== lowerBuf ||
+      mapTextureCache.upperBuf !== upperBuf ||
+      mapTextureCache.map !== map
+    ) return false;
+    refreshChunkTextures(lowerBuf, mapTextureCache.lower, dirtyCells);
+    mapTextureRevision++;
+    return true;
   }
 
   function setMap(lowerBuf: HTMLCanvasElement, upperBuf: HTMLCanvasElement, map: any): void {
@@ -1274,6 +1307,7 @@ export function createThreeRenderer(): any {
     ) {
       refreshChunkTextures(lowerBuf, mapTextureCache.lower);
       refreshChunkTextures(upperBuf, mapTextureCache.upper);
+      mapTextureRevision++;
       return;
     }
     lastMapArgs = [lowerBuf, upperBuf, map];
@@ -1364,6 +1398,7 @@ export function createThreeRenderer(): any {
     const lower = chopBuffer(lowerBuf),
       upper = chopBuffer(upperBuf);
     mapTextureCache = { lowerBuf, upperBuf, map, lower, upper };
+    mapTextureRevision++;
 
     // ground + blocks, batched per lower chunk texture
     for (const ch of lower) {
@@ -2263,6 +2298,9 @@ export function createThreeRenderer(): any {
       }
       if (perfTraceEnabled) perfTrace.postMs = performance.now() - postT0;
     }
+    renderFrameId++;
+    renderedTextureRevision = mapTextureRevision;
+    renderedEngineTick = Number.isFinite(Number(extra.t)) ? Number(extra.t) : -1;
     if (perfTraceEnabled) perfTrace.frameMs = performance.now() - perfFrameStart;
     return cv;
   }
@@ -2286,9 +2324,14 @@ export function createThreeRenderer(): any {
       geometries: info.memory.geometries,
       textures: info.memory.textures,
       programs: info.programs ? info.programs.length : 0,
+      mapTextureReady: !!mapTextureCache && renderedTextureRevision === mapTextureRevision,
+      mapTextureRevision,
+      renderedTextureRevision,
+      renderFrameId,
+      renderedEngineTick,
       timings: perfTraceEnabled ? { ...perfTrace } : null,
     };
   }
 
-  return { available, setMap, renderFrame, isLost, stats };
+  return { available, setMap, updateMapTextures, renderFrame, isLost, stats };
 }

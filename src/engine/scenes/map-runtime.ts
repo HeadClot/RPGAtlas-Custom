@@ -341,14 +341,23 @@ export function tickMapAnim(tick: number): boolean {
   const cells = ctx.animCells;
   if (!cells || !cells.length || !ctx.lowerBuf) return false;
   const lg = ctx.lowerBuf.getContext("2d");
+  const dirtyCells: Array<{ x: number; y: number }> = [];
   const frameFn = (fps: number, frames: number) => frameAtTick(tick, fps, frames, 60);
   const changed = redrawAnimatedCells(cells, frameFn, ANIM_FRAME_STATE, (x, y, frame) => {
     recomposeLowerCell(lg, ctx.map, x, y, frame, Assets.drawTile, TILE, "#101018");
     redrawCellShadow(lg, x, y);
+    dirtyCells.push({ x, y });
   });
   if (changed && ctx.hdActive && typeof Renderer !== "undefined") {
-    // Re-upload the lower texture only (upper is untouched by terrain anim).
-    Renderer.setMap(ctx.lowerBuf, ctx.upperBuf, ctx.map);
+    // Re-upload only the lower chunks touched by terrain anim. The source
+    // buffer and dirty list were completed above in this tick, so the renderer
+    // never observes a partially recomposed frame; upper chunks are untouched.
+    const updated = typeof Renderer.updateMapTextures === "function"
+      ? Renderer.updateMapTextures(ctx.lowerBuf, ctx.upperBuf, ctx.map, dirtyCells)
+      : false;
+    // Older renderer adapters may not expose the targeted seam. Keep the
+    // full-refresh fallback for compatibility with standalone integrations.
+    if (!updated) Renderer.setMap(ctx.lowerBuf, ctx.upperBuf, ctx.map);
   }
   return changed;
 }

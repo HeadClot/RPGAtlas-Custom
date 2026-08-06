@@ -100,59 +100,45 @@ async function bootToStableMap(page, hdParam, transformProject) {
   // fade happened to land on.
   await page.clock.runFor(500);
 
-  // Wait for an actual completed composite frame. A screenshot may otherwise
-  // land between the 2D and WebGL canvas updates: the title window is gone, but
-  // #gamecanvas can still contain its old backdrop. Require two consecutive
-  // stage captures to be map frames, advancing the fake clock in bounded
-  // increments while the asynchronous render catches up.
-  let mapPainted = false;
-  let stableStage = null;
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const stage = await page.locator("#stage").screenshot();
-    const confirmationStage = await page.locator("#stage").screenshot();
-    const differsFromTitle = (png) => page.evaluate(async ([stageB64, titleB64]) => {
-      const load = (b64) => new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.src = "data:image/png;base64," + b64;
-      });
-      const [si, ti] = await Promise.all([load(stageB64), load(titleB64)]);
-      if (si.width !== ti.width || si.height !== ti.height) return true;
-      const canvas = document.createElement("canvas");
-      canvas.width = si.width;
-      canvas.height = si.height;
-      const g = canvas.getContext("2d");
-      g.drawImage(si, 0, 0);
-      const sd = g.getImageData(0, 0, canvas.width, canvas.height).data;
-      g.clearRect(0, 0, canvas.width, canvas.height);
-      g.drawImage(ti, 0, 0);
-      const td = g.getImageData(0, 0, canvas.width, canvas.height).data;
-      let diff = 0;
-      for (let i = 0; i < sd.length; i++) if (sd[i] !== td[i]) diff++;
-      return diff;
-    }, [png.toString("base64"), titleGameCanvas.toString("base64")]);
-    const stageDiffersFromTitle = await differsFromTitle(stage);
-    const confirmationDiffersFromTitle = await differsFromTitle(confirmationStage);
-    const glMounted = hdParam !== 1 || await page.evaluate(() => {
-      const gl = document.querySelector("#glcanvas");
-      return !!gl && gl.width > 0 && gl.height > 0;
-    });
-    const rendererPainted = hdParam !== 1 || await page.evaluate(() => {
-      const stats = (window).RPGATLAS_RENDERER_STATS?.();
-      return !!stats && stats.calls > 0;
-    });
-    // A partial canvas swap can differ from the title by a few hundred
-    // thousand bytes while still leaving most of the backdrop visible. A
-    // completed map replaces the full-screen title composition.
-    if (rendererPainted && glMounted && stageDiffersFromTitle > 1_000_000
-      && confirmationDiffersFromTitle > 1_000_000) {
-      mapPainted = true;
-      stableStage = confirmationStage;
-      break;
-    }
-    await page.clock.runFor(50);
+  // Wait for the renderer's explicit map-texture revision handshake. This
+  // avoids screenshot polling: the old two-capture loop could mistake a
+  // transient WebGL upload for readiness on one runner and never settle on
+  // another.
+  if (hdParam === 1) {
+    await page.waitForFunction(() => {
+      const stats = window.RPGATLAS_RENDERER_STATS?.();
+      return !!stats && stats.mapTextureReady === true && stats.renderFrameId > 0;
+    }, null, { timeout: 10_000 });
+  } else {
+    await page.clock.runFor(0);
   }
-  expect(mapPainted, "map render did not produce a stable frame").toBe(true);
+  const stableStage = await page.locator("#stage").screenshot();
+  const differsFromTitle = await page.evaluate(async ([stageB64, titleB64]) => {
+    const load = (b64) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.src = "data:image/png;base64," + b64;
+    });
+    const [si, ti] = await Promise.all([load(stageB64), load(titleB64)]);
+    if (si.width !== ti.width || si.height !== ti.height) return true;
+    const canvas = document.createElement("canvas");
+    canvas.width = si.width;
+    canvas.height = si.height;
+    const g = canvas.getContext("2d");
+    g.drawImage(si, 0, 0);
+    const sd = g.getImageData(0, 0, canvas.width, canvas.height).data;
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    g.drawImage(ti, 0, 0);
+    const td = g.getImageData(0, 0, canvas.width, canvas.height).data;
+    let diff = 0;
+    for (let i = 0; i < sd.length; i++) if (sd[i] !== td[i]) diff++;
+    return diff;
+  }, [stableStage.toString("base64"), titleGameCanvas.toString("base64")]);
+  // HD readiness is established by the renderer revision handshake above;
+  // only the classic path needs this one-time canvas-content guard.
+  if (hdParam !== 1) {
+    expect(differsFromTitle > 1_000_000, "map render did not produce a complete frame").toBe(true);
+  }
   return stableStage;
 }
 

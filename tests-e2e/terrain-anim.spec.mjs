@@ -123,19 +123,32 @@ async function pixelDiff(page, a, b) {
   }, [a.toString("base64"), b.toString("base64")]);
 }
 
-/** Texture uploads and the final async render can finish just after
- * page.clock.runFor() returns. Capture until two consecutive frames match
- * while the virtual clock remains paused; this settles on the actual renderer
- * state instead of paying a fixed real-time delay on every capture. */
-async function stableStageScreenshot(page) {
-  let previous = null;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    await page.clock.runFor(0);
-    const current = await page.locator("#stage").screenshot();
-    if (previous && current.equals(previous)) return current;
-    previous = current;
-  }
-  throw new Error("renderer did not settle to two identical frames");
+/** The classic canvas is updated synchronously by the engine render. */
+async function classicStageScreenshot(page) {
+  await page.clock.runFor(0);
+  return page.locator("#stage").screenshot();
+}
+
+/** HD captures wait for the renderer's explicit revision/frame handshake.
+ * This proves that the source buffers have been uploaded and rendered at the
+ * requested virtual tick; comparing screenshots until two happen to match
+ * only hid upload races and could fail forever on a busy SwiftShader runner. */
+async function hdStageScreenshot(page, expectedTick = null) {
+  // Flush work already scheduled at the current virtual time. The caller
+  // pauses the clock before a static capture, so the tick cannot change while
+  // Playwright copies the canvas pixels.
+  await page.clock.runFor(0);
+  await page.waitForFunction((tick) => {
+    const stats = window.RPGATLAS_RENDERER_STATS?.();
+    return !!stats && stats.mapTextureReady === true &&
+      (tick == null || stats.renderedEngineTick === tick);
+  }, expectedTick, { timeout: 10_000 });
+  const state = await page.evaluate(() => window.RPGATLAS_RENDERER_STATS());
+  return {
+    image: await page.locator("#stage").screenshot(),
+    frameId: state.renderFrameId,
+    engineTick: state.renderedEngineTick,
+  };
 }
 
 test.describe("animated terrain (Phase 8 Stage C)", () => {
@@ -147,13 +160,13 @@ test.describe("animated terrain (Phase 8 Stage C)", () => {
     await page.clock.runFor(500);
     const captureTime = await page.evaluate(() => Date.now() + 1000);
     await page.clock.pauseAt(captureTime);
-    const t0a = await stableStageScreenshot(page);
-    const t0b = await stableStageScreenshot(page);
+    const t0a = await classicStageScreenshot(page);
+    const t0b = await classicStageScreenshot(page);
     expect(await pixelDiff(page, t0a, t0b)).toBe(0);
     // …and a capture ~half a second later (past the 4fps frame boundary) must
     // differ — the water advanced to the next, differently-coloured frame.
     await page.clock.runFor(500);
-    const t1 = await stableStageScreenshot(page);
+    const t1 = await classicStageScreenshot(page);
     expect(await pixelDiff(page, t0a, t1)).toBeGreaterThan(0);
   });
 
@@ -163,7 +176,11 @@ test.describe("animated terrain (Phase 8 Stage C)", () => {
     // delta on a busy CI SwiftShader runner.
     await bootToMap(page, 1, withAnimatedWater);
     await page.clock.runFor(500);
-    const a = await stableStageScreenshot(page);
+    const captureTime = await page.evaluate(() => Date.now() + 1000);
+    await page.clock.pauseAt(captureTime);
+    const a = await hdStageScreenshot(page);
+    const same = await hdStageScreenshot(page, a.engineTick);
+    expect(await pixelDiff(page, a.image, same.image)).toBe(0);
 
     let later = a;
     let animatedDiff = 0;
@@ -171,8 +188,8 @@ test.describe("animated terrain (Phase 8 Stage C)", () => {
     // observed. This avoids relying on an exact rAF/upload ordering at 500ms.
     for (let i = 0; i < 6 && animatedDiff === 0; i++) {
       await page.clock.runFor(250);
-      later = await stableStageScreenshot(page);
-      animatedDiff = await pixelDiff(page, a, later);
+      later = await hdStageScreenshot(page);
+      animatedDiff = await pixelDiff(page, a.image, later.image);
     }
     expect(animatedDiff).toBeGreaterThan(0);
   });

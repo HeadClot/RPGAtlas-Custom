@@ -93,14 +93,14 @@ describe("redrawAnimatedCells frame-change gating", () => {
     registerAutotile(tileIdOf(9), stubBlock(), { kind: "a1", anim: { frames: 4, fps: 4 } });
     const cells = scanAnimatedCells([[tileIdOf(9), tileIdOf(9)]], 2, 1);
     const prev = new Map<number, number>();
-    const touched: number[] = [];
-    const recompose = (x: number) => touched.push(x);
+    const touched: Array<[number, number]> = [];
+    const recompose = (x: number, y: number) => touched.push([x, y]);
     // 4fps/4frames group; drive frames explicitly through the frameFn.
     const at = (f: number) => () => f;
 
     // frame 0; prev empty → both cells recomposed
     expect(redrawAnimatedCells(cells, at(0), prev, recompose)).toBe(true);
-    expect(touched).toEqual([0, 1]);
+    expect(touched).toEqual([[0, 0], [1, 0]]);
     expect(prev.get(tileIdOf(9))).toBe(0);
 
     // same frame again → no work
@@ -111,7 +111,7 @@ describe("redrawAnimatedCells frame-change gating", () => {
     // frame 1 → both recomposed again
     touched.length = 0;
     expect(redrawAnimatedCells(cells, at(1), prev, recompose)).toBe(true);
-    expect(touched).toEqual([0, 1]);
+    expect(touched).toEqual([[0, 0], [1, 0]]);
     expect(prev.get(tileIdOf(9))).toBe(1);
   });
 });

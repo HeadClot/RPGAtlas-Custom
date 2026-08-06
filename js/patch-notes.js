@@ -2041,3 +2041,16 @@ PATCH_NOTES.push({
     "Project-manager discard-reload coverage now controls autosave timing and waits for the replacement document to navigate before asserting its title.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T17:28:19-06:00",
+  title: "Deterministic HD terrain texture updates",
+  summary:
+    "Animated terrain now refreshes only the HD chunks it changes, with explicit renderer readiness diagnostics for reliable frozen-clock captures.",
+  items: [
+    "Animated water updates the lower texture chunks touched by the current terrain frame instead of rebuilding every HD texture.",
+    "Renderer diagnostics expose texture revisions and completed render frames so automated captures wait on state rather than screenshot coincidence.",
+    "The animated-terrain and renderer golden tests now use the explicit readiness handshake, reducing SwiftShader timing flakes.",
+  ],
+});

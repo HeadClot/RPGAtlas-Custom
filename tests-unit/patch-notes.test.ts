@@ -28,7 +28,7 @@ describe("patch notes", () => {
 
   it("sorts mixed timestamped and legacy notes newest-first", () => {
     const sorted = sortPatchNotes(notes);
-    expect(sorted[0].title).toBe("Stable CI E2E performance and quieter importer builds");
+    expect(sorted[0].title).toBe("Deterministic HD terrain texture updates");
     for (let i = 1; i < sorted.length; i += 1) {
       expect(patchNoteTime(sorted[i - 1])).toBeGreaterThanOrEqual(patchNoteTime(sorted[i]));
     }
