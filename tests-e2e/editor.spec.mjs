@@ -1137,7 +1137,7 @@ test.describe("detailed tutorials", () => {
 
     // Opening the multiplayer-server guide shows real step-by-step content.
     await cards.first().click();
-    await expect(page.locator(".tutorials")).toContainText("npm run build");
+    await expect(page.locator(".tutorials")).toContainText("bun run build");
     await expect(page.locator(".tutorials")).toContainText("Part 2 — Start your server");
 
     // Back returns to the index; Close dismisses the dialog.

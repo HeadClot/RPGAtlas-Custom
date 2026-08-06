@@ -2334,3 +2334,16 @@ PATCH_NOTES.push({
     "Absolute Windows, UNC, and POSIX launch paths remain accepted without host-platform rewriting.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T16:20:00-06:00",
+  title: "Stabler launch and renderer checks",
+  summary:
+    "Updated the end-to-end checks for the Bun-first toolchain, single-instance project launches, and deterministic HD-2D point-light shadows.",
+  items: [
+    "The Detailed Tutorials check now follows the Bun build command shown to creators.",
+    "Single-instance launch coverage verifies the folder flush without depending on a short autosave timing window.",
+    "Point-light shadow goldens keep moving NPCs fixed while continuing to cover terrain and sprite occlusion.",
+  ],
+});

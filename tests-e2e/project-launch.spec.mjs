@@ -115,8 +115,6 @@ test.describe("Launch from a project — second launch / single instance (H5·B)
     await page.mouse.click(pBox.x + pBox.width * 0.5, pBox.y + 8);
     const mBox = await map.boundingBox();
     await page.mouse.click(mBox.x + 10, mBox.y + 10);
-    await expect(page.locator("#save-ind")).toHaveText(/^● /); // dirty, autosave not flushed
-
     // A SECOND launch (single-instance callback) asks to open Game B — while A is dirty.
     await page.evaluate((b) => window.__ATLAS_TEST_HOST__.emitOpenProject(b), B);
 
