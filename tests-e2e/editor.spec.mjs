@@ -36,6 +36,39 @@ test.describe("editor boot", () => {
 
     expect(errors, `console/page errors:\n${errors.join("\n")}`).toEqual([]);
   });
+
+  test("uses the neutral dark palette across editor chrome", async ({ page }) => {
+    await page.goto("/index.html");
+    await expect(page.locator("#save-ind")).toBeVisible();
+
+    const colors = await page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      const body = getComputedStyle(document.body);
+      const dock = getComputedStyle(document.querySelector(".dock-region"));
+      const button = getComputedStyle(document.querySelector("#map-add"));
+      return {
+        bgToken: root.getPropertyValue("--bg").trim(),
+        panelToken: root.getPropertyValue("--panel").trim(),
+        textToken: root.getPropertyValue("--text").trim(),
+        bodyBackground: body.backgroundColor,
+        bodyText: body.color,
+        panelBackground: dock.backgroundColor,
+        buttonBackground: button.backgroundColor,
+        buttonText: button.color,
+      };
+    });
+
+    expect(colors).toMatchObject({
+      bgToken: "#1f2327",
+      panelToken: "#252a2e",
+      textToken: "#e8ecef",
+      bodyBackground: "rgb(31, 35, 39)",
+      bodyText: "rgb(232, 236, 239)",
+      panelBackground: "rgb(37, 42, 46)",
+      buttonBackground: "rgb(48, 54, 59)",
+      buttonText: "rgb(232, 236, 239)",
+    });
+  });
 });
 
 test.describe("editor painting", () => {

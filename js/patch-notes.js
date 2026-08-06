@@ -2231,3 +2231,16 @@ PATCH_NOTES.push({
     "Updated the architecture overview to describe shared ability resolution and combat snapshot fields.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T03:23:59-06:00",
+  title: "Refined neutral editor theme",
+  summary:
+    "Restyled the editor chrome with charcoal surfaces, near-white text, and restrained blue-gray interaction accents inspired by the supplied reference.",
+  items: [
+    "Updated menus, toolbars, docks, dialogs, command palettes, database views, and project-manager surfaces with the neutral dark palette.",
+    "Unified primary, secondary, icon, focus, success, warning, and danger colors through shared editor theme tokens.",
+    "Kept player styling, map and tile imagery, renderer output, and project data unchanged.",
+  ],
+});
