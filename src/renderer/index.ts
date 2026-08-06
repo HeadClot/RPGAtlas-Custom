@@ -5,13 +5,14 @@
    A leftover ?renderer=classic just logs a note and gets the three renderer.
 
    Hosts (engine render-glue/map-runtime, editor hd-viewport) import Renderer
-   from HERE — the process-wide instance of the classic surface
-   (available/setMap/renderFrame/isLost). See docs/phase-2-spec.md.
+   from HERE — the process-wide instance of the renderer surface
+   (available/setMap/setWorld/renderFrame/isLost). See docs/phase-2-spec.md.
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { createThreeRenderer } from "./three-renderer.js";
+export type { HdRenderSurface } from "./three-renderer.js";
 
 try {
   const q = new URLSearchParams(window.location.search).get("renderer");

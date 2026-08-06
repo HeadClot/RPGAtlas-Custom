@@ -26,6 +26,15 @@
 
 import * as THREE from "three";
 
+/** A prerendered map surface positioned relative to the active map origin. */
+export interface HdRenderSurface {
+  map: any;
+  lowerBuf: HTMLCanvasElement;
+  upperBuf: HTMLCanvasElement;
+  offsetX: number;
+  offsetY: number;
+}
+
 // Raw display-space pipeline: the prerendered canvases are authored in display
 // space and the classic renderer never color-converted anything.
 THREE.ColorManagement.enabled = false;
@@ -978,9 +987,10 @@ export function createThreeRenderer(): any {
         console.warn("HD-2D: WebGL context restored — rebuilding GPU resources.");
         ok = true;
         mapTextureCache = null;
-        // three re-creates its internal GL state; replaying setMap rebuilds our
-        // chunk textures/geometry fresh (sprite textures re-upload lazily).
-        if (lastMapArgs) setMap(lastMapArgs[0], lastMapArgs[1], lastMapArgs[2]);
+        // three re-creates its internal GL state; replay the last world/map so
+        // chunk textures and geometry are rebuilt (sprite textures re-upload lazily).
+        if (lastWorldArgs) setWorld(lastWorldArgs);
+        else if (lastMapArgs) setMap(lastMapArgs[0], lastMapArgs[1], lastMapArgs[2]);
       });
       ok = true;
     } catch (e) {
@@ -998,6 +1008,12 @@ export function createThreeRenderer(): any {
     mapH = 0,
     heights: any = null,
     mapDiag = 0;
+  // The composed map starts at this active-map-relative tile coordinate.
+  // Renderer inputs remain anchored at the active map's origin; geometry is
+  // stored in composed-map-local coordinates.
+  let worldBaseX = 0,
+    worldBaseY = 0,
+    worldSurfaceCount = 1;
   let lastSunFitKey = "";
   let cfg: any = { tilt: 50, bloom: 0, dof: 0, fog: null, lights: false, ambient: 0.45, shadows: 0, pointShadows: 0 };
 
@@ -1253,7 +1269,94 @@ export function createThreeRenderer(): any {
   // the flat ground + extruded blocks and the elevated overhead tiles.
   // Remembered so a webglcontextrestored handler can replay the last call.
   let lastMapArgs: any = null;
+  let lastWorldArgs: HdRenderSurface[] | null = null;
   interface DirtyMapCell { x: number; y: number; }
+
+  function validSurface(surface: any): surface is HdRenderSurface {
+    return !!surface && !!surface.map && !!surface.lowerBuf && !!surface.upperBuf &&
+      Number.isInteger(surface.offsetX) && Number.isInteger(surface.offsetY);
+  }
+
+  /** Compose map buffers and tile metadata into one renderer-local surface.
+   * This keeps the established chunk, shadow, water, and post pipelines intact
+   * while giving connected seams one shared height/layer grid. */
+  function composeWorld(surfaces: HdRenderSurface[]): {
+    lowerBuf: HTMLCanvasElement;
+    upperBuf: HTMLCanvasElement;
+    map: any;
+    baseX: number;
+    baseY: number;
+  } {
+    const list = surfaces.filter(validSurface);
+    const active = list[0];
+    if (!active) throw new Error("HD-2D requires an active render surface");
+    let minX = 0, minY = 0, maxX = active.map.width, maxY = active.map.height;
+    for (const surface of list) {
+      minX = Math.min(minX, surface.offsetX);
+      minY = Math.min(minY, surface.offsetY);
+      maxX = Math.max(maxX, surface.offsetX + surface.map.width);
+      maxY = Math.max(maxY, surface.offsetY + surface.map.height);
+    }
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const lowerBuf = document.createElement("canvas");
+    lowerBuf.width = width * TILE;
+    lowerBuf.height = height * TILE;
+    const upperBuf = document.createElement("canvas");
+    upperBuf.width = lowerBuf.width;
+    upperBuf.height = lowerBuf.height;
+    const lower = lowerBuf.getContext("2d");
+    const upper = upperBuf.getContext("2d");
+    if (!lower || !upper) throw new Error("HD-2D could not create composed map buffers");
+    if (!active.map.parallax) {
+      lower.fillStyle = "#101018";
+      lower.fillRect(0, 0, lowerBuf.width, lowerBuf.height);
+    }
+
+    const cellCount = width * height;
+    const layerNames = ["ground", "decor", "decor2", "over"];
+    const layers: Record<string, number[]> = {};
+    for (const name of layerNames) layers[name] = new Array(cellCount).fill(0);
+    const composedHeights = new Array(cellCount).fill(0);
+    for (const surface of list) {
+      const dx = surface.offsetX - minX;
+      const dy = surface.offsetY - minY;
+      lower.drawImage(surface.lowerBuf, dx * TILE, dy * TILE);
+      upper.drawImage(surface.upperBuf, dx * TILE, dy * TILE);
+      const sourceMap = surface.map;
+      for (const name of layerNames) {
+        const source = sourceMap.layers && sourceMap.layers[name];
+        if (!source) continue;
+        const target = layers[name];
+        for (let y = 0; y < sourceMap.height; y++) {
+          const srcRow = y * sourceMap.width;
+          const dstRow = (dy + y) * width + dx;
+          for (let x = 0; x < sourceMap.width; x++) target[dstRow + x] = source[srcRow + x] || 0;
+        }
+      }
+      if (sourceMap.heights) {
+        for (let y = 0; y < sourceMap.height; y++) {
+          const srcRow = y * sourceMap.width;
+          const dstRow = (dy + y) * width + dx;
+          for (let x = 0; x < sourceMap.width; x++) composedHeights[dstRow + x] = Number(sourceMap.heights[srcRow + x]) || 0;
+        }
+      }
+    }
+    return {
+      lowerBuf,
+      upperBuf,
+      map: {
+        ...active.map,
+        width,
+        height,
+        layers,
+        layersAdv: undefined,
+        heights: composedHeights,
+      },
+      baseX: minX,
+      baseY: minY,
+    };
+  }
 
   function refreshChunkTextures(
     source: HTMLCanvasElement,
@@ -1294,7 +1397,37 @@ export function createThreeRenderer(): any {
     return true;
   }
 
-  function setMap(lowerBuf: HTMLCanvasElement, upperBuf: HTMLCanvasElement, map: any): void {
+  /** Refresh only the composed chunks touched by one source map's animated
+   * cells. The source buffers remain authoritative; only changed cells are
+   * copied into the composed canvas and uploaded to matching GPU chunks. */
+  function updateWorldTextures(surface: HdRenderSurface, dirtyCells: readonly DirtyMapCell[]): boolean {
+    if (!ok || !dirtyCells.length || !lastWorldArgs || !mapTextureCache) return false;
+    const source = lastWorldArgs.find((candidate) => candidate.map === surface.map);
+    if (!source || source.lowerBuf !== surface.lowerBuf || source.upperBuf !== surface.upperBuf) return false;
+    const lower = mapTextureCache.lowerBuf.getContext("2d");
+    const upper = mapTextureCache.upperBuf.getContext("2d");
+    if (!lower || !upper) return false;
+    const shifted: DirtyMapCell[] = [];
+    const dx = source.offsetX - worldBaseX;
+    const dy = source.offsetY - worldBaseY;
+    for (const cell of dirtyCells) {
+      const x = cell.x + dx;
+      const y = cell.y + dy;
+      if (x < 0 || y < 0 || x >= mapW || y >= mapH) continue;
+      lower.clearRect(x * TILE, y * TILE, TILE, TILE);
+      upper.clearRect(x * TILE, y * TILE, TILE, TILE);
+      lower.drawImage(source.lowerBuf, cell.x * TILE, cell.y * TILE, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
+      upper.drawImage(source.upperBuf, cell.x * TILE, cell.y * TILE, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
+      shifted.push({ x, y });
+    }
+    if (!shifted.length) return false;
+    refreshChunkTextures(mapTextureCache.lowerBuf, mapTextureCache.lower, shifted);
+    refreshChunkTextures(mapTextureCache.upperBuf, mapTextureCache.upper, shifted);
+    mapTextureRevision++;
+    return true;
+  }
+
+  function setMapInternal(lowerBuf: HTMLCanvasElement, upperBuf: HTMLCanvasElement, map: any): void {
     if (!ok) return;
     // Animated terrain mutates the same prerender buffers and calls setMap on
     // every frame advance. Refresh the existing CanvasTextures in place rather
@@ -2004,6 +2137,30 @@ export function createThreeRenderer(): any {
     return spritePool[i];
   }
 
+  function setMap(lowerBuf: HTMLCanvasElement, upperBuf: HTMLCanvasElement, map: any): void {
+    worldBaseX = 0;
+    worldBaseY = 0;
+    worldSurfaceCount = 1;
+    lastWorldArgs = null;
+    setMapInternal(lowerBuf, upperBuf, map);
+  }
+
+  function setWorld(surfaces: HdRenderSurface[]): void {
+    if (!ok) return;
+    const valid = Array.isArray(surfaces) ? surfaces.filter(validSurface) : [];
+    if (!valid.length) return;
+    if (valid.length === 1 && valid[0].offsetX === 0 && valid[0].offsetY === 0) {
+      setMap(valid[0].lowerBuf, valid[0].upperBuf, valid[0].map);
+      return;
+    }
+    const composed = composeWorld(valid);
+    worldBaseX = composed.baseX;
+    worldBaseY = composed.baseY;
+    worldSurfaceCount = valid.length;
+    lastWorldArgs = valid.map((surface) => ({ ...surface }));
+    setMapInternal(composed.lowerBuf, composed.upperBuf, composed.map);
+  }
+
   // ---------------------------- frame ----------------------------
   // Render one frame. camX/camY are the engine's clamped 2D camera origin; the
   // look-at target reuses them so the 3D camera tracks like the 2D one.
@@ -2039,8 +2196,8 @@ export function createThreeRenderer(): any {
     // Screen-space shake → world pan of the whole camera (eye + target together).
     const shX = (extra.shakeX || 0) / zoom,
       shZ = (extra.shakeY || 0) / zoom;
-    const tX = camX + w / zoom / 2 + shX,
-      tZ = camY + h / zoom / 2 + shZ;
+    const tX = camX - worldBaseX * TILE + w / zoom / 2 + shX,
+      tZ = camY - worldBaseY * TILE + h / zoom / 2 + shZ;
     const eye = [tX, dist * Math.sin(pitch), tZ + dist * Math.cos(pitch)];
     const mvp = mul(perspective(FOV, w / h, near, far), lookAt(eye[0], eye[1], eye[2], tX, 0, tZ));
     U.uMVP.value.fromArray(mvp); // both column-major — direct copy
@@ -2065,15 +2222,15 @@ export function createThreeRenderer(): any {
       // camera target so the closest lights are the ones that cast. `lights`
       // is a frame-local host array (as is `sprites`, sorted below), so sorting
       // it in place avoids cloning the whole light list every frame.
-      const d2 = (L: any) => ((L.rx + 0.5) * TILE - tX) ** 2 + ((L.ry + 0.5) * TILE - tZ) ** 2;
+      const d2 = (L: any) => ((L.rx - worldBaseX + 0.5) * TILE - tX) ** 2 + ((L.ry - worldBaseY + 0.5) * TILE - tZ) ** 2;
       lights.sort((a: any, b: any) => d2(a) - d2(b));
     }
     const nLights = Math.min(lights.length, MAX_LIGHTS);
     for (let i = 0; i < nLights; i++) {
       const L = lights[i];
-      lightPos[i * 4] = (L.rx + 0.5) * TILE;
-      lightPos[i * 4 + 1] = sampleH(L.rx, L.ry) * TILE + TILE * 0.75;
-      lightPos[i * 4 + 2] = (L.ry + 0.5) * TILE;
+      lightPos[i * 4] = (L.rx - worldBaseX + 0.5) * TILE;
+      lightPos[i * 4 + 1] = sampleH(L.rx - worldBaseX, L.ry - worldBaseY) * TILE + TILE * 0.75;
+      lightPos[i * 4 + 2] = (L.ry - worldBaseY + 0.5) * TILE;
       lightPos[i * 4 + 3] = Math.max(1, L.radius);
       const rgb = hexRGB(L.color);
       lightCol[i * 3] = rgb[0];
@@ -2123,11 +2280,11 @@ export function createThreeRenderer(): any {
       const p = poolSprite(i);
       const sw = s.canvas.width,
         sh = s.canvas.height;
-      const x0 = s.rx * TILE + (TILE - sw) / 2;
-      const base = sampleH(s.rx, s.ry) * TILE;
+       const x0 = (s.rx - worldBaseX) * TILE + (TILE - sw) / 2;
+       const base = sampleH(s.rx - worldBaseX, s.ry - worldBaseY) * TILE;
       // feet sit where the 2D path drew them (8px above the tile's south edge);
       // priority nudges the plane so below/above sprites layer like in 2D
-      const z = (s.ry + 1) * TILE - 8 + ((s.pr || 1) - 1) * 6;
+       const z = (s.ry - worldBaseY + 1) * TILE - 8 + ((s.pr || 1) - 1) * 6;
       writeBillboard(p.buf.array as Float32Array, x0, base + sh, z, sw, sh);
       p.buf.needsUpdate = true;
       p.mat.uniforms.uTex.value = texFor(s.canvas);
@@ -2198,7 +2355,7 @@ export function createThreeRenderer(): any {
 
     // Chunk-level view culling for the visual passes (shadow passes above saw
     // the full scene, so off-screen casters still shadow the view).
-    setViewCull(camX + shX, camY + shZ, w / zoom, h / zoom, true);
+    setViewCull(camX - worldBaseX * TILE + shX, camY - worldBaseY * TILE + shZ, w / zoom, h / zoom, true);
 
     // ---- planar-reflection pass (only when this map has water) ----
     clearColor.setRGB(clear[0], clear[1], clear[2]);
@@ -2271,9 +2428,9 @@ export function createThreeRenderer(): any {
       let focusDist = dist;
       if (extra.focus) {
         const f = extra.focus;
-        const fx = (f.rx + 0.5) * TILE,
-          fy = sampleH(f.rx, f.ry) * TILE,
-          fz = (f.ry + 0.5) * TILE;
+        const fx = (f.rx - worldBaseX + 0.5) * TILE,
+          fy = sampleH(f.rx - worldBaseX, f.ry - worldBaseY) * TILE,
+          fz = (f.ry - worldBaseY + 0.5) * TILE;
         focusDist = Math.hypot(fx - eye[0], fy - eye[1], fz - eye[2]);
       }
       compU.uFocusDist.value = focusDist;
@@ -2329,9 +2486,10 @@ export function createThreeRenderer(): any {
       renderedTextureRevision,
       renderFrameId,
       renderedEngineTick,
+      surfaceCount: worldSurfaceCount,
       timings: perfTraceEnabled ? { ...perfTrace } : null,
     };
   }
 
-  return { available, setMap, updateMapTextures, renderFrame, isLost, stats };
+  return { available, setMap, setWorld, updateMapTextures, updateWorldTextures, renderFrame, isLost, stats };
 }

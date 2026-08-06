@@ -2054,3 +2054,16 @@ PATCH_NOTES.push({
     "The animated-terrain and renderer golden tests now use the explicit readiness handshake, reducing SwiftShader timing flakes.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T18:30:22-06:00",
+  title: "Connected maps in HD-2D",
+  summary:
+    "Touching maps now render as one continuous HD-2D scene while keeping the existing Map Connections workflow and Canvas 2D fallback.",
+  items: [
+    "Added a multi-surface HD renderer path that composes connected map art, elevations, events, and lights in shared world space.",
+    "The active map's HD-2D camera, lighting, materials, water, shadows, and post-processing settings govern the connected view.",
+    "The live HD-2D editor viewport now follows placed neighboring maps without introducing a second connection tool.",
+  ],
+});

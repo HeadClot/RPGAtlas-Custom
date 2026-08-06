@@ -25,7 +25,7 @@
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Assets, TILE, curMap } from "../core/editor-state";
+import { Assets, TILE, curMap, editorState as S } from "../core/editor-state";
 import { drawLayerCell } from "../../shared/map/autotile-draw";
 import { composeAdvBuffers } from "../../shared/map/layer-composite";
 import { anyAutotileAnimated } from "../../shared/map/autotile-registry";
@@ -37,6 +37,8 @@ import { flashStatus } from "./status";
 import { touch } from "../persistence";
 import { focusPanel, isPanelVisible, getFocusedPanel, togglePanel } from "../dock/dock";
 import { makeCam, projectToScreen, screenToPlane, clampTilt, clampZoom, type ViewCam } from "./hd-camera";
+import { deriveConnections, connectedCameraBounds, clampCameraAxis } from "../../shared/map/map-connections";
+import type { HdRenderSurface } from "../../renderer/index.js";
 
 export const VIEWPORT_PANEL = "hd";
 
@@ -53,11 +55,12 @@ let probing = false;
 let raf = 0;
 let dirty = true;
 let builtMapId = 0;
+let builtSurfaceKey = "";
 let lastBuild = 0;
 let lastAnimFrame = 0; // terrain-anim frame the buffers were last built at
 let tick = 0; // preview animation clock (water waves etc.)
 let kick: any = null; // one-shot re-render covering rAF pauses in hidden panels
-let cachedVisuals: { map: any; events: any[]; lights: any[]; allLights: any[] } | null = null;
+let cachedVisuals: { map: any; surfaceKey: string; events: any[]; lights: any[]; allLights: any[] } | null = null;
 
 // ---- viewport camera (decoupled from the game camera) ----
 let camX = 0, camY = 0; // look-at center → world box top-left, matching renderFrame
@@ -127,6 +130,20 @@ function buildBuffers(m: any, frame = 0) { // same composition as the engine's p
   return { lower, upper };
 }
 
+function connectedMaps(m: any): any[] {
+  if (!m || !m.worldOrigin) return [m];
+  const ids = new Set<number>();
+  for (const c of deriveConnections(S.proj.maps || [])) {
+    if (c.aMapId === m.id) ids.add(c.bMapId);
+    if (c.bMapId === m.id) ids.add(c.aMapId);
+  }
+  return [m, ...(S.proj.maps || []).filter((candidate: any) => ids.has(candidate.id))];
+}
+
+function surfaceKey(maps: any[]): string {
+  return maps.map((candidate: any) => `${candidate.id}:${candidate.worldOrigin?.x ?? "x"},${candidate.worldOrigin?.y ?? "y"}`).join("|");
+}
+
 // Tile-space height (floor) under a light, matching the renderer's per-tile
 // elevation — used only to float the gizmo handle where the light renders.
 function heightAt(m: any, rx: number, ry: number): number {
@@ -158,43 +175,60 @@ function renderOnce() {
   const animOn = anyAutotileAnimated();
   const curFrame = animOn ? frameAt(now, 4, 60) : 0;
   const animAdvanced = animOn && curFrame !== lastAnimFrame;
-  if ((dirty || builtMapId !== m.id || animAdvanced) && now - lastBuild > 200) {
-    const b = buildBuffers(m, curFrame);
-    GLRender.setMap(b.lower, b.upper, m);
-    builtMapId = m.id; dirty = false; lastBuild = now; lastAnimFrame = curFrame;
+  const maps = connectedMaps(m);
+  const key = surfaceKey(maps);
+  (window as any).RPGATLAS_HD_VIEWPORT_STATS = () => ({ surfaceCount: maps.length });
+  if ((dirty || builtMapId !== m.id || builtSurfaceKey !== key || animAdvanced) && now - lastBuild > 200) {
+    const surfaces: HdRenderSurface[] = maps.map((candidate: any) => {
+      const b = buildBuffers(candidate, curFrame);
+      const o = candidate.worldOrigin && m.worldOrigin
+        ? { x: candidate.worldOrigin.x - m.worldOrigin.x, y: candidate.worldOrigin.y - m.worldOrigin.y }
+        : { x: 0, y: 0 };
+      return { map: candidate, lowerBuf: b.lower, upperBuf: b.upper, offsetX: o.x, offsetY: o.y };
+    });
+    if (typeof GLRender.setWorld === "function") GLRender.setWorld(surfaces);
+    else GLRender.setMap(surfaces[0].lowerBuf, surfaces[0].upperBuf, m);
+    builtMapId = m.id; builtSurfaceKey = key; dirty = false; lastBuild = now; lastAnimFrame = curFrame;
   }
 
-  const camXc = Math.max(-w, Math.min(camX, m.width * TILE));
-  const camYc = Math.max(-hgt, Math.min(camY, m.height * TILE));
+  const bounds = connectedCameraBounds(m, maps.slice(1));
+  const camXc = clampCameraAxis(camX, w / clampZoom(vpZoom), bounds.minX * TILE, bounds.maxX * TILE);
+  const camYc = clampCameraAxis(camY, hgt / clampZoom(vpZoom), bounds.minY * TILE, bounds.maxY * TILE);
   camX = camXc; camY = camYc;
 
   // Gather static event visuals once per map/dirty edit. Camera movement and
   // light gizmo changes do not change event sprites, so rebuilding these
   // arrays on every viewport rAF only creates garbage and repeats charset work.
-  if (!cachedVisuals || cachedVisuals.map !== m) {
+  if (!cachedVisuals || cachedVisuals.map !== m || cachedVisuals.surfaceKey !== key) {
     const events: any[] = [], lights: any[] = [];
-    for (const ev of m.events) {
-      const pg = ev.pages[0];
-      const L = hdParseLight(ev.name);
-      if (L) lights.push({ rx: ev.x, ry: ev.y, color: L.color, radius: L.radius });
-      if (pg && pg.charset) {
-        const ci = Assets.charsetIndex(pg.charset);
-        if (ci >= 0) events.push({
-          id: "hdview_ev_" + ev.id,
-          canvas: Assets.charFrameCanvas(ci, pg.dir || 0, 1),
-          rx: ev.x, ry: ev.y, pr: 1,
-        });
+    for (const candidate of maps) {
+      const ox = candidate.worldOrigin && m.worldOrigin ? candidate.worldOrigin.x - m.worldOrigin.x : 0;
+      const oy = candidate.worldOrigin && m.worldOrigin ? candidate.worldOrigin.y - m.worldOrigin.y : 0;
+      for (const ev of candidate.events) {
+        const pg = ev.pages[0];
+        const L = hdParseLight(ev.name);
+        if (L) lights.push({ rx: ev.x + ox, ry: ev.y + oy, color: L.color, radius: L.radius });
+        if (pg && pg.charset) {
+          const ci = Assets.charsetIndex(pg.charset);
+          if (ci >= 0) events.push({
+            id: "hdview_ev_" + candidate.id + "_" + ev.id,
+            canvas: Assets.charFrameCanvas(ci, pg.dir || 0, 1),
+            rx: ev.x + ox, ry: ev.y + oy, pr: 1,
+          });
+        }
+      }
+      if (Array.isArray(candidate.lights)) {
+        for (const light of candidate.lights) lights.push({ ...light, rx: light.rx + ox, ry: light.ry + oy });
       }
     }
-    cachedVisuals = { map: m, events, lights, allLights: [] };
+    cachedVisuals = { map: m, surfaceKey: key, events, lights, allLights: [] };
   }
   const sprites = cachedVisuals.events;
   const lights = cachedVisuals.allLights;
   lights.length = 0;
-  lights.push(...cachedVisuals.lights);
   const hd2d = m.hd2d || {};
   const lightsOn = hd2d.lights !== false;
-  if (lightsOn && Array.isArray(m.lights)) lights.push(...m.lights);
+  if (lightsOn) lights.push(...cachedVisuals.lights);
   const ambient = hd2d.ambient != null ? Number(hd2d.ambient) : 0.45;
   const tilt = clampTilt(vpTilt);
   const zoom = clampZoom(vpZoom);
@@ -435,6 +469,10 @@ export function mountViewport(): HTMLElement {
   msg = h("div", { class: "hd-viewport-msg", style: "display:none" },
     "The live HD-2D viewport needs WebGL2, which is unavailable in this browser.");
   root = h("div", { class: "hd-viewport dock-panel-content" }, canvas, overlay, hud, msg) as HTMLElement;
+  const initialMap = curMap();
+  if (initialMap) {
+    (window as any).RPGATLAS_HD_VIEWPORT_STATS = () => ({ surfaceCount: connectedMaps(initialMap).length });
+  }
   updateHud();
   bindCameraControls();
   void ensureRenderer();

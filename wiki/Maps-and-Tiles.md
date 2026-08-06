@@ -33,6 +33,10 @@ passability, shadows, map properties, encounters, and the optional HD-2D height 
 6. Add map notes and music in **Map Properties**, then use **F2** to check HD-2D lighting and
    elevation on each area.
 
+When HD-2D is active, touching maps render through one continuous scene. The active map's camera,
+lighting, materials, shadows, water, and post-processing settings apply across the visible connected
+area, while each map keeps its own tiles, heights, events, and lights.
+
 World View documents authored narrative links. Map Connections documents spatial adjacency. A
 project can use both: a player may walk across connected borders and still use explicit transfers
 for doors, cutscenes, or fast travel.
@@ -147,7 +151,8 @@ Pair this with safe maps (towns) that have *no* encounters so players get a brea
 RPGAtlas has an optional **HD-2D** rendering mode: a tilted perspective camera with extruded terrain,
 billboard sprites, bloom, depth of field, distance fog, and point lights — reminiscent of modern
 "2D-HD" remakes. It's **per-map and opt-in**, and falls back to the classic flat 2D renderer
-automatically if a device can't run it.
+automatically if a device can't run it. If maps are connected, the active map's HD-2D settings
+govern the composed view so the seam remains visually continuous.
 
 ### Painting heights
 
