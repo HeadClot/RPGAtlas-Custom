@@ -49,11 +49,10 @@ export async function render(): Promise<void> {
   // back to the Canvas 2D path for as long as the loss lasts instead of
   // freezing on the last GL frame (Renderer recovers hdActive's underlying
   // resources on webglcontextrestored, so this is just a live override).
-  // Connected worlds currently use the deterministic 2D compositor so the
-  // active map and its neighboring buffers share one world-space surface.
-  // Isolated maps retain the existing HD-2D path unchanged.
+  // Connected worlds are composed into one HD surface after map load. The
+  // existing Canvas 2D compositor remains the fallback for unavailable/lost GL.
   const connected = connectedMapBuffers();
-  const hdLive = ctx.hdActive && connected.length === 0 && !(typeof Renderer !== "undefined" && Renderer.isLost());
+  const hdLive = ctx.hdActive && !(typeof Renderer !== "undefined" && Renderer.isLost());
   ctx.g2d.clearRect(0, 0, ctx.SCREEN_W, ctx.SCREEN_H);
   if (!hdLive || ctx.scene !== "map") {
     ctx.g2d.fillStyle = "#101018";
@@ -115,7 +114,7 @@ export async function render(): Promise<void> {
     if (!spriteVisible(rt.x, rt.y)) continue;
     drawables.push(rt);
   }
-  if (!hdLive && connected.length && ctx.map.worldOrigin) {
+  if (connected.length && ctx.map.worldOrigin) {
     for (const neighbor of connected) {
       if (!neighbor.map.worldOrigin) continue;
       const ox = neighbor.map.worldOrigin.x - ctx.map.worldOrigin.x;
@@ -160,7 +159,7 @@ export async function render(): Promise<void> {
     const oa = pa === "below" ? 0 : pa === "above" ? 2 : 1;
     const ob = pb === "below" ? 0 : pb === "above" ? 2 : 1;
     if (oa !== ob) return oa - ob;
-    return a.ry - b.ry;
+    return (a.ry + (a.worldOffsetY || 0)) - (b.ry + (b.worldOffsetY || 0));
   });
   if (hdLive) {
     const sprites = [];
@@ -170,7 +169,7 @@ export async function render(): Promise<void> {
       const pri = d.page ? d.page.priority : "same";
       const frame = walkFrame(d);
       // Bush tiles (M4·A): fade the sprite's feet (best-effort in HD).
-      const bushy = !d.jumping && ctx.scene === "map" && bushAt(d.x, d.y);
+      const bushy = !d.neighbor && !d.jumping && ctx.scene === "map" && bushAt(d.x, d.y);
       sprites.push({
         id:
           d === p
@@ -189,7 +188,8 @@ export async function render(): Promise<void> {
           const alpha = entityAlpha(d);
           return alpha < 1 ? fadedFrame(base, alpha) : base;
         })(),
-        rx: ip(d.prx, d.rx), ry: ip(d.pry, d.ry),
+        rx: ip(d.prx, d.rx) + (d.worldOffsetX || 0),
+        ry: ip(d.pry, d.ry) + (d.worldOffsetY || 0),
         pr: pri === "below" ? 0 : pri === "above" ? 2 : 1,
       });
     }
@@ -206,6 +206,21 @@ export async function render(): Promise<void> {
       if (ctx.map.lights) {
         for (const l of ctx.map.lights) lights.push(l);
       }
+      if (connected.length && ctx.map.worldOrigin) {
+        for (const neighbor of connected) {
+          if (!neighbor.map.worldOrigin) continue;
+          const ox = neighbor.map.worldOrigin.x - ctx.map.worldOrigin.x;
+          const oy = neighbor.map.worldOrigin.y - ctx.map.worldOrigin.y;
+          for (const rt of neighbor.evRTs) {
+            if (rt.light && !rt.erased && rt.page) {
+              lights.push({ rx: rt.rx + ox, ry: rt.ry + oy, color: rt.light.color, radius: rt.light.radius });
+            }
+          }
+          if (neighbor.map.lights) {
+            for (const l of neighbor.map.lights) lights.push({ ...l, rx: l.rx + ox, ry: l.ry + oy });
+          }
+        }
+      }
     }
     const ambient =
       ctx.map.hd2d && ctx.map.hd2d.ambient != null ? Number(ctx.map.hd2d.ambient) : 0.45;
@@ -220,7 +235,12 @@ export async function render(): Promise<void> {
       ambient,
       tilt,
       tilePassable,
-      t: ctx.globalT, // renderer animations (water waves etc.) key off the engine tick
+      // The generalized-layer E2E harness compares map-buffer composition, not
+      // animation phase. Keep that diagnostic capture on one renderer-time
+      // sample while production and golden-image paths retain the live tick.
+      t: new URLSearchParams(window.location.search).get("e2eLayerStable") === "1"
+        ? 0
+        : ctx.globalT, // renderer animations (water waves etc.) key off the engine tick
       timeOfDay: G.timeOfDay == null ? 12 : G.timeOfDay,
       motionScale: weatherMotionScale(reduceMotion),
     });

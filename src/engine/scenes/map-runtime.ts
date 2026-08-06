@@ -268,6 +268,8 @@ interface NeighborBuffer {
   lowerBuf: HTMLCanvasElement;
   upperBuf: HTMLCanvasElement;
   evRTs: any[];
+  animCells: any[];
+  animFrames: Map<number, number>;
 }
 const neighborBuffers = new Map<number, NeighborBuffer>();
 
@@ -294,7 +296,14 @@ async function warmConnectedMaps(): Promise<void> {
       if (old && old.map === map) continue;
       ctx.map = map;
       const buffers = await prerenderMap(false);
-      neighborBuffers.set(id, { map, lowerBuf: buffers.lowerBuf, upperBuf: buffers.upperBuf, evRTs: map.events.map(makeEvRT) });
+      neighborBuffers.set(id, {
+        map,
+        lowerBuf: buffers.lowerBuf,
+        upperBuf: buffers.upperBuf,
+        evRTs: map.events.map(makeEvRT),
+        animCells: ctx.animCells || [],
+        animFrames: new Map<number, number>(),
+      });
     }
   } finally {
     ctx.map = saved.map; ctx.lowerBuf = saved.lower; ctx.upperBuf = saved.upper;
@@ -305,6 +314,36 @@ async function warmConnectedMaps(): Promise<void> {
 /** Neighbor buffers in render order. Returns an empty list for legacy maps. */
 export function connectedMapBuffers(): NeighborBuffer[] {
   return [...neighborBuffers.values()];
+}
+
+/** Renderer surfaces for the active map and its directly touching neighbors.
+ * Offsets are active-map-relative tile coordinates, so the renderer can keep
+ * the player/camera contract unchanged while composing one HD world surface. */
+export function connectedHdRenderSurfaces(): any[] {
+  if (!ctx.map || !ctx.lowerBuf || !ctx.upperBuf) return [];
+  const origin = ctx.map.worldOrigin;
+  const surfaces: any[] = [{
+    map: ctx.map, lowerBuf: ctx.lowerBuf, upperBuf: ctx.upperBuf, offsetX: 0, offsetY: 0,
+  }];
+  if (!origin) return surfaces;
+  for (const neighbor of connectedMapBuffers()) {
+    if (!neighbor.map.worldOrigin) continue;
+    surfaces.push({
+      map: neighbor.map,
+      lowerBuf: neighbor.lowerBuf,
+      upperBuf: neighbor.upperBuf,
+      offsetX: neighbor.map.worldOrigin.x - origin.x,
+      offsetY: neighbor.map.worldOrigin.y - origin.y,
+    });
+  }
+  return surfaces;
+}
+
+/** Rebind the renderer after connected-map buffers have been warmed. Isolated
+ * maps still use the existing single-map path through the same adapter. */
+export function syncConnectedHdWorld(): void {
+  if (!ctx.hdActive || typeof Renderer === "undefined" || typeof Renderer.setWorld !== "function") return;
+  Renderer.setWorld(connectedHdRenderSurfaces());
 }
 
 // ---- animated terrain (Phase 8 Stage C) ----
@@ -338,37 +377,78 @@ function recordAnimatedCells(): void {
  *  Returns true when the buffer changed (so HD re-textures); no-op when nothing
  *  animates. */
 export function tickMapAnim(tick: number): boolean {
-  const cells = ctx.animCells;
-  if (!cells || !cells.length || !ctx.lowerBuf) return false;
-  const lg = ctx.lowerBuf.getContext("2d");
-  const dirtyCells: Array<{ x: number; y: number }> = [];
   const frameFn = (fps: number, frames: number) => frameAtTick(tick, fps, frames, 60);
-  const changed = redrawAnimatedCells(cells, frameFn, ANIM_FRAME_STATE, (x, y, frame) => {
-    recomposeLowerCell(lg, ctx.map, x, y, frame, Assets.drawTile, TILE, "#101018");
-    redrawCellShadow(lg, x, y);
+  const dirtyBySurface: Array<{
+    surface: any;
+    dirtyCells: Array<{ x: number; y: number }>;
+  }> = [];
+  const activeCells = ctx.animCells || [];
+  if (activeCells.length && ctx.lowerBuf) {
+    const dirtyCells: Array<{ x: number; y: number }> = [];
+    if (redrawSurfaceAnimation(ctx.map, ctx.lowerBuf, activeCells, ANIM_FRAME_STATE, frameFn, dirtyCells)) {
+      dirtyBySurface.push({ surface: null, dirtyCells });
+    }
+  }
+  for (const neighbor of neighborBuffers.values()) {
+    if (!neighbor.animCells.length) continue;
+    const dirtyCells: Array<{ x: number; y: number }> = [];
+    if (redrawSurfaceAnimation(neighbor.map, neighbor.lowerBuf, neighbor.animCells, neighbor.animFrames, frameFn, dirtyCells)) {
+      dirtyBySurface.push({
+        surface: { map: neighbor.map, lowerBuf: neighbor.lowerBuf, upperBuf: neighbor.upperBuf, offsetX: 0, offsetY: 0 },
+        dirtyCells,
+      });
+    }
+  }
+  if (dirtyBySurface.length && ctx.hdActive && typeof Renderer !== "undefined") {
+    // Re-upload only the lower chunks touched by terrain anim. Connected HD
+    // worlds update the active source cells inside the composed world buffer;
+    // isolated maps retain the original single-map seam.
+    const surfaces = connectedHdRenderSurfaces();
+    const connected = surfaces.length > 1;
+    let needsFullRefresh = false;
+    for (const update of dirtyBySurface) {
+      const surface = update.surface || surfaces[0];
+      const updated = connected && typeof Renderer.updateWorldTextures === "function"
+        ? Renderer.updateWorldTextures(surface, update.dirtyCells)
+        : typeof Renderer.updateMapTextures === "function" && !update.surface
+          ? Renderer.updateMapTextures(ctx.lowerBuf, ctx.upperBuf, ctx.map, update.dirtyCells)
+          : false;
+      if (!updated) needsFullRefresh = true;
+    }
+    // Older renderer adapters, or a stale composed cache, use one full refresh
+    // without dropping neighboring surfaces.
+    if (needsFullRefresh) {
+      if (connected && typeof Renderer.setWorld === "function") Renderer.setWorld(surfaces);
+      else Renderer.setMap(ctx.lowerBuf, ctx.upperBuf, ctx.map);
+    }
+  }
+  return dirtyBySurface.length > 0;
+}
+
+function redrawSurfaceAnimation(
+  map: any,
+  lowerBuf: HTMLCanvasElement,
+  cells: any[],
+  frameState: Map<number, number>,
+  frameFn: (fps: number, frames: number) => number,
+  dirtyCells: Array<{ x: number; y: number }>,
+): boolean {
+  const lg = lowerBuf.getContext("2d");
+  if (!lg) return false;
+  return redrawAnimatedCells(cells, frameFn, frameState, (x, y, frame) => {
+    recomposeLowerCell(lg, map, x, y, frame, Assets.drawTile, TILE, "#101018");
+    redrawCellShadow(lg, map, x, y);
     dirtyCells.push({ x, y });
   });
-  if (changed && ctx.hdActive && typeof Renderer !== "undefined") {
-    // Re-upload only the lower chunks touched by terrain anim. The source
-    // buffer and dirty list were completed above in this tick, so the renderer
-    // never observes a partially recomposed frame; upper chunks are untouched.
-    const updated = typeof Renderer.updateMapTextures === "function"
-      ? Renderer.updateMapTextures(ctx.lowerBuf, ctx.upperBuf, ctx.map, dirtyCells)
-      : false;
-    // Older renderer adapters may not expose the targeted seam. Keep the
-    // full-refresh fallback for compatibility with standalone integrations.
-    if (!updated) Renderer.setMap(ctx.lowerBuf, ctx.upperBuf, ctx.map);
-  }
-  return changed;
 }
 
 // Redraw the quadrant shadow for one cell after its tiles were recomposed
 // (mirrors the shadow pass in prerenderMap, so a shadow over animated water is
 // not lost). No-op when the map has no shadows or none on this cell.
-function redrawCellShadow(lg: any, x: number, y: number): void {
-  const sh = ctx.map.shadows;
+function redrawCellShadow(lg: any, map: any, x: number, y: number): void {
+  const sh = map.shadows;
   if (!sh) return;
-  const mask = sh[y * ctx.map.width + x];
+  const mask = sh[y * map.width + x];
   if (!mask) return;
   const H = TILE / 2;
   lg.save();
@@ -500,6 +580,7 @@ export async function loadMap(mapId: any): Promise<void> {
     await prerenderMap();
     mapLoadPhase("connected-maps");
     await warmConnectedMaps();
+    syncConnectedHdWorld();
     mapLoadPhase("audio");
     Music.play(ctx.map.music || "none");
     // Ambience layers (Phase 6): diffed against the previous map's, so shared

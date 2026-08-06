@@ -33,9 +33,6 @@
      introduce interpolation differences between machines.
    GPL-3.0-or-later. */
 
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
 import { gotoWithAtlasQuest, pinMovers } from "./fixtures/atlas-quest.mjs";
 
@@ -48,33 +45,87 @@ test.use({ viewport: SCREEN_SIZE });
 // steps in every capture — and in the committed baselines.
 const RNG_SEED = 0x5eed;
 
-const GOLDEN_FILES = [
-  "hd2d-meridian-village.png",
-  "hd2d-post-meridian-village.png",
-  "hd2d-shadows-meridian-village.png",
-  "hd2d-pointshadows-meridian-village.png",
-  "hd2d-water-meridian-village.png",
-  "hd2d-materials-meridian-village.png",
-  "hd2d-post2-meridian-village.png",
-  "hd2d-dusk-meridian-village.png",
-  "hd2d-rain-meridian-village.png",
-  "hd2d-cliffs-meridian-village.png",
-  "classic2d-meridian-village.png",
-];
-const platformSnapshotDir = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "__snapshots__",
-  process.platform,
-  "renderer-golden.spec.mjs",
-);
-const hasPlatformGoldens = GOLDEN_FILES.every((file) => existsSync(join(platformSnapshotDir, file)));
-
 /** Boots play.html with the clock frozen, starts a new game, and advances
  * the virtual clock through the title/map fade transitions plus a fixed
  * number of extra ticks so any looping animation (idle/walk frames, light
  * flicker) lands on the same frame every time. */
-async function bootToStableMap(page, hdParam, transformProject) {
-  await gotoWithAtlasQuest(page, `/play.html?hd2d=${hdParam}`, {
+async function rendererStats(page) {
+  return page.evaluate(() => window.RPGATLAS_RENDERER_STATS?.() || null);
+}
+
+async function waitForRendererStats(page, predicate, label) {
+  for (let attempt = 0; attempt < 120; attempt++) {
+    const stats = await rendererStats(page);
+    if (predicate(stats)) return stats;
+    // Playwright's fake clock also controls waitForFunction's timeout. Move
+    // only the virtual clock while the renderer is still warming up so the
+    // wait remains bounded and deterministic.
+    await page.clock.runFor(16);
+  }
+  throw new Error(`HD renderer did not reach ${label}: ${JSON.stringify(await rendererStats(page))}`);
+}
+
+/** Wait for the initial map upload, then optionally wait through additional
+ * complete frames. The latter is used by same-run layer comparisons: lazy
+ * CanvasTexture uploads can finish on different frames when the Canvas2D
+ * compositor takes a different amount of time on SwiftShader. */
+async function waitForRendererReady(page, { stabilize = false, requirePointShadows = false } = {}) {
+  const pointShadowStable = (stats) => !requirePointShadows || (
+    stats &&
+    stats.pointShadowEnabled === true &&
+    stats.pointShadowReady === true &&
+    stats.pointShadowProgramsReady === true &&
+    stats.pointShadowFrameId > 0 &&
+    stats.pointShadowSceneFrameId === stats.pointShadowFrameId
+  );
+
+  const readyStats = await waitForRendererStats(
+    page,
+    (stats) => !!stats && stats.mapTextureReady === true && stats.renderFrameId > 0 && pointShadowStable(stats),
+    requirePointShadows ? "map and point-shadow readiness" : "map-texture readiness",
+  );
+
+  if (requirePointShadows) {
+    // Readiness is published after the atlas has been consumed by a complete
+    // scene render. Require the following scene frame as well so the first
+    // displayed point-shadow frame cannot race the title/map canvas handoff.
+    const readySceneFrameId = readyStats.pointShadowSceneFrameId;
+    await waitForRendererStats(
+      page,
+      (stats) => pointShadowStable(stats) && stats.pointShadowSceneFrameId > readySceneFrameId,
+      "a completed point-shadow scene frame after readiness",
+    );
+  }
+
+  if (!stabilize) return rendererStats(page);
+
+  // Let Playwright complete the current compositor readback before sampling
+  // the renderer revisions; this does not advance the virtual game clock.
+  await page.locator("#stage").screenshot();
+  const afterWindow = await rendererStats(page);
+  const settled = await rendererStats(page);
+  if (
+    !afterWindow || !settled ||
+    afterWindow.mapTextureReady !== true ||
+    settled.mapTextureReady !== true ||
+    settled.renderedTextureRevision !== settled.mapTextureRevision ||
+    afterWindow.mapTextureRevision !== settled.mapTextureRevision
+  ) {
+    throw new Error(`HD renderer did not reach a stable map-revision frame: ${JSON.stringify({ afterWindow, settled })}`);
+  }
+  if (!pointShadowStable(afterWindow) || !pointShadowStable(settled)) {
+    throw new Error(`HD renderer point-shadow state did not reach a stable capture frame: ${JSON.stringify({ afterWindow, settled })}`);
+  }
+  return settled;
+}
+
+async function bootToStableMap(page, hdParam, transformProject, {
+  stabilizeHd = true,
+  stableLayerCapture = false,
+  requirePointShadows = false,
+} = {}) {
+  const captureParam = stableLayerCapture ? "&e2eLayerStable=1" : "";
+  await gotoWithAtlasQuest(page, `/play.html?hd2d=${hdParam}${captureParam}`, {
     installClock: true,
     // Seeded gameplay RNG (see fixtures/atlas-quest.mjs): these specs compare
     // pixels across boots and against committed baselines, and the seed makes
@@ -86,10 +137,6 @@ async function bootToStableMap(page, hdParam, transformProject) {
   await expect(page.getByText("New Game", { exact: true })).toBeVisible({ timeout: 15_000 });
   // A couple of virtual frames for the title backdrop to finish its own setup.
   await page.clock.runFor(50);
-  // Keep the title canvas as a reference. The title DOM can disappear before
-  // the asynchronous map render has replaced that canvas, so checking only
-  // .titlewin (or one canvas pixel) is not enough to establish readiness.
-  const titleGameCanvas = await page.locator("#gamecanvas").screenshot();
   await page.getByText("New Game", { exact: true }).click();
   // newGame(): fadeTo(1,300) -> loadMap -> render() -> fadeTo(0,300); each
   // fadeTo awaits sleep(ms+30). 700ms of virtual time clears both fades.
@@ -105,54 +152,27 @@ async function bootToStableMap(page, hdParam, transformProject) {
   // transient WebGL upload for readiness on one runner and never settle on
   // another.
   if (hdParam === 1) {
-    await page.waitForFunction(() => {
-      const stats = window.RPGATLAS_RENDERER_STATS?.();
-      return !!stats && stats.mapTextureReady === true && stats.renderFrameId > 0;
-    }, null, { timeout: 10_000 });
+    await waitForRendererReady(page, { stabilize: stabilizeHd, requirePointShadows });
   } else {
     await page.clock.runFor(0);
   }
-  const stableStage = await page.locator("#stage").screenshot();
-  const differsFromTitle = await page.evaluate(async ([stageB64, titleB64]) => {
-    const load = (b64) => new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.src = "data:image/png;base64," + b64;
-    });
-    const [si, ti] = await Promise.all([load(stageB64), load(titleB64)]);
-    if (si.width !== ti.width || si.height !== ti.height) return true;
-    const canvas = document.createElement("canvas");
-    canvas.width = si.width;
-    canvas.height = si.height;
-    const g = canvas.getContext("2d");
-    g.drawImage(si, 0, 0);
-    const sd = g.getImageData(0, 0, canvas.width, canvas.height).data;
-    g.clearRect(0, 0, canvas.width, canvas.height);
-    g.drawImage(ti, 0, 0);
-    const td = g.getImageData(0, 0, canvas.width, canvas.height).data;
-    let diff = 0;
-    for (let i = 0; i < sd.length; i++) if (sd[i] !== td[i]) diff++;
-    return diff;
-  }, [stableStage.toString("base64"), titleGameCanvas.toString("base64")]);
-  // HD readiness is established by the renderer revision handshake above;
-  // only the classic path needs this one-time canvas-content guard.
-  if (hdParam !== 1) {
-    expect(differsFromTitle > 1_000_000, "map render did not produce a complete frame").toBe(true);
-  }
-  return stableStage;
+  return page.locator("#stage").screenshot();
 }
 
-async function expectStableMapScreenshot(page, hdParam, transformProject, snapshotName) {
-  const stableStage = await bootToStableMap(page, hdParam, transformProject);
-  await expect(stableStage).toMatchSnapshot(snapshotName, { maxDiffPixelRatio: 0.02 });
+async function expectStableMapScreenshot(page, hdParam, transformProject, snapshotName, options = {}) {
+  const stableStage = await bootToStableMap(page, hdParam, transformProject, options);
+  try {
+    await expect(stableStage).toMatchSnapshot(snapshotName, { maxDiffPixelRatio: 0.02 });
+  } catch (error) {
+    if (options.requirePointShadows) {
+      const stats = await rendererStats(page);
+      error.message += `\nPoint-shadow diagnostics: ${JSON.stringify(stats)}`;
+    }
+    throw error;
+  }
 }
 
 test.describe("renderer golden images", () => {
-  test.skip(
-    !!process.env.CI && !hasPlatformGoldens,
-    `No complete ${process.platform} renderer baseline set is committed yet.`,
-  );
-
   test("HD-2D map (Meridian Village, ?hd2d=1) renders a stable frame", async ({ page }) => {
     await expectStableMapScreenshot(page, 1, null, "hd2d-meridian-village.png");
   });
@@ -195,7 +215,7 @@ test.describe("renderer golden images", () => {
       ];
       for (let y = 9; y <= 10; y++) m.heights[y * m.width + 8] = 2;
       return project;
-    }, "hd2d-pointshadows-meridian-village.png");
+    }, "hd2d-pointshadows-meridian-village.png", { requirePointShadows: true });
   });
 
   // Stage C: animated water surface (village pond) — waves/reflection/foam
@@ -322,13 +342,29 @@ test.describe("generalized layers (map.layersAdv)", () => {
     // unrelated to compositing and can otherwise land on a different sprite
     // frame between separate deterministic boots.
     project.system.startTransparent = true;
+    for (const map of project.maps || []) {
+      for (const event of map.events || []) {
+        for (const page of event.pages || []) {
+          page.charset = "";
+          page.stepAnim = false;
+          page.walkAnim = false;
+          page.stepAnime = false;
+          page.walkAnime = false;
+        }
+      }
+    }
     return pinMovers(project);
   };
 
   async function frame(page, hd, transform) {
     const stableStage = await bootToStableMap(page, hd, (project) =>
-      stabilizeLayerComparison(transform ? (transform(project) ?? project) : project));
-    return stableStage || page.locator("#stage").screenshot();
+      stabilizeLayerComparison(transform ? (transform(project) ?? project) : project),
+      { stabilizeHd: hd === 1, stableLayerCapture: true },
+    );
+    return {
+      png: stableStage || page.locator("#stage").screenshot(),
+      stats: hd === 1 ? await rendererStats(page) : null,
+    };
   }
   /** Count RGBA byte differences between two PNG buffers, decoded in-page. */
   async function pixelDiff(page, a, b) {
@@ -359,7 +395,7 @@ test.describe("generalized layers (map.layersAdv)", () => {
     const composite = await frame(page, 0, classicEquivalent);
     // The 2D path is pure Canvas2D (deterministic) — exact byte equality proves
     // composeAdvBuffers reproduces the four-array loop, buffer for buffer.
-    expect(await pixelDiff(page, classic, composite)).toBe(0);
+    expect(await pixelDiff(page, classic.png, composite.png)).toBe(0);
   });
 
   test("2D: user blend/opacity layers change the frame and render deterministically", async ({ page }) => {
@@ -368,8 +404,8 @@ test.describe("generalized layers (map.layersAdv)", () => {
     const layered2 = await frame(page, 0, withUserLayers);
     // The added "add"-blend ground copy + translucent overhead visibly alter the
     // frame, and two identical boots must be pixel-stable.
-    expect(await pixelDiff(page, classic, layered1)).toBeGreaterThan(0);
-    expect(await pixelDiff(page, layered1, layered2)).toBe(0);
+    expect(await pixelDiff(page, classic.png, layered1.png)).toBeGreaterThan(0);
+    expect(await pixelDiff(page, layered1.png, layered2.png)).toBe(0);
   });
 
   test("HD-2D: buffer folding adds no divergence beyond WebGL boot noise", async ({ page }) => {
@@ -380,8 +416,11 @@ test.describe("generalized layers (map.layersAdv)", () => {
     const a = await frame(page, 1, null);
     const b = await frame(page, 1, null);
     const composite = await frame(page, 1, classicEquivalent);
-    const control = await pixelDiff(page, a, b);
-    const folded = await pixelDiff(page, a, composite);
-    expect(folded).toBeLessThanOrEqual(control * 2 + 5000);
+    const control = await pixelDiff(page, a.png, b.png);
+    const folded = await pixelDiff(page, a.png, composite.png);
+    expect(
+      folded,
+      `HD layer capture diagnostics: ${JSON.stringify({ control, folded, a: a.stats, b: b.stats, composite: composite.stats })}`,
+    ).toBeLessThanOrEqual(control * 2 + 5000);
   });
 });

@@ -28,6 +28,9 @@ game's real HD-2D (three.js) engine, using that map's own HD-2D settings. It's a
 split it beside the map, tab it, or float it — and it updates **live** as you paint tiles, edit heights,
 place events, or change **Map Properties**.
 
+If the current map has touching neighbors in **Map Connections**, the viewport includes those maps in
+the same HD-2D scene and uses the current map's camera and visual settings across the composed view.
+
 - **Fly the camera** — it's independent of the in-game camera. **Drag** to pan across the map, **scroll**
   the wheel to zoom toward the cursor, and **Shift-drag** (or **right-drag**) to change the camera tilt.
   **Reset view** re-centers it. None of this changes the map's saved HD-2D tilt.

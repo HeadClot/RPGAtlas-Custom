@@ -2054,3 +2054,80 @@ PATCH_NOTES.push({
     "The animated-terrain and renderer golden tests now use the explicit readiness handshake, reducing SwiftShader timing flakes.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T18:30:22-06:00",
+  title: "Connected maps in HD-2D",
+  summary:
+    "Touching maps now render as one continuous HD-2D scene while keeping the existing Map Connections workflow and Canvas 2D fallback.",
+  items: [
+    "Added a multi-surface HD renderer path that composes connected map art, elevations, events, and lights in shared world space.",
+    "The active map's HD-2D camera, lighting, materials, water, shadows, and post-processing settings govern the connected view.",
+    "The live HD-2D editor viewport now follows placed neighboring maps without introducing a second connection tool.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T19:19:02-06:00",
+  title: "Linux renderer golden coverage",
+  summary:
+    "Ubuntu CI now restores a persistent Linux renderer baseline and waits for stable SwiftShader texture frames before comparing HD-2D captures.",
+  items: [
+    "All eleven renderer golden-image tests execute in Linux CI instead of being skipped for missing snapshots.",
+    "Generalized-layer HD-2D comparisons now report render-frame, engine-tick, texture, and revision diagnostics on failure.",
+    "Linux baseline bootstrapping is limited to main; pull requests compare against the restored known-good cache.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T20:08:07-06:00",
+  title: "Cold-cache Linux renderer fallback",
+  summary:
+    "Renderer golden tests now retain a complete checked-in fallback while Ubuntu CI seeds and refreshes the authoritative Linux cache.",
+  items: [
+    "Added all eleven Linux renderer baseline images so a pull request does not fail solely because the cache has not been seeded.",
+    "Main-branch cache bootstrapping still regenerates the Linux set with Ubuntu's genuine SwiftShader captures.",
+    "Documented the cold-cache fallback and the cache-backed Linux verification flow.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T20:34:13-06:00",
+  title: "Hardened Linux renderer cache recovery",
+  summary:
+    "Linux renderer-golden CI now rotates stale cache contents and reports missing pull-request fallback assets directly.",
+  items: [
+    "Bumped the Linux renderer cache key to v2 so the next main run seeds a complete authoritative baseline.",
+    "Added an explicit pull-request fallback check for all eleven checked-in Linux renderer snapshots.",
+    "Kept Ubuntu-only regeneration and cache saving restricted to main-branch cache misses.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T20:48:08-06:00",
+  title: "Self-service Linux renderer cache seeding",
+  summary:
+    "CI can now be manually dispatched on main to seed or refresh the Linux renderer golden cache, with explicit cache-status diagnostics for every run.",
+  items: [
+    "Added a workflow_dispatch trigger for deliberate main-branch Linux renderer cache seeding.",
+    "Added cache key, hit/miss, event, and ref diagnostics so skipped bootstrap and save steps are explained in CI logs.",
+    "Preserved checked-in fallback validation for pull requests and main-only cache generation and saving.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T21:11:45-06:00",
+  title: "Stable point-light shadow captures",
+  summary:
+    "HD-2D point-light shadow captures now wait for compiled shadow programs and a completed depth-atlas scene frame before comparing pixels.",
+  items: [
+    "Added point-shadow readiness, revision, atlas-frame, and scene-frame diagnostics.",
+    "Hardened the renderer-golden harness against first-use SwiftShader shadow frames and stale title-canvas captures without changing the baseline image.",
+  ],
+});

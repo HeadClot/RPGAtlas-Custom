@@ -79,6 +79,10 @@ export async function newGame(start?: { mapId: number; x: number; y: number }): 
   await loadMap(start ? start.mapId : ctx.proj.system.startMapId);
   syncFollowers(true);
   ctx.scene = "map";
+  // The title backdrop is painted onto the shared 2D canvas. Clear it at the
+  // scene boundary before the first HD-2D frame so the WebGL map cannot be
+  // hidden behind a stale title image while the async render loop catches up.
+  ctx.g2d.clearRect(0, 0, ctx.SCREEN_W, ctx.SCREEN_H);
 }
 
 export async function toTitle(): Promise<void> {

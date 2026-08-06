@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, "phase-*"]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -41,6 +42,8 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    env:
+      RENDERER_GOLDEN_CACHE_KEY: rpgatlas-renderer-goldens-linux-v2
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -52,6 +55,96 @@ jobs:
         run: node server/build.mjs
       - name: Install Playwright's Chromium (+ OS deps)
         run: npx playwright install --with-deps chromium
+      - name: Restore Linux renderer golden baseline
+        id: renderer-goldens
+        uses: actions/cache/restore@v5
+        with:
+          path: tests-e2e/__snapshots__/linux
+          key: ${{ env.RENDERER_GOLDEN_CACHE_KEY }}
+      - name: Report Linux renderer golden cache status
+        shell: bash
+        env:
+          CACHE_HIT: ${{ steps.renderer-goldens.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          echo "Linux renderer golden cache key: ${RENDERER_GOLDEN_CACHE_KEY}"
+          echo "Cache hit: ${CACHE_HIT:-false}"
+          echo "Workflow event: ${GITHUB_EVENT_NAME}"
+          echo "Git ref: ${GITHUB_REF}"
+          if [[ "${CACHE_HIT:-false}" == "true" ]]; then
+            echo "Using the restored Linux renderer golden cache."
+          elif [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "Cache miss on main; the bootstrap and save steps will seed the cache."
+          else
+            echo "Cache miss outside main; pull requests use the checked-in fallback."
+          fi
+      - name: Verify checked-in Linux renderer fallback on PR cache miss
+        if: github.event_name == 'pull_request' && steps.renderer-goldens.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline_dir="tests-e2e/__snapshots__/linux/renderer-golden.spec.mjs"
+          expected=(
+            hd2d-meridian-village.png
+            hd2d-post-meridian-village.png
+            hd2d-shadows-meridian-village.png
+            hd2d-pointshadows-meridian-village.png
+            hd2d-water-meridian-village.png
+            hd2d-materials-meridian-village.png
+            hd2d-post2-meridian-village.png
+            hd2d-dusk-meridian-village.png
+            hd2d-rain-meridian-village.png
+            hd2d-cliffs-meridian-village.png
+            classic2d-meridian-village.png
+          )
+          missing=()
+          for file in "${expected[@]}"; do
+            if [[ ! -s "$baseline_dir/$file" ]]; then
+              missing+=("$file")
+            fi
+          done
+          if ((${#missing[@]})); then
+            echo "Linux renderer cache miss and checked-in fallback is incomplete." >&2
+            echo "Commit the complete baseline set under $baseline_dir before retrying this pull request." >&2
+            printf 'Missing fallback: %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+          echo "Using the checked-in Linux renderer fallback after cache miss."
+      - name: Bootstrap Linux renderer golden baseline on main
+        if: steps.renderer-goldens.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        run: >-
+          npx playwright test tests-e2e/renderer-golden.spec.mjs
+          --grep "renderer golden images" --update-snapshots
+      - name: Verify Linux renderer golden baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline_dir="tests-e2e/__snapshots__/linux/renderer-golden.spec.mjs"
+          expected=(
+            hd2d-meridian-village.png
+            hd2d-post-meridian-village.png
+            hd2d-shadows-meridian-village.png
+            hd2d-pointshadows-meridian-village.png
+            hd2d-water-meridian-village.png
+            hd2d-materials-meridian-village.png
+            hd2d-post2-meridian-village.png
+            hd2d-dusk-meridian-village.png
+            hd2d-rain-meridian-village.png
+            hd2d-cliffs-meridian-village.png
+            classic2d-meridian-village.png
+          )
+          for file in "${expected[@]}"; do
+            test -s "$baseline_dir/$file" || {
+              echo "Missing Linux renderer baseline: $baseline_dir/$file" >&2
+              exit 1
+            }
+          done
+      - name: Save Linux renderer golden baseline
+        if: steps.renderer-goldens.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v5
+        with:
+          path: tests-e2e/__snapshots__/linux
+          key: ${{ env.RENDERER_GOLDEN_CACHE_KEY }}
       - name: E2E + golden-image tests (builds first — see playwright.config.mjs webServer)
         run: npm run test:e2e
       - name: Upload Playwright report
