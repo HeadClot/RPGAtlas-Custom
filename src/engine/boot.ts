@@ -308,6 +308,29 @@ async function boot(): Promise<void> {
   // Test-only map readiness diagnostics. The object identity stays stable so
   // e2e probes see each phase update while the map load is in progress.
   (window as any).RPGATLAS_MAP_DIAGNOSTICS = ctx.mapLoadDiagnostics;
+  // Test-only capture diagnostics. Keep this separate from the stable renderer
+  // stats contract so golden tests can distinguish a stale title canvas from a
+  // renderer frame without exposing engine state through the public API.
+  (window as any).RPGATLAS_CAPTURE_STATE = () => {
+    const hd = ctx.map && ctx.map.hd2d;
+    return {
+      scene: ctx.scene,
+      mapId: ctx.map ? ctx.map.id : null,
+      mapLoad: { ...ctx.mapLoadDiagnostics },
+      faderOpacity: ctx.fader ? Number(getComputedStyle(ctx.fader).opacity) : null,
+      post: hd
+        ? {
+            bloom: hd.bloom ?? null,
+            dof: hd.dof ?? null,
+            ssao: hd.ssao ?? null,
+            aces: hd.aces ?? null,
+            vignette: hd.vignette ?? null,
+            lut: hd.lut ?? null,
+            fxaa: hd.fxaa ?? null,
+          }
+        : null,
+    };
+  };
   // Apply author-default bindings, with the player's saved per-device overrides merged
   // on top, and restore the persisted music preference (before any Music.play()).
   ctx.playerOptions = loadOptions();

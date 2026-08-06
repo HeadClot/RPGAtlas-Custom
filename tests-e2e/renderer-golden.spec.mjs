@@ -44,6 +44,7 @@ test.use({ viewport: SCREEN_SIZE });
 // SAME seed, so Meridian Village's random-walk NPCs retrace the identical
 // steps in every capture — and in the committed baselines.
 const RNG_SEED = 0x5eed;
+const TITLE_CAPTURE_MIN_DIFF_RATIO = 0.05;
 
 /** Boots play.html with the clock frozen, starts a new game, and advances
  * the virtual clock through the title/map fade transitions plus a fixed
@@ -53,9 +54,49 @@ async function rendererStats(page) {
   return page.evaluate(() => window.RPGATLAS_RENDERER_STATS?.() || null);
 }
 
+async function imageDiffRatio(page, a, b) {
+  return page.evaluate(async ([aB64, bB64]) => {
+    const load = (b64) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.src = "data:image/png;base64," + b64;
+    });
+    const [ia, ib] = await Promise.all([load(aB64), load(bB64)]);
+    if (ia.width !== ib.width || ia.height !== ib.height) return 1;
+    const canvas = document.createElement("canvas");
+    canvas.width = ia.width;
+    canvas.height = ia.height;
+    const g = canvas.getContext("2d");
+    g.drawImage(ia, 0, 0);
+    const da = g.getImageData(0, 0, canvas.width, canvas.height).data;
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    g.drawImage(ib, 0, 0);
+    const db = g.getImageData(0, 0, canvas.width, canvas.height).data;
+    let diff = 0;
+    for (let i = 0; i < da.length; i += 4) {
+      if (da[i] !== db[i] || da[i + 1] !== db[i + 1] || da[i + 2] !== db[i + 2] || da[i + 3] !== db[i + 3]) diff++;
+    }
+    return diff / (canvas.width * canvas.height);
+  }, [a.toString("base64"), b.toString("base64")]);
+}
+
+async function gameCanvasOpaqueRatio(page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector("#gamecanvas");
+    const context = canvas && canvas.getContext("2d");
+    if (!canvas || !context) return 1;
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let opaque = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > 0) opaque++;
+    return opaque / (canvas.width * canvas.height);
+  });
+}
+
 async function captureDiagnostics(page) {
   return page.evaluate(() => ({
     stats: window.RPGATLAS_RENDERER_STATS?.() || null,
+    captureState: window.RPGATLAS_CAPTURE_STATE?.() || null,
+    mapLoad: window.RPGATLAS_MAP_DIAGNOSTICS ? { ...window.RPGATLAS_MAP_DIAGNOSTICS } : null,
     titleWindows: document.querySelectorAll(".titlewin").length,
     titleMenus: document.querySelectorAll(".titlemenu").length,
     glCanvas: !!document.querySelector("#glcanvas"),
@@ -92,7 +133,10 @@ async function waitForCompletedMapFrames(page, { frames = 3, requirePointShadows
     const mapStable = !!stats &&
       stats.mapTextureReady === true &&
       stats.renderedTextureRevision === stats.mapTextureRevision;
-    if (current.titleWindows === 0 && current.titleMenus === 0 && frameAdvanced && mapStable && pointStable) {
+    const sceneReady = current.captureState
+      ? current.captureState.scene === "map"
+      : current.mapLoad?.ready === true;
+    if (current.titleWindows === 0 && current.titleMenus === 0 && sceneReady && frameAdvanced && mapStable && pointStable) {
       completed++;
       if (completed >= frames) return current;
     } else {
@@ -104,11 +148,69 @@ async function waitForCompletedMapFrames(page, { frames = 3, requirePointShadows
   throw new Error(`HD renderer did not complete ${frames} stable map frames: ${JSON.stringify(await captureDiagnostics(page))}`);
 }
 
+async function waitForStableStageCapture(page, titleCanvas, { requirePointShadows = false } = {}) {
+  let previous = null;
+  let completed = 0;
+  let lastTitleDiffRatio = null;
+  let lastGameCanvasOpaqueRatio = null;
+  for (let attempt = 0; attempt < 180; attempt++) {
+    const current = await captureDiagnostics(page);
+    const stats = current.stats;
+    const pointStable = !requirePointShadows || (
+      stats &&
+      stats.pointShadowEnabled === true &&
+      stats.pointShadowReady === true &&
+      stats.pointShadowProgramsReady === true &&
+      stats.pointShadowFrameId > 0 &&
+      stats.pointShadowSceneFrameId === stats.pointShadowFrameId
+    );
+    const frameAdvanced = !!stats && (!previous || stats.renderFrameId > previous.renderFrameId);
+    const mapStable = !!stats &&
+      stats.mapTextureReady === true &&
+      stats.renderedTextureRevision === stats.mapTextureRevision;
+    const sceneReady = current.captureState
+      ? current.captureState.scene === "map"
+      : current.mapLoad?.ready === true;
+    if (current.titleWindows === 0 && current.titleMenus === 0 && sceneReady && frameAdvanced && mapStable && pointStable) {
+      completed++;
+      if (completed >= 3) {
+        const stage = await page.locator("#stage").screenshot();
+        lastTitleDiffRatio = await imageDiffRatio(page, stage, titleCanvas);
+        lastGameCanvasOpaqueRatio = await gameCanvasOpaqueRatio(page);
+        if (
+          lastTitleDiffRatio >= TITLE_CAPTURE_MIN_DIFF_RATIO &&
+          lastGameCanvasOpaqueRatio <= 0.05
+        ) {
+          return {
+            stage,
+            titleDiffRatio: lastTitleDiffRatio,
+            gameCanvasOpaqueRatio: lastGameCanvasOpaqueRatio,
+            diagnostics: current,
+          };
+        }
+        // Renderer counters can be ready while the shared 2D title canvas is
+        // still the most recent compositor content. Continue until the stage
+        // itself proves that the map replaced the title frame.
+        completed = 0;
+      }
+    } else {
+      completed = 0;
+    }
+    previous = stats;
+    await page.clock.runFor(16);
+  }
+  throw new Error(`HD renderer did not replace the title capture: ${JSON.stringify({
+    titleDiffRatio: lastTitleDiffRatio,
+    gameCanvasOpaqueRatio: lastGameCanvasOpaqueRatio,
+    capture: await captureDiagnostics(page),
+  })}`);
+}
+
 /** Wait for the initial map upload, then optionally wait through additional
  * complete frames. The latter is used by same-run layer comparisons: lazy
  * CanvasTexture uploads can finish on different frames when the Canvas2D
  * compositor takes a different amount of time on SwiftShader. */
-async function waitForRendererReady(page, { stabilize = false, requirePointShadows = false } = {}) {
+async function waitForRendererReady(page, { stabilize = false, requirePointShadows = false, titleCanvas } = {}) {
   const pointShadowStable = (stats) => !requirePointShadows || (
     stats &&
     stats.pointShadowEnabled === true &&
@@ -136,9 +238,18 @@ async function waitForRendererReady(page, { stabilize = false, requirePointShado
     );
   }
 
-  await waitForCompletedMapFrames(page, { frames: 3, requirePointShadows });
+  const stableCapture = titleCanvas
+    ? await waitForStableStageCapture(page, titleCanvas, { requirePointShadows })
+    : await waitForCompletedMapFrames(page, { frames: 3, requirePointShadows });
 
-  if (!stabilize) return rendererStats(page);
+  if (!stabilize) {
+    return {
+      stats: await rendererStats(page),
+      stage: stableCapture.stage || null,
+      titleDiffRatio: stableCapture.titleDiffRatio ?? null,
+      gameCanvasOpaqueRatio: stableCapture.gameCanvasOpaqueRatio ?? null,
+    };
+  }
 
   // Let Playwright complete the current compositor readback before sampling
   // the renderer revisions; this does not advance the virtual game clock.
@@ -157,7 +268,12 @@ async function waitForRendererReady(page, { stabilize = false, requirePointShado
   if (!pointShadowStable(afterWindow) || !pointShadowStable(settled)) {
     throw new Error(`HD renderer point-shadow state did not reach a stable capture frame: ${JSON.stringify({ afterWindow, settled, capture: await captureDiagnostics(page) })}`);
   }
-  return settled;
+  return {
+    stats: settled,
+    stage: stableCapture.stage || null,
+    titleDiffRatio: stableCapture.titleDiffRatio ?? null,
+    gameCanvasOpaqueRatio: stableCapture.gameCanvasOpaqueRatio ?? null,
+  };
 }
 
 async function bootToStableMap(page, hdParam, transformProject, {
@@ -178,6 +294,7 @@ async function bootToStableMap(page, hdParam, transformProject, {
   await expect(page.getByText("New Game", { exact: true })).toBeVisible({ timeout: 15_000 });
   // A couple of virtual frames for the title backdrop to finish its own setup.
   await page.clock.runFor(50);
+  const titleCanvas = await page.locator("#gamecanvas").screenshot();
   await page.getByText("New Game", { exact: true }).click();
   // newGame(): fadeTo(1,300) -> loadMap -> render() -> fadeTo(0,300); each
   // fadeTo awaits sleep(ms+30). 700ms of virtual time clears both fades.
@@ -193,22 +310,38 @@ async function bootToStableMap(page, hdParam, transformProject, {
   // transient WebGL upload for readiness on one runner and never settle on
   // another.
   if (hdParam === 1) {
-    await waitForRendererReady(page, { stabilize: stabilizeHd, requirePointShadows });
+    const ready = await waitForRendererReady(page, {
+      stabilize: stabilizeHd,
+      requirePointShadows,
+      titleCanvas,
+    });
+    return {
+      stage: ready.stage || await page.locator("#stage").screenshot(),
+      titleDiffRatio: ready.titleDiffRatio,
+      gameCanvasOpaqueRatio: ready.gameCanvasOpaqueRatio,
+      diagnostics: await captureDiagnostics(page),
+    };
   } else {
     await page.clock.runFor(0);
   }
-  return page.locator("#stage").screenshot();
+  return {
+    stage: await page.locator("#stage").screenshot(),
+    titleDiffRatio: null,
+    gameCanvasOpaqueRatio: null,
+    diagnostics: await captureDiagnostics(page),
+  };
 }
 
 async function expectStableMapScreenshot(page, hdParam, transformProject, snapshotName, options = {}) {
-  const stableStage = await bootToStableMap(page, hdParam, transformProject, options);
+  const stableCapture = await bootToStableMap(page, hdParam, transformProject, options);
   try {
-    await expect(stableStage).toMatchSnapshot(snapshotName, { maxDiffPixelRatio: 0.02 });
+    await expect(stableCapture.stage).toMatchSnapshot(snapshotName, { maxDiffPixelRatio: 0.02 });
   } catch (error) {
-    if (options.requirePointShadows) {
-      const stats = await rendererStats(page);
-      error.message += `\nPoint-shadow diagnostics: ${JSON.stringify({ stats, capture: await captureDiagnostics(page) })}`;
-    }
+    error.message += `\nRenderer capture diagnostics: ${JSON.stringify({
+      titleDiffRatio: stableCapture.titleDiffRatio,
+      gameCanvasOpaqueRatio: stableCapture.gameCanvasOpaqueRatio,
+      capture: await captureDiagnostics(page),
+    })}`;
     throw error;
   }
 }
@@ -397,14 +530,19 @@ test.describe("generalized layers (map.layersAdv)", () => {
   };
 
   async function frame(page, hd, transform) {
-    const stableStage = await bootToStableMap(page, hd, (project) =>
+    const stableCapture = await bootToStableMap(page, hd, (project) =>
       stabilizeLayerComparison(transform ? (transform(project) ?? project) : project),
       { stabilizeHd: hd === 1, stableLayerCapture: true },
     );
     return {
-      png: stableStage || page.locator("#stage").screenshot(),
+      png: stableCapture.stage || await page.locator("#stage").screenshot(),
       stats: hd === 1 ? await rendererStats(page) : null,
-      capture: hd === 1 ? await captureDiagnostics(page) : null,
+      capture: hd === 1 ? {
+        ...stableCapture.diagnostics,
+        titleDiffRatio: stableCapture.titleDiffRatio,
+        gameCanvasOpaqueRatio: stableCapture.gameCanvasOpaqueRatio,
+        live: await captureDiagnostics(page),
+      } : null,
     };
   }
   /** Count RGBA byte differences between two PNG buffers, decoded in-page. */
