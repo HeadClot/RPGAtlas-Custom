@@ -183,13 +183,15 @@ sharing one set of PNGs that would never match across font hinting /
 sub-pixel rounding differences between operating systems, even with
 SwiftShader forcing the same rasterizer.
 
-**Current state:** only the `win32` baseline (captured on this dev machine)
-is committed. The CI workflow (`.github/workflows/ci.yml`, `e2e` job) runs
-on `ubuntu-latest`, where no `linux` baseline exists yet. The golden spec
-skips itself in CI until the complete platform baseline set is committed;
-once `tests-e2e/__snapshots__/linux/` is checked in, every Linux golden is a
-real diff gate. This avoids treating Playwright's missing-baseline soft error
-as a passing test while still keeping the renderer goldens active locally.
+**Linux CI baseline:** Windows keeps its committed baselines, while Ubuntu's
+complete set is stored in the versioned GitHub Actions cache key configured in
+`.github/workflows/ci.yml`. A cache miss on `main` bootstraps the Linux set
+with `--update-snapshots`, runs the golden tests, and saves the result. Pull
+requests restore that known-good set and fail clearly if it is unavailable;
+they never regenerate baselines from the code under test. Bump the cache key
+version deliberately when an intentional Linux visual baseline change is
+approved.
 
-If Linux rendering proves too unstable to pin down, keep the CI skip and
-retain the local Windows goldens as the renderer regression check.
+The golden spec does not skip for missing platform baselines. Local Windows
+runs continue to use `tests-e2e/__snapshots__/win32/`, and Linux CI compares
+against its cached `tests-e2e/__snapshots__/linux/` set.

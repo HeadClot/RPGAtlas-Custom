@@ -235,7 +235,12 @@ export async function render(): Promise<void> {
       ambient,
       tilt,
       tilePassable,
-      t: ctx.globalT, // renderer animations (water waves etc.) key off the engine tick
+      // The generalized-layer E2E harness compares map-buffer composition, not
+      // animation phase. Keep that diagnostic capture on one renderer-time
+      // sample while production and golden-image paths retain the live tick.
+      t: new URLSearchParams(window.location.search).get("e2eLayerStable") === "1"
+        ? 0
+        : ctx.globalT, // renderer animations (water waves etc.) key off the engine tick
       timeOfDay: G.timeOfDay == null ? 12 : G.timeOfDay,
       motionScale: weatherMotionScale(reduceMotion),
     });

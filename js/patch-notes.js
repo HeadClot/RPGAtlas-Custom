@@ -2067,3 +2067,16 @@ PATCH_NOTES.push({
     "The live HD-2D editor viewport now follows placed neighboring maps without introducing a second connection tool.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T19:19:02-06:00",
+  title: "Linux renderer golden coverage",
+  summary:
+    "Ubuntu CI now restores a persistent Linux renderer baseline and waits for stable SwiftShader texture frames before comparing HD-2D captures.",
+  items: [
+    "All eleven renderer golden-image tests execute in Linux CI instead of being skipped for missing snapshots.",
+    "Generalized-layer HD-2D comparisons now report render-frame, engine-tick, texture, and revision diagnostics on failure.",
+    "Linux baseline bootstrapping is limited to main; pull requests compare against the restored known-good cache.",
+  ],
+});
