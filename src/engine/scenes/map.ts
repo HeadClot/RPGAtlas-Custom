@@ -84,6 +84,7 @@ import {
   setPlatformerCheckpoint,
   respawnAtPlatformerCheckpoint,
   platformerPlayerInvulnerable,
+  platformerBodyFitsAt,
 } from "./platformer-runtime.js";
 
 let frameWaiters: any[] = [];
@@ -250,6 +251,72 @@ async function crossConnectedMap(cross: any, dir: number): Promise<void> {
   }
 }
 
+/** Cross a continuous platformer seam without a transfer fade. The physics
+ * body is moved to destination-local coordinates before loadMap so the normal
+ * load pipeline can initialize the destination without showing an out-of-range
+ * source-map position. */
+async function crossConnectedPlatformerMap(cross: any): Promise<void> {
+  if (seamlessCrossing || !G.player?.platformer) return;
+  seamlessCrossing = true;
+  const oldMapId = G.mapId;
+  const oldPlayer = {
+    x: G.player.x, y: G.player.y, tx: G.player.tx, ty: G.player.ty,
+    rx: G.player.rx, ry: G.player.ry, prx: G.player.prx, pry: G.player.pry,
+    dir: G.player.dir, moving: G.player.moving, route: G.player.route,
+  };
+  const oldBody = { ...G.player.platformer };
+  const oldCheckpoint = G.platformerCheckpoint ? { ...G.platformerCheckpoint } : null;
+  const setPlayerPosition = (player: any, x: number, y: number): void => {
+    player.x = player.tx = x; player.y = player.ty = y;
+    player.rx = player.prx = x; player.ry = player.pry = y;
+    player.route = null; player.jumping = null;
+  };
+  const safeSourcePosition = (): { x: number; y: number } => {
+    const map = ctx.map;
+    if (!map) return { x: oldBody.x, y: oldBody.y };
+    const clamp = (value: number, limit: number, size: number): number =>
+      Math.max(0, Math.min(value, limit - size));
+    const safeX = clamp(oldBody.x, map.width, oldBody.width);
+    const safeY = clamp(oldBody.y, map.height, oldBody.height);
+    if (cross.fromSide === "east") return { x: map.width - oldBody.width, y: safeY };
+    if (cross.fromSide === "west") return { x: 0, y: safeY };
+    if (cross.fromSide === "south") return { x: safeX, y: map.height - oldBody.height };
+    return { x: safeX, y: 0 };
+  };
+  const restore = async (): Promise<void> => {
+    if (G.mapId !== oldMapId) await loadMap(oldMapId);
+    const player = G.player;
+    const safe = safeSourcePosition();
+    setPlayerPosition(player, safe.x, safe.y);
+    player.tx = safe.x; player.ty = safe.y;
+    player.rx = safe.x; player.ry = safe.y;
+    player.prx = safe.x; player.pry = safe.y;
+    player.dir = oldPlayer.dir; player.moving = false; player.route = null;
+    if (player.platformer) Object.assign(player.platformer, oldBody, { x: safe.x, y: safe.y, vx: 0, vy: 0 });
+    G.platformerCheckpoint = oldCheckpoint;
+  };
+  try {
+    const body = G.player.platformer;
+    setPlayerPosition(G.player, cross.toX, cross.toY);
+    body.x = cross.toX; body.y = cross.toY;
+    await loadMap(cross.toMapId);
+    const destinationPlayer = G.player;
+    setPlayerPosition(destinationPlayer, cross.toX, cross.toY);
+    if (destinationPlayer.platformer) Object.assign(destinationPlayer.platformer, oldBody, { x: cross.toX, y: cross.toY });
+    if (!platformerBodyFitsAt(cross.toX, cross.toY)) {
+      await restore();
+      return;
+    }
+    G.platformerCheckpoint = { mapId: G.mapId, x: cross.toX, y: cross.toY, dir: destinationPlayer.dir || oldPlayer.dir };
+    await render();
+  } catch (error) {
+    console.error("Connected platformer map crossing failed", error);
+    try { await restore(); } catch (restoreError) { console.error("Connected platformer map rollback failed", restoreError); }
+  } finally {
+    seamlessCrossing = false;
+  }
+}
+
 // ============================ map scene update ============================
 function activePlayerControl(): boolean {
   return ctx.scene === "map" && !UIStack.length && !ctx.blockingRun && !ctx.menuOpen;
@@ -275,6 +342,7 @@ export function update(): void {
   if (ctx.scene !== "map" || ctx.menuOpen) {
     return;
   }
+  if (seamlessCrossing) return;
 
   const p = G.player;
   // Presentation layer (Project Compass M2·A): advance picture/tint/scroll
@@ -320,6 +388,10 @@ export function update(): void {
     const jumpHeld = control && ctx.Input.pressed("jump");
     const downHeld = control && ctx.Input.pressed("down");
     const platformerResult = platformerPlayerInput({ axis, jumpPressed, jumpHeld, downHeld });
+    if (platformerResult.crossing) {
+      void crossConnectedPlatformerMap(platformerResult.crossing);
+      return;
+    }
     if (platformerResult.fell) respawnAtPlatformerCheckpoint();
     if (control && !jumpPressed && ctx.Input.consume("ok")) {
       const actionEvent = platformerActionEvent();

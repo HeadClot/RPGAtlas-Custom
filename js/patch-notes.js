@@ -2270,3 +2270,16 @@ PATCH_NOTES.push({
     "Platformer projects keep HD-2D and Beacon multiplayer disabled in this release while existing RPG projects remain unchanged.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T15:00:00-06:00",
+  title: "Platformer map connections",
+  summary:
+    "Platformer players can now run, fall, or jump across touching maps arranged in Map Connections without a transfer fade.",
+  items: [
+    "Connected east, west, north, and south seams now provide neighboring platformer collision data and preserve movement velocity across the boundary.",
+    "Destination placement is validated before a crossing is committed, while gaps, blocked destinations, legacy maps, and malformed layouts keep their existing boundaries.",
+    "Map Connections continues to use the existing worldOrigin editor workflow and project format.",
+  ],
+});

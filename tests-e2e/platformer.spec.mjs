@@ -28,6 +28,53 @@ function platformerProject(project, { hazard = false, goal = false, oneWay = fal
   return project;
 }
 
+function connectedPlatformerProject(project, side, { blocked = false } = {}) {
+  const template = project.maps.find((candidate) => candidate.id === project.system.startMapId) || project.maps[0];
+  const firstId = 9101, secondId = 9102;
+  const width = 8, height = 6, cells = width * height;
+  const openVerticalSeam = side === "north" || side === "south";
+  const configure = (map, id, name, origin) => {
+    const tile = template.layers?.ground?.[0] || 0;
+    map.id = id;
+    map.name = name;
+    map.width = width;
+    map.height = height;
+    map.worldOrigin = origin;
+    map.loop = { h: false, v: false };
+    map.layers = {
+      ground: new Array(cells).fill(tile),
+      decor: new Array(cells).fill(0),
+      decor2: new Array(cells).fill(0),
+      over: new Array(cells).fill(0),
+    };
+    map.platformerCollision = new Array(cells).fill(2);
+    if (!openVerticalSeam) {
+      for (let x = 0; x < width; x++) map.platformerCollision[(height - 1) * width + x] = 1;
+    }
+    map.events = [];
+    map.regions = new Array(cells).fill(0);
+    map.passOv = new Array(cells).fill(0);
+    map.hd2d = { ...(map.hd2d || {}), enabled: false };
+  };
+  const first = structuredClone(template);
+  const second = structuredClone(template);
+  configure(first, firstId, "Platformer Seam Start", { x: 0, y: 0 });
+  const origin = side === "east" ? { x: width, y: 0 }
+    : side === "west" ? { x: -width, y: 0 }
+      : side === "north" ? { x: 0, y: -height }
+        : { x: 0, y: height };
+  configure(second, secondId, "Platformer Seam Destination", origin);
+  if (blocked) second.platformerCollision.fill(1);
+  project.maps = [first, second];
+  project.system.gameMode = "platformer";
+  project.system.multiplayer = { ...(project.system.multiplayer || {}), enabled: false };
+  project.system.startMapId = firstId;
+  project.system.startX = 1;
+  project.system.startY = height - 2;
+  project.system.startDir = 2;
+  return project;
+}
+
 async function startGame(page, options) {
   await gotoWithAtlasQuest(page, "/play.html?playtest=platformer", {
     transformProject: (project) => platformerProject(project, options),
@@ -57,6 +104,112 @@ async function waitFrames(page, frames) {
 }
 
 test.describe("platformer mode", () => {
+  for (const side of ["east", "west", "north", "south"]) {
+    test(`crosses a connected ${side} seam without respawning`, async ({ page }) => {
+      await gotoWithAtlasQuest(page, "/play.html?playtest=platformer", {
+        transformProject: (project) => connectedPlatformerProject(project, side),
+      });
+      await expect(page.getByText("New Game", { exact: true })).toBeVisible();
+      await page.getByText("New Game", { exact: true }).click();
+      await expect.poll(() => page.evaluate(() => window.Atlas?.atlas?.scene)).toBe("map");
+
+      const target = await page.evaluate(() => {
+        const project = window.Atlas.atlas.project;
+        return project.maps.find((map) => map.id !== project.system.startMapId).id;
+      });
+      let crossingState = null;
+      if (side === "east" || side === "west") {
+        const key = side === "east" ? "ArrowRight" : "ArrowLeft";
+        await page.evaluate((direction) => {
+          const atlas = window.Atlas.atlas;
+          const p = atlas.player;
+          const x = direction === "east" ? atlas.map.width - 0.2 : 0.2;
+          const y = atlas.map.height - 1.9;
+          p.platformer.x = p.x = p.tx = p.rx = p.prx = x;
+          p.platformer.y = p.y = p.ty = p.ry = p.pry = y;
+          p.platformer.vx = direction === "east" ? 3 : -3;
+          p.platformer.vy = 0;
+          p.platformer.grounded = true;
+        }, side);
+        await page.keyboard.down(key);
+        crossingState = await page.evaluate((expectedMapId) => new Promise((resolve, reject) => {
+          let frames = 0;
+          const tick = () => {
+            const atlas = window.Atlas.atlas;
+            const body = atlas.player.platformer;
+            if (window.RPGATLAS_CAPTURE_STATE().mapId === expectedMapId && Math.abs(body.vx) > 0.01) {
+              resolve({ x: body.x, y: body.y, vx: body.vx, vy: body.vy });
+              return;
+            }
+            if (++frames > 600) {
+              reject(new Error("Timed out waiting for a moving platformer seam arrival"));
+              return;
+            }
+            requestAnimationFrame(tick);
+          };
+          tick();
+        }), target);
+        await page.keyboard.up(key);
+      } else {
+        await page.evaluate((direction) => {
+          const atlas = window.Atlas.atlas;
+          const p = atlas.player;
+          const h = atlas.map.height;
+          p.platformer.x = p.x = p.tx = p.rx = p.prx = 1;
+          p.platformer.y = p.y = p.ty = p.ry = p.pry = direction === "north" ? -0.95 : h + 0.05;
+          p.platformer.vx = 0;
+          p.platformer.vy = direction === "north" ? -3 : 3;
+        }, side);
+        await waitFrames(page, 12);
+      }
+      await expect.poll(() => page.evaluate(() => ({
+        mapId: window.RPGATLAS_CAPTURE_STATE().mapId,
+        x: window.Atlas.atlas.player.platformer.x,
+        y: window.Atlas.atlas.player.platformer.y,
+      }))).toMatchObject({ mapId: target });
+      const arrived = crossingState || await page.evaluate(() => ({
+          x: window.Atlas.atlas.player.platformer.x,
+          y: window.Atlas.atlas.player.platformer.y,
+          vx: window.Atlas.atlas.player.platformer.vx,
+          vy: window.Atlas.atlas.player.platformer.vy,
+        }));
+      expect(arrived.x).toBeGreaterThanOrEqual(0);
+      expect(arrived.y).toBeGreaterThanOrEqual(0);
+      expect(arrived.vx !== 0 || arrived.vy !== 0).toBe(true);
+    });
+  }
+
+  test("blocks a connected crossing when the destination footprint is solid", async ({ page }) => {
+    await gotoWithAtlasQuest(page, "/play.html?playtest=platformer", {
+      transformProject: (project) => connectedPlatformerProject(project, "east", { blocked: true }),
+    });
+    await expect(page.getByText("New Game", { exact: true })).toBeVisible();
+    await page.getByText("New Game", { exact: true }).click();
+    await expect.poll(() => page.evaluate(() => window.Atlas?.atlas?.scene)).toBe("map");
+
+    const start = await page.evaluate(() => window.Atlas.atlas.project.system.startMapId);
+    await page.evaluate(() => {
+      const atlas = window.Atlas.atlas;
+      const p = atlas.player;
+      p.platformer.x = p.x = p.tx = p.rx = p.prx = atlas.map.width - 0.2;
+      p.platformer.y = p.y = p.ty = p.ry = p.pry = atlas.map.height - 1.9;
+      p.platformer.vx = 3;
+      p.platformer.vy = 0;
+      p.platformer.grounded = true;
+    });
+    await page.keyboard.down("ArrowRight");
+    await waitFrames(page, 12);
+    await page.keyboard.up("ArrowRight");
+    const blocked = await page.evaluate(() => ({
+      mapId: window.RPGATLAS_CAPTURE_STATE().mapId,
+      x: window.Atlas.atlas.player.platformer.x,
+      vx: window.Atlas.atlas.player.platformer.vx,
+    }));
+    expect(blocked.mapId).toBe(start);
+    expect(blocked.x).toBeLessThanOrEqual(8 - 0.7 + 0.0001);
+    expect(blocked.vx).toBe(0);
+  });
+
   test("launches in Canvas side-on mode and supports continuous movement and jump", async ({ page }) => {
     await startGame(page, { goal: false });
     await expect.poll(() => page.evaluate(() => ({

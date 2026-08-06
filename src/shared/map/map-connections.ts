@@ -16,6 +16,10 @@ export interface BoundaryCrossing {
   fromMapId: number; toMapId: number; fromSide: MapSide; toSide: MapSide;
   fromX: number; fromY: number; toX: number; toY: number;
 }
+/** Continuous equivalent of BoundaryCrossing used by bodies whose position
+ * is expressed in fractional tile coordinates. `fromX/fromY` and `toX/toY`
+ * are the body's top-left coordinates, not a discrete tile. */
+export type ContinuousBoundaryCrossing = BoundaryCrossing;
 export interface MapConnectionSegment { x1: number; y1: number; x2: number; y2: number; }
 export interface CameraBounds { minX: number; minY: number; maxX: number; maxY: number; }
 export interface LayoutIssue {
@@ -164,6 +168,65 @@ export function resolveBoundaryCrossing(
       return { fromMapId: from.id, toMapId: target.id, fromSide: side,
         toSide: opposite(side), fromX: x, fromY: y, toX: tx, toY: ty };
     }
+  }
+  return null;
+}
+
+function sideData(connection: MapConnection, mapId: number): { side: MapSide; start: number; length: number } | null {
+  if (connection.aMapId === mapId) return { side: connection.aSide, start: connection.aStart, length: connection.length };
+  if (connection.bMapId === mapId) return { side: connection.bSide, start: connection.bStart, length: connection.length };
+  return null;
+}
+
+/** Resolve a fractional body that has fully entered a touching map. The
+ * returned destination coordinates preserve the body's world-space position;
+ * the caller remains responsible for checking destination collision details. */
+export function resolveContinuousBoundaryCrossing(
+  maps: any[], fromMapId: number, x: number, y: number, width: number, height: number,
+): ContinuousBoundaryCrossing | null {
+  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  const list = Array.isArray(maps) ? maps : [];
+  const from = list.find((m) => Number(m.id) === Number(fromMapId));
+  const fromRect = rect(from);
+  if (!from || !fromRect) return null;
+  const bodyWorld = { x: fromRect.x + x, y: fromRect.y + y };
+  const bodyRight = bodyWorld.x + width, bodyBottom = bodyWorld.y + height;
+  const epsilon = 1e-6;
+
+  for (const connection of deriveConnections(list)) {
+    const data = sideData(connection, from.id);
+    if (!data) continue;
+    const targetId = connection.aMapId === from.id ? connection.bMapId : connection.aMapId;
+    const target = list.find((m) => Number(m.id) === Number(targetId));
+    const targetRect = rect(target);
+    if (!target || !targetRect) continue;
+
+    const seamStart = data.side === "east" || data.side === "west"
+      ? fromRect.y + data.start : fromRect.x + data.start;
+    const seamEnd = seamStart + data.length;
+    const seamOverlap = data.side === "east" || data.side === "west"
+      ? Math.min(bodyBottom, seamEnd) - Math.max(bodyWorld.y, seamStart)
+      : Math.min(bodyRight, seamEnd) - Math.max(bodyWorld.x, seamStart);
+    if (seamOverlap <= epsilon) continue;
+
+    const crossed = data.side === "east"
+      ? x >= from.width - epsilon
+      : data.side === "west"
+        ? x + width <= epsilon
+        : data.side === "south"
+          ? y >= from.height - epsilon
+          : y + height <= epsilon;
+    if (!crossed) continue;
+
+    const toX = bodyWorld.x - targetRect.x, toY = bodyWorld.y - targetRect.y;
+    // A fast-moving body must still intersect the destination rectangle. The
+    // normal solver never leaps this far, but this guard keeps malformed or
+    // custom physics settings from teleporting across an unrelated map.
+    if (toX + width <= 0 || toY + height <= 0 || toX >= target.width || toY >= target.height) continue;
+    return {
+      fromMapId: from.id, toMapId: target.id, fromSide: data.side,
+      toSide: opposite(data.side), fromX: x, fromY: y, toX, toY,
+    };
   }
   return null;
 }

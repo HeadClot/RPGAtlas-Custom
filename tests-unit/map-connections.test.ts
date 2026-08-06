@@ -4,6 +4,7 @@ import {
   clampCameraAxis,
   connectedCameraBounds,
   deriveConnections,
+  resolveContinuousBoundaryCrossing,
   resolveBoundaryCrossing,
   validateLayout,
   localToWorld,
@@ -42,6 +43,29 @@ describe("map connection geometry", () => {
       fromMapId: 1, toMapId: 2, toX: 0, toY: 0, fromSide: "east", toSide: "west",
     });
     expect(resolveBoundaryCrossing(maps, 1, 3, 0, 1, 0)).toBeNull();
+  });
+
+  it("resolves fractional bodies across every cardinal seam", () => {
+    const east = resolveContinuousBoundaryCrossing([map(1, 0, 0), map(2, 4, 0)], 1, 4.1, 1.2, 0.7, 0.9);
+    expect(east).toMatchObject({ fromSide: "east", toMapId: 2, toY: 1.2 });
+    expect(east?.toX).toBeCloseTo(0.1);
+    const west = resolveContinuousBoundaryCrossing([map(1, 0, 0), map(2, -4, 0)], 1, -0.8, 1.2, 0.7, 0.9);
+    expect(west).toMatchObject({ fromSide: "west", toMapId: 2, toY: 1.2 });
+    expect(west?.toX).toBeCloseTo(3.2);
+    const north = resolveContinuousBoundaryCrossing([map(1, 0, 0), map(2, 0, -3)], 1, 1.2, -0.95, 0.7, 0.9);
+    expect(north).toMatchObject({ fromSide: "north", toMapId: 2, toX: 1.2 });
+    expect(north?.toY).toBeCloseTo(2.05);
+    const south = resolveContinuousBoundaryCrossing([map(1, 0, 0), map(2, 0, 3)], 1, 1.2, 3.05, 0.7, 0.9);
+    expect(south).toMatchObject({ fromSide: "south", toMapId: 2, toX: 1.2 });
+    expect(south?.toY).toBeCloseTo(0.05);
+  });
+
+  it("requires body overlap with a seam and rejects gaps or looped edges", () => {
+    expect(resolveContinuousBoundaryCrossing([map(1, 0, 0), map(2, 4, 3)], 1, 4.1, 2.1, 0.7, 0.9)).toBeNull();
+    expect(resolveContinuousBoundaryCrossing([map(1, 0, 0), map(2, 5, 0)], 1, 4.1, 1.2, 0.7, 0.9)).toBeNull();
+    expect(resolveContinuousBoundaryCrossing([
+      map(1, 0, 0, 4, 3, { loop: { h: true } }), map(2, 4, 0),
+    ], 1, 4.1, 1.2, 0.7, 0.9)).toBeNull();
   });
 
   it("rejects overlaps and looped connection edges", () => {

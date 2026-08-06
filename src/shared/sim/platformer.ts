@@ -11,6 +11,10 @@ export const PLATFORMER_COLLISION = {
 
 export type PlatformerCollisionKind = 0 | 1 | 2 | 3;
 
+// Number.EPSILON is too small to exclude a merely touching cell at ordinary
+// tile coordinates (for example, a body resting at y = 4.1 on a floor at y=5).
+const COLLISION_EPSILON = 1e-7;
+
 export interface PlatformerSettings {
   maxRunSpeed: number;
   groundAcceleration: number;
@@ -67,6 +71,9 @@ export interface PlatformerInput {
 export interface PlatformerCollisionWorld {
   width: number;
   height: number;
+  /** The callback is authoritative for coordinates outside the active map.
+   * Bounded worlds should return EMPTY for the fall region and SOLID for their
+   * side/top walls, while connected worlds may resolve neighboring tiles. */
   kindAt(x: number, y: number): PlatformerCollisionKind;
 }
 
@@ -120,17 +127,15 @@ function overlaps(aMin: number, aMax: number, bMin: number, bMax: number): boole
 }
 
 function solidAt(world: PlatformerCollisionWorld, x: number, y: number): boolean {
-  if (x < 0 || y < 0 || x >= world.width || y >= world.height) return false;
   return world.kindAt(x, y) === PLATFORMER_COLLISION.SOLID;
 }
 
 function oneWayAt(world: PlatformerCollisionWorld, x: number, y: number): boolean {
-  if (x < 0 || y < 0 || x >= world.width || y >= world.height) return false;
   return world.kindAt(x, y) === PLATFORMER_COLLISION.ONE_WAY;
 }
 
 function cellRange(min: number, max: number): [number, number] {
-  return [Math.floor(min), Math.floor(Math.max(min, max - Number.EPSILON))];
+  return [Math.floor(min), Math.floor(Math.max(min, max - COLLISION_EPSILON))];
 }
 
 export function stepPlatformerBody(
@@ -180,7 +185,7 @@ export function stepPlatformerBody(
   const [minY, maxY] = cellRange(body.y, body.y + body.height);
   if (body.vx > 0) {
     const right = nextX + body.width;
-    const cellX = Math.floor(right - Number.EPSILON);
+    const cellX = Math.floor(right - COLLISION_EPSILON);
     for (let y = minY; y <= maxY; y++) {
       if (solidAt(world, cellX, y) && overlaps(body.y, body.y + body.height, y, y + 1)) {
         body.x = cellX - body.width;
@@ -211,7 +216,7 @@ export function stepPlatformerBody(
     const [minX, maxX] = cellRange(body.x, body.x + body.width);
     let landingY = Infinity;
     for (let x = minX; x <= maxX; x++) {
-      for (let y = Math.floor(previousBottom - Number.EPSILON); y <= Math.floor(bottom - Number.EPSILON); y++) {
+      for (let y = Math.floor(previousBottom - COLLISION_EPSILON); y <= Math.floor(bottom - COLLISION_EPSILON); y++) {
         const solid = solidAt(world, x, y);
         const oneWay = body.dropThroughFrames === 0 && oneWayAt(world, x, y);
         if ((solid || oneWay) && previousBottom <= y + 0.001 && bottom >= y && overlaps(body.x, body.x + body.width, x, x + 1)) {

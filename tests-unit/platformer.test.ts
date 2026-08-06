@@ -14,7 +14,13 @@ function world(rows: string[]) {
   const cells: PlatformerCollisionKind[] = rows.join("").split("").map((c) =>
     c === "#" ? PLATFORMER_COLLISION.SOLID : c === "-" ? PLATFORMER_COLLISION.ONE_WAY : PLATFORMER_COLLISION.EMPTY,
   );
-  return { width, height, kindAt: (x: number, y: number) => cells[y * width + x] || PLATFORMER_COLLISION.EMPTY };
+  return {
+    width,
+    height,
+    kindAt: (x: number, y: number) => x < 0 || y < 0 || x >= width || y >= height
+      ? PLATFORMER_COLLISION.EMPTY
+      : cells[y * width + x] || PLATFORMER_COLLISION.EMPTY,
+  };
 }
 
 const idle = { axis: 0 as const, jumpPressed: false, jumpHeld: false, downHeld: false };
@@ -89,6 +95,34 @@ describe("platformer simulation", () => {
     falling.grounded = true;
     stepPlatformerBody(falling, { ...idle, jumpPressed: true, jumpHeld: false, downHeld: true }, w);
     expect(falling.grounded).toBe(false);
+  });
+
+  it("lets an out-of-bounds collision callback provide a connected neighbor", () => {
+    const connected = {
+      width: 4,
+      height: 3,
+      kindAt: (x: number, y: number): PlatformerCollisionKind => {
+        if (x < 0 || x >= 8 || y < 0) return PLATFORMER_COLLISION.SOLID;
+        return PLATFORMER_COLLISION.EMPTY;
+      },
+    };
+    const body = createPlatformerBody(3.3, 0.5);
+    body.vx = 5;
+    stepPlatformerBody(body, { ...idle, axis: 1 }, connected);
+    expect(body.x).toBeGreaterThan(3.3);
+    expect(body.x).toBeLessThan(4.5);
+
+    const bounded = {
+      width: 4,
+      height: 3,
+      kindAt: (x: number, y: number): PlatformerCollisionKind =>
+        x >= 4 || x < 0 || y < 0 ? PLATFORMER_COLLISION.SOLID : PLATFORMER_COLLISION.EMPTY,
+    };
+    const blocked = createPlatformerBody(3.3, 0.5);
+    blocked.vx = 5;
+    stepPlatformerBody(blocked, { ...idle, axis: 1 }, bounded);
+    expect(blocked.x).toBe(3.3);
+    expect(blocked.vx).toBe(0);
   });
 
   it("reports falls and resets deterministically at a checkpoint", () => {

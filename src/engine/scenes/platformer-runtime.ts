@@ -8,12 +8,19 @@ import { Assets } from "../../shared/deps.js";
 import { isAutotileId, autotilePassable } from "../../shared/map/autotile-registry.js";
 import { tileId } from "../../shared/map/tile-flags.js";
 import {
+  deriveConnections,
+  resolveContinuousBoundaryCrossing,
+  worldToLocal,
+  type ContinuousBoundaryCrossing,
+} from "../../shared/map/map-connections.js";
+import {
   DEFAULT_PLATFORMER_SETTINGS,
   PLATFORMER_COLLISION,
   createPlatformerBody,
   respawnPlatformerBody,
   stepPlatformerBody,
   type PlatformerBody,
+  type PlatformerCollisionWorld,
   type PlatformerInput,
   type PlatformerCollisionKind,
 } from "../../shared/sim/platformer.js";
@@ -28,8 +35,7 @@ export function platformerSettings(): any {
   return { ...DEFAULT_PLATFORMER_SETTINGS, ...(ctx.proj?.system?.platformer || {}) };
 }
 
-function tilePassableAt(x: number, y: number): boolean {
-  const m = ctx.map;
+function tilePassableAt(m: any, x: number, y: number): boolean {
   if (!m || x < 0 || y < 0 || x >= m.width || y >= m.height) return false;
   const i = y * m.width + x;
   const pass = (raw: number) => {
@@ -44,15 +50,63 @@ function tilePassableAt(x: number, y: number): boolean {
   return d2 ? pass(d2) : d ? pass(d) : pass(g);
 }
 
+function collisionKindAtMap(m: any, x: number, y: number): PlatformerCollisionKind {
+  if (!m) return PLATFORMER_COLLISION.SOLID;
+  if (x < 0 || y < 0 || x >= m.width || y >= m.height) return PLATFORMER_COLLISION.EMPTY;
+  const override = Number(m.platformerCollision?.[y * m.width + x]) || 0;
+  if (override === PLATFORMER_COLLISION.SOLID || override === PLATFORMER_COLLISION.EMPTY || override === PLATFORMER_COLLISION.ONE_WAY) return override;
+  return tilePassableAt(m, x, y) ? PLATFORMER_COLLISION.EMPTY : PLATFORMER_COLLISION.SOLID;
+}
+
 function collisionKindAt(x: number, y: number): PlatformerCollisionKind {
   const m = ctx.map;
   if (!m) return PLATFORMER_COLLISION.SOLID;
   if (x < 0 || x >= m.width) return PLATFORMER_COLLISION.SOLID;
   if (y < 0) return PLATFORMER_COLLISION.SOLID;
   if (y >= m.height) return PLATFORMER_COLLISION.EMPTY;
-  const override = Number(m.platformerCollision?.[y * m.width + x]) || 0;
-  if (override === PLATFORMER_COLLISION.SOLID || override === PLATFORMER_COLLISION.EMPTY || override === PLATFORMER_COLLISION.ONE_WAY) return override;
-  return tilePassableAt(x, y) ? PLATFORMER_COLLISION.EMPTY : PLATFORMER_COLLISION.SOLID;
+  return collisionKindAtMap(m, x, y);
+}
+
+function connectedNeighbors(active: any): any[] {
+  if (!ctx.proj || !active?.worldOrigin) return [];
+  const ids = new Set<number>();
+  for (const connection of deriveConnections(ctx.proj.maps || [])) {
+    if (connection.aMapId === active.id) ids.add(connection.bMapId);
+    if (connection.bMapId === active.id) ids.add(connection.aMapId);
+  }
+  return (ctx.proj.maps || []).filter((map: any) => ids.has(Number(map.id)) && map.worldOrigin);
+}
+
+function connectedCollisionWorld(): PlatformerCollisionWorld {
+  const active = ctx.map;
+  const neighbors = connectedNeighbors(active);
+  const origin = active?.worldOrigin;
+  let height = Number(active?.height) || 0;
+  if (origin) {
+    for (const neighbor of neighbors) {
+      if (!neighbor.worldOrigin) continue;
+      height = Math.max(height, neighbor.worldOrigin.y - origin.y + Number(neighbor.height || 0));
+    }
+  }
+  return {
+    width: Number(active?.width) || 0,
+    height,
+    kindAt(x: number, y: number): PlatformerCollisionKind {
+      if (!active) return PLATFORMER_COLLISION.SOLID;
+      if (x >= 0 && y >= 0 && x < active.width && y < active.height) return collisionKindAtMap(active, x, y);
+      if (origin) {
+        const wx = origin.x + x, wy = origin.y + y;
+        for (const neighbor of neighbors) {
+          const local = worldToLocal(neighbor, wx, wy);
+          if (local) return collisionKindAtMap(neighbor, local.x, local.y);
+        }
+      }
+      // Preserve the platformer's existing wall/top/fall semantics when no
+      // connected map owns the queried cell.
+      if (x < 0 || x >= active.width || y < 0) return PLATFORMER_COLLISION.SOLID;
+      return PLATFORMER_COLLISION.EMPTY;
+    },
+  };
 }
 
 function bodyOf(ent: any): PlatformerBody {
@@ -88,17 +142,31 @@ export function ensurePlatformerPlayer(): void {
   syncEntity(p, body);
 }
 
-export function platformerPlayerInput(input: PlatformerInput): { fell: boolean; landed: boolean } {
-  if (!platformerEnabled() || !G.player) return { fell: false, landed: false };
+export function platformerPlayerInput(input: PlatformerInput): { fell: boolean; landed: boolean; crossing: ContinuousBoundaryCrossing | null } {
+  if (!platformerEnabled() || !G.player) return { fell: false, landed: false, crossing: null };
   const p = G.player;
   const body = bodyOf(p);
-  const result = stepPlatformerBody(body, input, {
-    width: Number(ctx.map?.width) || 0,
-    height: Number(ctx.map?.height) || 0,
-    kindAt: collisionKindAt,
-  }, platformerSettings());
+  const result = stepPlatformerBody(body, input, connectedCollisionWorld(), platformerSettings());
+  const crossing = ctx.proj?.maps
+    ? resolveContinuousBoundaryCrossing(ctx.proj.maps, G.mapId, body.x, body.y, body.width, body.height)
+    : null;
   syncEntity(p, body);
-  return result;
+  return { ...result, crossing };
+}
+
+/** Validate a body placement against the currently active map. One-way tiles
+ * are intentionally allowed here; the solver will resolve their vertical
+ * landing on the next tick. */
+export function platformerBodyFitsAt(x: number, y: number): boolean {
+  const m = ctx.map, body = G.player?.platformer;
+  if (!m || !body || x < 0 || y < 0 || x + body.width > m.width || y + body.height > m.height) return false;
+  const footprintEpsilon = 1e-7;
+  const x0 = Math.floor(x), x1 = Math.floor(x + body.width - footprintEpsilon);
+  const y0 = Math.floor(y), y1 = Math.floor(y + body.height - footprintEpsilon);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    if (collisionKindAtMap(m, tx, ty) === PLATFORMER_COLLISION.SOLID) return false;
+  }
+  return true;
 }
 
 export function platformerPlayerGrounded(): boolean {
