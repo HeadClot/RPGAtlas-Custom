@@ -9,8 +9,9 @@ import { DEFAULT_WORLD_LIMITS } from "../server/src/core/config";
 const project: any = {
   system: { startMapId: 1, startX: 1, startY: 1, startDir: "down" },
   attackProfiles: [{ id: 1, name: "Practice slash", damage: 4, windupFrames: 0, activeFrames: 1, recoveryFrames: 0, range: 1 }],
-  classes: [{ id: 1, base: { mhp: 20, atk: 1 } }],
+  classes: [{ id: 1, base: { mhp: 20, atk: 1 }, actionCombat: { hotbar: [{ kind: "item", id: 2 }] } }],
   actors: [{ id: 1, name: "Hero", classId: 1, combat: { profileId: 1 } }],
+  items: [{ id: 2, name: "Potion", hp: 10, actionCombat: { enabled: true, targetMode: "self", cooldownFrames: 9 } }],
   enemies: [{ id: 1, name: "Slime", stats: { mhp: 4, def: 0 }, actionCombat: { profileId: 1, hp: 4, touchDamage: 0, persistentDefeat: true, defeatSelfSwitch: "A" } }],
   maps: [{
     id: 1, width: 8, height: 8, layers: { ground: new Array(64).fill(1) },
@@ -71,5 +72,17 @@ describe("Cloudflare action-combat simulation adapter", () => {
     expect(second.eventStates()[0].combat?.dead).toBe(true);
     expect(second.world.roster.players.get(9)).toMatchObject({ hp: 0, revive: 60, combat: { dead: true } });
     second.stop();
+  });
+
+  it("routes an item hotbar action without requiring an authority-side bag", () => {
+    const z = new Zone(1, project, outbox(), { limits: DEFAULT_WORLD_LIMITS, runtimeFactory: createCloudActionCombatRuntime });
+    z.admit(1, "Riko", "", 1, 1, 2, false);
+    z.frame(1, { t: "input", seq: 1, intent: { k: "ability", slot: 0 } });
+    expect(z.world.roster.players.get(1)!.combat).toMatchObject({
+      activeAbilityId: 2,
+      activeAbilityKind: "item",
+      resourceCooldowns: { "item:2": 9 },
+    });
+    z.stop();
   });
 });

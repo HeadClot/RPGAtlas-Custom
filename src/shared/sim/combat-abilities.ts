@@ -164,14 +164,19 @@ export function tickActionCooldowns(resources: ActionResources): void {
 
 /** Target selection is deterministic: ties keep source order. */
 export function selectActionTargets(
-  source: { x: number; y: number; team?: string },
+  source: { id?: number | string; x: number; y: number; team?: string },
   candidates: ActionTarget[],
   mode: ActionTargetMode,
   range = 1,
 ): ActionTarget[] {
   const distance = (target: ActionTarget) => Math.abs(target.x - source.x) + Math.abs(target.y - source.y);
+  if (mode === "self") {
+    const matching = source.id == null
+      ? candidates.find((target) => target.x === source.x && target.y === source.y && target.team === source.team)
+      : candidates.find((target) => target.id === source.id);
+    return matching ? [matching] : source.id == null ? [] : [{ id: source.id, x: source.x, y: source.y, team: source.team }];
+  }
   const valid = candidates.filter((target) => !target.dead && (target.x !== source.x || target.y !== source.y));
-  if (mode === "self") return [];
   if (mode === "allEnemies") return valid.filter((target) => target.team !== source.team);
   if (mode === "allAllies") return candidates.filter((target) => target.team === source.team && !target.dead);
   const pool = mode === "nearestAlly" ? valid.filter((target) => target.team === source.team) : valid.filter((target) => target.team !== source.team);

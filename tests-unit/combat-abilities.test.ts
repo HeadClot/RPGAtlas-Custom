@@ -42,8 +42,9 @@ describe("shared Action Combat abilities", () => {
   });
 
   it("selects deterministic nearest/radius targets", () => {
-    const source = { x: 2, y: 2, team: "ally" };
-    const targets = [{ id: 1, x: 3, y: 2, team: "enemy" }, { id: 2, x: 4, y: 2, team: "enemy" }, { id: 3, x: 2, y: 3, team: "ally" }];
+    const source = { id: 99, x: 2, y: 2, team: "ally" };
+    const targets = [{ id: 99, x: 2, y: 2, team: "ally" }, { id: 1, x: 3, y: 2, team: "enemy" }, { id: 2, x: 4, y: 2, team: "enemy" }, { id: 3, x: 2, y: 3, team: "ally" }];
+    expect(selectActionTargets(source, targets, "self")[0].id).toBe(99);
     expect(selectActionTargets(source, targets, "nearestEnemy", 3)[0].id).toBe(1);
     expect(selectActionTargets(source, targets, "radius", 2).map((target) => target.id)).toEqual([1, 2]);
   });
