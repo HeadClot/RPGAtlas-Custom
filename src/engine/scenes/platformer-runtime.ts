@@ -20,8 +20,6 @@ import {
 import { ctx } from "../state/engine-context.js";
 import { G } from "../state/game-state.js";
 
-const TILE = Assets.TILE;
-
 export function platformerEnabled(): boolean {
   return ctx.proj?.system?.gameMode === "platformer";
 }
