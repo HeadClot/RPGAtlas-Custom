@@ -1,8 +1,8 @@
 /* RPGAtlas — src/shared/project/recents.ts
    Recent-projects registry logic (Project Harbor, Phase H1·C). The on-disk file is
-   <app-config>/projects.json (a JSON array of {name, path, lastOpened}); Rust stores
+   <app-config>/projects.json (a JSON array of {name, path, lastOpened}); the native host stores
    canonicalized absolute paths, so equality here is exact string comparison. These
-   rules are implemented identically in the Rust commands and this core — the spec is
+   rules are implemented identically in the native host and this core — the spec is
    the single source of truth. Pure, env=node (trap 3). docs/harbor-1-spec.md §5.2.
    GPL-3.0-or-later (see LICENSE). */
 

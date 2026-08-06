@@ -1,6 +1,6 @@
 /* RPGAtlas — src/editor/tools/assets/asset-browser.ts
    The Asset Browser modal (Phase 6 Stage B): the management surface for the
-   device asset library (src/shared/assets/asset-library.ts over IndexedDB / Tauri
+   device asset library (src/shared/assets/asset-library.ts over IndexedDB / Electrobun
    FS). Type rail + search + tag filters + used/unused audit over a thumbnail
    grid; drag-drop / file-picker imports; per-asset preview, rename (with
    project-wide reference rewriting), tag editing, file export, and delete

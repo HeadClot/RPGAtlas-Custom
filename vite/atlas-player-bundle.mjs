@@ -11,7 +11,7 @@
    - dev:  a middleware serves /__atlas/player-bundle.js, bundling on demand so
            exports produced from `npm run dev` always reflect the latest source.
    - build: emits player-bundle.js into dist/ from the same esbuild invocation,
-           so exports produced from a built/preview/Tauri app work identically.
+           so exports produced from a built/preview/Electrobun app work identically.
 
    esbuild is used directly (it is already a transitive dependency of Vite, and
    is declared as an explicit devDependency in package.json). IIFE + no minify

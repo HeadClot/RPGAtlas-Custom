@@ -31,7 +31,7 @@ export function refreshLocalizedChrome() {
   else saveIndicator.textContent = "✓ " + t("saved");
 }
 // Editor UI font scale (Phase 7 Stage B): a device setting like the locale.
-// Chromium (the browser target and the Tauri shell) scales the whole px-based
+// Chromium (the browser target and the Electrobun shell) scales the whole px-based
 // chrome cleanly via zoom; unsupported engines simply ignore the property.
 export const EDITOR_FONT_SCALE_KEY = "rpgatlas_editor_font_scale";
 const FONT_SCALE_CHOICES: Array<[string, number]> = [

@@ -6,11 +6,12 @@ use the commands below; for the system map, read [`architectural_overview.md`](a
 
 ## Local development
 
-RPGAtlas uses Node.js 20 or newer for the main toolchain. From the repository root:
+RPGAtlas uses Bun 1.3.14 for the main toolchain and Node.js 24 for compatibility-sensitive checks.
+From the repository root:
 
 ```sh
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 The Vite server serves `index.html` (editor) and `play.html` (player). The Windows launcher can
@@ -19,24 +20,24 @@ also start the dev server automatically from a source checkout.
 ## Verification commands
 
 ```sh
-npm run typecheck
-npm run lint
-npm run test:unit
-npm run test:net
-npm run test:e2e
-npm run build
-npm run docs:build
-npm run docs:check
+bun run typecheck
+bun run lint
+bun run test:unit
+bun run test:net
+bun run test:e2e
+bun run build
+bun run docs:build
+bun run docs:check
 ```
 
-Use `npm run test:unit -- tests-unit/tutorials.test.ts tests-unit/md-render.test.ts` for a fast
+Use `bun run test:unit -- tests-unit/tutorials.test.ts tests-unit/md-render.test.ts` for a fast
 documentation-focused check. The Beacon server has its own target checks:
 
 ```sh
 cd server
-npm install
-npm run typecheck
-npm run build
+bun install
+bun run typecheck
+bun run build
 ```
 
 ## Source map
@@ -48,11 +49,11 @@ npm run build
 - `src/shared/` — stable contract primitives plus feature groups for project persistence, maps,
   assets, audio, events, presentation, networking protocol, and deterministic simulation.
 - `src/renderer/` — Three.js HD-2D renderer and render planning.
-- `src/platform/` — browser storage plus Tauri project and asset adapters.
+- `src/platform/` — browser storage plus Electrobun project and asset adapters.
 - `js/` — compatibility globals, procedural assets/audio/data, legacy project I/O, and standalone
   export assembly.
 - `server/src/` — Beacon's shared-authority Node and Cloudflare server targets.
-- `src-tauri/` — native desktop host, project-folder commands, and packaged playtest window.
+- `src/electrobun/` — native desktop host entrypoint, staged frontend bridge, and packaged playtest window.
 - `scripts/` — staging, docs generation, fixtures, demos, and packaging.
 - `tests-unit/` and `tests-e2e/` — pure-core/unit tests and browser coverage.
 
@@ -61,8 +62,8 @@ npm run build
 The Markdown files under `wiki/` are canonical. After editing them:
 
 ```sh
-npm run docs:build
-npm run docs:check
+bun run docs:build
+bun run docs:check
 ```
 
 `docs-site/` is committed because it is ready to serve from GitHub Pages, but its HTML and CSS
@@ -74,7 +75,7 @@ the wiki and `server/README.md`.
 
 The dated `phase-*`, `mp-*`, `mig-*`, and `harbor-*` documents record the design and implementation
 history of completed work. They are not the current user manual. Current behavior belongs in the
-wiki, this contributor guide, the architecture overview, or the specialized server/Tauri READMEs.
+wiki, this contributor guide, the architecture overview, or the specialized server/Electrobun desktop guide.
 
 ## Contribution conventions
 

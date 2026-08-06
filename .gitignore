@@ -1,11 +1,9 @@
-# Node / Tauri desktop wrapper
+# Node / Electrobun desktop wrapper
 node_modules/
-src-tauri/target/
-src-tauri/dist/
-src-tauri/gen/
+build/electrobun/
+artifacts/electrobun/
 # per-game native packaging stage (scripts/package-game-exe.mjs)
-src-tauri/game-dist/
-src-tauri/game.conf.json
+build/electrobun-game/
 
 # Build artifacts
 *.log

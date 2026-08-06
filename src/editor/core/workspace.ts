@@ -123,9 +123,9 @@ act("open", { label: "Open Project (.json)…", icon: "open", tip: "Open / impor
 act("import-rm", { label: "Import from RPG Maker…", tip: "Bring your own RPG Maker MV or MZ game into RPGAtlas", run: openRmImportWizard });
 act("import-report", { label: "Import Report", tip: "Reopen the report from your last RPG Maker import", enabled: hasImportReport, run: openSavedImportReport });
 act("save", { label: "Save Project", icon: "save", key: "Ctrl+S",
-  tip: host.isTauri ? "Save your game to its folder now" : "Save the project to this browser now",
+  tip: host.isDesktop ? "Save your game to its folder now" : "Save the project to this browser now",
   run() {
-    if (host.isTauri) { desktopFlush(); return; } // H3·A: flush to <root>/game.rpgatlas
+    if (host.isDesktop) { desktopFlush(); return; } // H3·A: flush to <root>/game.rpgatlas
     saveNow();
     flashStatus("Project saved to this browser — use File ▸ Export for a backup file");
   } });
@@ -135,13 +135,13 @@ act("play", { label: "Playtest", icon: "play", key: "F5", tip: "Save and run the
   // Project Harbor H3·C: the playtest bridge stays the proven SAME-ORIGIN localStorage
   // handoff. saveNow() writes the mirror (rpgatlas_project) FIRST, synchronously — even
   // now that desktop autosave also targets the project folder — so play.html reads the
-  // latest edits, in the browser AND across the Tauri editor/playtest windows. The
+  // latest edits, in the browser AND across the Electrobun editor/playtest windows. The
   // playtest window is pre-built and reused (open_playtest navigates it from its idle
   // parking page to play.html, or reloads if already there; close parks it back idle);
   // we never build a window from a command (trap 2). saves/ slots stay in browser
   // storage for 2.0.0.
   saveNow();
-  if (host.isTauri) {
+  if (host.isDesktop) {
     host.openPlaytest().catch((e: any) => alert("Could not open play-test window: " + ((e && e.message) || e)));
   } else {
     window.open(playtestUrl(), "rpgatlas_play");
@@ -149,7 +149,7 @@ act("play", { label: "Playtest", icon: "play", key: "F5", tip: "Save and run the
 } });
 // Project Harbor H6·B: a gentle "project folders live in the desktop app" note in the
 // browser build's File menu. Registered ONLY on the pure browser build (never under
-// isTauri or the ?fakehost hook — managerActive() covers both), so desktop users, whose
+// isDesktop or the ?fakehost hook — managerActive() covers both), so desktop users, whose
 // games already live in folders, never see it, and the fakehost e2e menus are unchanged.
 if (!managerActive()) {
   act("desktop-folders", {

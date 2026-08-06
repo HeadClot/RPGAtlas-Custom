@@ -2296,3 +2296,54 @@ PATCH_NOTES.push({
     "Updated wiki navigation and authoring guidance while keeping the wiki Markdown as the source for the generated documentation site.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T06:31:49-06:00",
+  title: "Bun-first development toolchain",
+  summary:
+    "RPGAtlas now uses Bun 1.3.14 for locked installs, development scripts, CI, and Cloudflare tooling while preserving Node compatibility paths.",
+  items: [
+    "Added pinned root and Beacon Bun lockfiles, hoisted installation configuration, and locked Wrangler tooling.",
+    "Updated contributor, server, desktop, tutorial, and CI commands to use bun and bunx.",
+    "Kept the legacy node --test suite, Tauri staging hooks, and Beacon production entrypoint on Node.js with explicit compatibility checks.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T07:20:38-06:00",
+  title: "Electrobun desktop host",
+  summary:
+    "Replaced the Rust/Tauri desktop stack with a Bun and Electrobun 1.18.1 host while preserving browser, project-folder, asset, dialog, playtest, and native export workflows.",
+  items: [
+    "Added typed Electrobun RPC, native project and asset services, authenticated single-instance forwarding, launch-path handling, and .rpgatlas association helpers.",
+    "Kept the browser and ?fakehost paths independent of the desktop bridge and preserved the reusable native playtest window workflow.",
+    "Updated staging, packaging, the root RPGAtlas-Desktop.exe rebuild, desktop documentation, and focused native contract tests.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T13:50:00-06:00",
+  title: "Windows relative launch paths",
+  summary:
+    "Electrobun now resolves relative project arguments with Windows path semantics when launched from a Windows working directory.",
+  items: [
+    "Opening a relative .rpgatlas path from the desktop host now preserves the drive and separator format.",
+    "Absolute Windows, UNC, and POSIX launch paths remain accepted without host-platform rewriting.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T16:20:00-06:00",
+  title: "Stabler launch and renderer checks",
+  summary:
+    "Updated the end-to-end checks for the Bun-first toolchain, single-instance project launches, and deterministic HD-2D point-light shadows.",
+  items: [
+    "The Detailed Tutorials check now follows the Bun build command shown to creators.",
+    "Single-instance launch coverage verifies the folder flush without depending on a short autosave timing window.",
+    "Point-light shadow goldens keep moving NPCs fixed while continuing to cover terrain and sprite occlusion.",
+  ],
+});

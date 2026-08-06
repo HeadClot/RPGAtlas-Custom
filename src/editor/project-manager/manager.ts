@@ -19,7 +19,7 @@ import { planFolderMigration, type FolderMigrationPlan } from "../../shared/proj
 import { projectErrorCopy, type ProjectErrorCode } from "../../shared/project/project-errors";
 import { annotateRecents, type Recent } from "../../shared/project/recents";
 import { TEMPLATES, type TemplateId } from "../../shared/project/project-templates";
-import type { ProjectBundle } from "../../platform/tauri/project-host";
+import type { ProjectBundle } from "../../platform/electrobun/project-host";
 import { runBootWith } from "../boot";
 import { modal } from "../core/modals";
 import { bindFolderProject, peekMirror, peekMirrorMeta, flushFolderNow } from "../persistence";

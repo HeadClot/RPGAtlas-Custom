@@ -41,8 +41,8 @@ import { initRmImport } from "./importers/rm-import-wizard";
 import { consumeEmbeddedAssets, initAssetLibrary } from "../shared/assets/asset-library";
 import { createDefaultAssetStore } from "../platform/default-asset-store";
 import { ProjectAssetStore } from "../platform/project-asset-store";
-// Project Harbor H2: the desktop Project Manager launcher. managerActive() gates
-// the whole pre-boot screen behind isTauri (or the H2·D ?fakehost test hook), so
+  // Project Harbor H2: the desktop Project Manager launcher. managerActive() gates
+// the whole pre-boot screen behind isDesktop (or the H2·D ?fakehost test hook), so
 // the pure browser build never mounts it and boots byte-identically to today.
 import { managerActive, hasFakeHostParam, activeManagerHost } from "./project-manager/manager-host";
 import { markEditorBooted } from "./project-manager/project-context";

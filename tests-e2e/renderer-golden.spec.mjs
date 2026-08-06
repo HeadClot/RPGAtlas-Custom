@@ -388,7 +388,10 @@ test.describe("renderer golden images", () => {
         { rx: 14, ry: 12, color: "#88bbff", radius: 240 },
       ];
       for (let y = 9; y <= 10; y++) m.heights[y * m.width + 8] = 2;
-      return project;
+      // Point-light depth maps rerender animated casters, so a busy runner can
+      // otherwise capture adjacent walk frames even after the shadow atlas is
+      // ready. Keep this occlusion golden focused on terrain/sprite shadows.
+      return pinMovers(project);
     }, "hd2d-pointshadows-meridian-village.png", { requirePointShadows: true });
   });
 

@@ -46,8 +46,8 @@ describe("detailed tutorials", () => {
   it("the server guide teaches the commands the Beacon README documents", () => {
     const guide = TUTORIALS.find((t) => t.id === "multiplayer-server")!.html;
     const readme = read("server/README.md");
-    expect(guide).toContain("npm install"); // README spells it "npm i" in one spot
-    for (const cmd of ["npm run build", "node dist/beacon.mjs", "--port 8787", "--trust-proxy", "--max-players"]) {
+    expect(guide).toContain("bun install");
+    for (const cmd of ["bun run build", "node dist/beacon.mjs", "--port 8787", "--trust-proxy", "--max-players"]) {
       expect(guide, `guide teaches "${cmd}"`).toContain(cmd);
       expect(readme, `server README still documents "${cmd}"`).toContain(cmd);
     }

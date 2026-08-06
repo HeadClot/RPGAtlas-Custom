@@ -4,7 +4,7 @@
    browser ES modules (js/editor/project-io.js) and Node tooling
    (scripts/stage-frontend.mjs, scripts/package-exe.mjs, Vite config, Vitest).
 
-   Keep this list authoritative: the standalone HTML export, the Tauri staging
+   Keep this list authoritative: the standalone HTML export, the Electrobun staging
    step, and the packaged exe all read from here, which removes the
    packaging-drift risk called out in the production roadmap. GPL-3.0-or-later. */
 
@@ -13,7 +13,7 @@
    modules under src/engine/); the Vite plugin `atlas-player-bundle` produces a
    single inlinable IIFE instead. project-io.js resolves which URL to fetch:
    PLAYER_BUNDLE_DEV_URL under `npm run dev` (middleware, always fresh) vs
-   PLAYER_BUNDLE_FILE from a built/preview/Tauri/EXE app (emitted into dist). */
+   PLAYER_BUNDLE_FILE from a built/preview/Electrobun/EXE app (emitted into dist). */
 export const PLAYER_BUNDLE_DEV_URL = "/__atlas/player-bundle.js";
 export const PLAYER_BUNDLE_FILE = "player-bundle.js";
 
@@ -42,7 +42,7 @@ export const STANDALONE_EXPORT_FILES = [
 ];
 
 /* Top-level paths (files and directories) that make up the complete frontend
-   the editor and player need at runtime. Copied verbatim into the Tauri dist by
+   the editor and player need at runtime. Copied verbatim into the Electrobun stage by
    scripts/stage-frontend.mjs; also the set Vite must pass through untouched so
    the classic js/ scripts, css/, and runtime-fetched assets under img/ and bin/
    remain available at their current relative URLs in dev and in the build. */

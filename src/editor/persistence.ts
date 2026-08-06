@@ -350,7 +350,7 @@ const projectRepo = new BrowserProjectRepository(
   }
 
   export async function exportProject() {
-    if (host.isTauri) { await exportDesktopFile(); return; } // Export keeps the dialog
+    if (host.isDesktop) { await exportDesktopFile(); return; } // Export keeps the dialog
     try {
       const result = await exportProjectFile(await embedUsedAssets(S.proj));
       if (result && result.cancelled) {
@@ -403,7 +403,7 @@ const projectRepo = new BrowserProjectRepository(
     const content = h("div", null,
       h("p", null, "Build the current project as one self-contained game file. The editor, engine folder, web server, and project .json are not required."),
       h("p", null, "Windows EXE includes a small launcher that extracts the game and opens it in the player's default browser. Standalone HTML works across platforms. Web (.zip) is ready to upload to itch.io or any static host — players can install it as an app and replay offline."),
-      h("p", { class: "dim" }, "The launcher is unsigned, so Windows may show a security warning. Save slots are kept in the player's browser. A fully native desktop EXE (no browser) can be built from the repo with: node scripts/package-game-exe.mjs <project.json> (needs the Rust toolchain)."),
+      h("p", { class: "dim" }, "The launcher is unsigned, so Windows may show a security warning. Save slots are kept in the player's browser. A fully native desktop EXE (no browser) can be built from the repo with: bun scripts/package-game-exe.mjs <project.json> (needs the Electrobun toolchain)."),
     );
     modal({
       title: "Export Standalone Game",

@@ -3,9 +3,9 @@
    / bytes / list of a dropped project" so the same reader serves a browser
    directory-picker / drag-drop (`fileListSource`), an in-memory map
    (`objectSource`, used by tests), and an injected filesystem (`fsSource` — the
-   seam Tauri's FS dialog and node plug into). `readRawProject` parses the
+   seam the Electrobun FS dialog and node plug into). `readRawProject` parses the
    `data/*.json` the database converters need, sniffs MV/MZ, reads `js/plugins.js`,
-   and discovers asset paths. The Tauri dialog + .zip inflate are wired in M1·D
+   and discovers asset paths. The Electrobun dialog + .zip inflate are wired in M1·D
    (the wizard); this is the testable core. Copyright (C) 2026 RPGAtlas
    contributors — GPL-3.0-or-later (see LICENSE). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -85,7 +85,7 @@ export function fileListSource(files: File[]): MzFileSource {
   };
 }
 
-/** Filesystem read functions the caller injects (Tauri `@tauri-apps/plugin-fs`
+/** Filesystem read functions the caller injects (Electrobun native FS
  *  or node `fs/promises`) — keeps this module free of a hard FS dependency. */
 export interface FsReadFns {
   /** Recursively list files under `root`, returning root-relative POSIX paths. */

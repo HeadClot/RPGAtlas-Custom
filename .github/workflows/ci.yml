@@ -11,28 +11,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
-      - run: npm ci
+      - run: bun ci
+      - run: bun ci
+        working-directory: server
       - name: Install Playwright's Chromium (+ OS deps)
-        run: npx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium
       - name: Engine test suites (node --test)
-        run: npm test
+        run: node --test tests/*.test.js
       - name: Unit tests (vitest)
-        run: npm run test:unit
+        run: bun run test:unit
       # The real-socket / worker suites live in their own vitest project
       # (vitest.net.config.mjs) because they can't share a worker pool with the
       # pure ones. They were a defined gate that CI never ran.
       - name: Networked suites (vitest, real sockets + workers)
-        run: npm run test:net
+        run: bun run test:net
       - name: Typecheck
-        run: npm run typecheck
+        run: bun run typecheck
       - name: Lint
-        run: npm run lint
+        run: bun run lint
       - name: Build (editor + player + passthrough runtime)
-        run: npm run build
+        run: bun run build
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
@@ -46,15 +50,22 @@ jobs:
       RENDERER_GOLDEN_CACHE_PREFIX: rpgatlas-renderer-goldens-linux-v3
     steps:
       - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
-      - run: npm ci
+      - run: bun ci
+      - run: bun ci
+        working-directory: server
       - name: Build Beacon server bundle for relay E2E tests
-        run: node server/build.mjs
+        run: bun run build
+        working-directory: server
+      - name: Node compatibility smoke test for Beacon bundle
+        run: node server/dist/beacon.mjs --help
       - name: Install Playwright's Chromium (+ OS deps)
-        run: npx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium
       - name: Compute Linux renderer golden baseline hash
         id: renderer-goldens-hash
         shell: bash
@@ -127,7 +138,7 @@ jobs:
       - name: Bootstrap Linux renderer golden baseline on main
         if: steps.renderer-goldens.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
         run: >-
-          npx playwright test tests-e2e/renderer-golden.spec.mjs
+          bunx playwright test tests-e2e/renderer-golden.spec.mjs
           --grep "renderer golden images" --update-snapshots
       - name: Verify Linux renderer golden baseline
         shell: bash
@@ -160,7 +171,7 @@ jobs:
           path: tests-e2e/__snapshots__/linux
           key: ${{ env.RENDERER_GOLDEN_CACHE_PREFIX }}-${{ steps.renderer-goldens-hash.outputs.hash }}
       - name: E2E + golden-image tests (builds first — see playwright.config.mjs webServer)
-        run: npm run test:e2e
+        run: bun run test:e2e
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4

@@ -2,7 +2,7 @@
    Template → ready document (Project Harbor, Phase H2·A/B). `project_create` is
    template-agnostic (H1 §3.1): the manager resolves the child's chosen template
    into a complete, blob-free, FORMAT_VERSION-2 project document with the existing
-   TS builders and hands the bytes to Rust. This module is only reachable through
+   TS builders and hands the bytes to the native host. This module is only reachable through
    the dynamically-imported manager chunk, so the ~187 KB Atlas Quest sample it
    bundles never loads for the pure browser build.
    docs/harbor-2-spec.md §1.2. GPL-3.0-or-later (see LICENSE). */

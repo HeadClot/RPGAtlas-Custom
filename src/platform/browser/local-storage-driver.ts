@@ -1,7 +1,7 @@
 /* RPGAtlas — src/platform/browser/local-storage-driver.ts
    The browser StorageDriver: a thin, synchronous view over window.localStorage
    (Phase 1 Stage D). This is the one place the repositories touch the platform
-   storage API; Phase 6 adds IndexedDB- and Tauri-FS-backed drivers alongside
+   storage API; the desktop target uses the Electrobun FS-backed driver alongside
    it. Behavior-frozen: getItem/setItem/removeItem forward verbatim, so quota
    errors from setItem propagate to the caller exactly as they do today (the
    save/options logic already try/catches them). GPL-3.0-or-later. */

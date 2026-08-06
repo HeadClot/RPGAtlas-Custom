@@ -1,6 +1,6 @@
 /* RPGAtlas — src/shared/assets/asset-library.ts
    The asset library service (Phase 6 Stage A): everything above the AssetStore
-   drivers (IndexedDB / Tauri FS) and below the UI. Owns:
+   drivers (IndexedDB / Electrobun FS) and below the UI. Owns:
 
    - the merged catalog published to js/assets.js via
      window.RPGATLAS_LIBRARY_ASSETS (image types only; audio stays here),
@@ -395,7 +395,7 @@ export async function initAssetLibrary(assetStore: AssetStore | null): Promise<v
           else console.warn("[library] blob unavailable for " + m.key);
         }
       } else {
-        // Per-key store (Tauri FS): read through a small pool, never all at once.
+        // Per-key store (Electrobun FS): read through a small pool, never all at once.
         const POOL = 16;
         let next = 0;
         const worker = async () => {

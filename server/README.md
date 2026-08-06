@@ -27,7 +27,7 @@ expire.
 ```bash
 # from the repo root (needs `ws` — already a dev dependency there)
 cd server
-npm run build                       # → dist/beacon.mjs (esbuild bundle)
+bun run build                       # → dist/beacon.mjs (esbuild bundle)
 node dist/beacon.mjs --project ../Atlas_Quest.json --port 8787
 ```
 
@@ -37,7 +37,7 @@ Build and host the dedicated authoritative action-combat slice from the repo
 root:
 
 ```text
-node scripts/build-practice-clearing-demo.mjs
+bun scripts/build-practice-clearing-demo.mjs
 node server/dist/beacon.mjs --project Practice_Clearing.json
 ```
 
@@ -88,10 +88,10 @@ KV namespace (too large for a plaintext var).
 
 ```bash
 cd server
-npm i                                            # dev deps (wrangler via npx)
-npx wrangler kv namespace create GAME            # copy the id into wrangler.jsonc
-npx wrangler kv key put --binding=GAME project --path ../Atlas_Quest.json --remote
-npx wrangler deploy                              # deploys the Worker + DO
+bun install                                     # install locked dev deps, including Wrangler
+bunx wrangler kv namespace create GAME          # copy the id into wrangler.jsonc
+bunx wrangler kv key put --binding=GAME project --path ../Atlas_Quest.json --remote
+bunx wrangler deploy                             # deploys the Worker + DO
 ```
 
 Don't skip `--remote` on the `kv key put` line: without it wrangler stores the
@@ -106,7 +106,7 @@ Client routes on the deployed Worker:
 - `GET /health` → `{ ok: true }`.
 - `GET /wrt?world=main` — WebSocket connection to a persistent world.
 
-`npx wrangler dev` runs it locally against a real Workers runtime (miniflare).
+`bunx wrangler dev` runs it locally against a real Workers runtime (miniflare).
 
 Durable Object storage preserves persistent-world state across hibernation and
 eviction. Friend rooms still expire when empty according to the room policy.
@@ -124,10 +124,10 @@ for abuse control and never crosses the wire or a log line tied to a player.
 ## Development
 
 ```bash
-npm run typecheck    # Node target (tsconfig.json) + CF target (tsconfig.cf.json)
+bun run typecheck    # Node target (tsconfig.json) + CF target (tsconfig.cf.json)
 ```
 
-The core's behaviour is covered from the repo root: `npx vitest run
+The core's behaviour is covered from the repo root: `bunx vitest run
 tests-unit/collision.test.ts tests-unit/beacon-server.test.ts
 tests-unit/beacon-ws.test.ts`.
 

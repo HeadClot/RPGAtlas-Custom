@@ -1,7 +1,7 @@
 /* RPGAtlas — src/editor/project-manager/test-host.ts
    The `window.__ATLAS_TEST_HOST__` fake host (Project Harbor, Phase H2·D — landed
    early, in H2·A, so the manager surface is Playwright-verifiable as it is built).
-   Installed ONLY when the URL carries `?fakehost`, it simulates the whole Tauri
+   Installed ONLY when the URL carries `?fakehost`, it simulates the whole Electrobun
    project surface against a localStorage-backed fake filesystem, so specs can drive
    the manager in the pure browser build. It is never installed otherwise, so the
    existing 70 specs (which never pass ?fakehost) mount no manager and run unchanged.
@@ -9,7 +9,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { ProjectHostError, type ProjectBundle } from "../../platform/tauri/project-host";
+import { ProjectHostError, type ProjectBundle } from "../../platform/electrobun/project-host";
 import {
   parseRecents,
   removeRecent,

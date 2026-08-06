@@ -40,8 +40,9 @@ rules, your persistent world. (See the <b>Turn On Multiplayer</b> tutorial for t
 
 <h3>What you need</h3>
 <ul>
-<li><b>Node.js 20 or newer</b> — free from <code>nodejs.org</code>. Already have it? Open a
-terminal and type <code>node --version</code> to check.</li>
+<li><b>Bun 1.3.14</b> — free from <code>bun.com</code>. It installs and runs the RPGAtlas toolchain.</li>
+<li><b>Node.js 24 or newer</b> — free from <code>nodejs.org</code>. The Beacon production target and
+desktop staging hook use Node for compatibility.</li>
 <li><b>The RPGAtlas source folder</b> — the folder RPGAtlas came from. It has a
 <code>server</code> folder inside; that folder <i>is</i> the Beacon server.</li>
 <li><b>A game file</b> — your project's <code>.rpgatlas</code> / <code>.json</code> file
@@ -57,9 +58,9 @@ terminal and type <code>node --version</code> to check.</li>
 <code>server</code> folder inside RPGAtlas. For example:
 <pre>cd C:\\Games\\RPGAtlas\\server</pre></li>
 <li>Install its parts (needs internet, only needed once):
-<pre>npm install</pre></li>
+<pre>bun install</pre></li>
 <li>Build it:
-<pre>npm run build</pre></li>
+<pre>bun run build</pre></li>
 </ol>
 <div class="tut-done">✅ <b>Checkpoint:</b> no red errors, and the server folder now contains
 <code>dist/beacon.mjs</code>. That one file is the whole server.</div>
@@ -129,12 +130,12 @@ A tiny cloud machine (a $5 VPS) is often less fuss than home networking.</div>
 <p>Cloudflare Durable Objects provide the same authoritative room/world runtime without keeping a
 computer running. From the <code>server</code> folder:</p>
 <ol>
-<li>Run <code>npx wrangler kv namespace create GAME</code> and put the returned id in
+<li>Run <code>bunx wrangler kv namespace create GAME</code> and put the returned id in
 <code>server/wrangler.jsonc</code>.</li>
 <li>Upload the hosted project with
-<code>npx wrangler kv key put --binding=GAME project --path ../MyGame.rpgatlas --remote</code>.
+<code>bunx wrangler kv key put --binding=GAME project --path ../MyGame.rpgatlas --remote</code>.
 The <code>--remote</code> flag is required for the deployed Worker.</li>
-<li>Run <code>npx wrangler deploy</code> and copy the deployed <code>wss://</code> address into
+<li>Run <code>bunx wrangler deploy</code> and copy the deployed <code>wss://</code> address into
 <b>Database ▸ Multiplayer ▸ Play server address</b>.</li>
 </ol>
 <div class="tut-tip">💡 Use the Node target when you want local project files, file-backed
@@ -179,7 +180,7 @@ friend room runs events on your game's <b>starting map</b>; a world server with
 
 <h3>Bonus — the ready-made co-op demo</h3>
 <p>Want to see everything working before wiring your own game? From the RPGAtlas folder:</p>
-<pre>node scripts/build-coop-demo.mjs
+<pre>bun scripts/build-coop-demo.mjs
 cd server
 node dist/beacon.mjs --project ../Atlas_Quest_Coop.json --port 8787</pre>
 <p>That hosts the Driftwood Shore beach meet-up: spawn together, wave, <b>Team Up</b>, and fight

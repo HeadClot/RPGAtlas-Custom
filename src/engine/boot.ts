@@ -376,7 +376,7 @@ async function boot(): Promise<void> {
   Assets.registerCustomChars(ctx.proj.customChars);
   // Device asset library (Phase 6): the playtest player resolves the same
   // library the editor imported into (shared IndexedDB origin in the browser,
-  // shared app-data dir under Tauri). Standalone exports carry their assets
+  // shared app-data dir under Electrobun). Standalone exports carry their assets
   // embedded (RPGATLAS_ASSETS) and skip the library entirely.
   if (!(window as any).RPGATLAS_ASSETS) {
     await initAssetLibrary(await createDefaultAssetStore());

@@ -1,6 +1,6 @@
 /* RPGAtlas — scripts/stage-frontend.mjs
    Builds the web frontend with Vite and stages the build output into
-   src-tauri/dist so Tauri can embed it, then generates img/assets.json so
+   build/electrobun/frontend so Electrobun can embed it, then generates img/assets.json so
    custom-art discovery works inside the desktop app (which has no HTTP
    directory listings).
 
@@ -17,7 +17,7 @@
 
 import { execSync } from "node:child_process";
 import {
-  cpSync, rmSync, mkdirSync, readdirSync, writeFileSync, existsSync, statSync,
+  cpSync, rmSync, mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync, statSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,18 +25,18 @@ import { fileURLToPath } from "node:url";
 // scripts/ sits directly under the repo root, regardless of the caller's cwd.
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const webDist = join(root, "dist");
-const dist = join(root, "src-tauri", "dist");
+const dist = join(root, "build", "electrobun", "frontend");
 
 // Produce the web build (rewritten HTML + hashed chunks + player-bundle.js +
 // passthrough css/img/bin/js). This is the exact artifact set that ships.
 console.log("[stage-frontend] building web frontend (vite build)…");
-execSync("npm run build", { cwd: root, stdio: "inherit" });
+execSync("bun run build", { cwd: root, stdio: "inherit" });
 if (!existsSync(webDist)) {
   console.error("[stage-frontend] vite build produced no dist/ at " + webDist);
   process.exit(1);
 }
 
-// Stage the built dist/ verbatim into the Tauri embed directory.
+// Stage the built dist/ verbatim into the Electrobun view directory.
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 cpSync(webDist, dist, { recursive: true });
@@ -44,9 +44,22 @@ cpSync(webDist, dist, { recursive: true });
 // Desktop-only playtest parking page: the pre-built (hidden) playtest window
 // idles here instead of play.html so the game engine — and its music — only
 // runs while a playtest is actually open (see open_playtest in
-// src-tauri/src/lib.rs). Like assets.json below, it exists only in the staged
+// src/electrobun/main.ts). Like assets.json below, it exists only in the staged
 // copy, never in the web build.
-cpSync(join(root, "src-tauri", "playtest-idle.html"), join(dist, "playtest-idle.html"));
+cpSync(join(root, "src", "electrobun", "playtest-idle.html"), join(dist, "playtest-idle.html"));
+
+// The bridge is a Vite entry but is injected only into the native copy. The
+// browser build still contains the chunk but never executes it.
+const bridge = readdirSync(join(dist, "assets")).find((name) => /^desktopBridge-[^/]+\.js$/.test(name));
+if (!bridge) throw new Error("desktop bridge chunk was not emitted by Vite");
+for (const htmlName of ["index.html", "play.html"]) {
+  const htmlPath = join(dist, htmlName);
+  const html = readFileSync(htmlPath, "utf8");
+  // Load the native bridge before the editor/player module. Both are deferred
+  // module scripts, so document order guarantees the bridge is ready before
+  // boot() probes the desktop host.
+  writeFileSync(htmlPath, html.replace("</head>", `  <script type="module" src="./assets/${bridge}"></script>\n</head>`));
+}
 
 // Asset manifest — mirrors the img/assets.json path that js/assets.js already
 // prefers over directory-listing discovery. Lists any custom art the user has

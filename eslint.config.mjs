@@ -17,8 +17,9 @@ export default [
     // so everything under src/ is linted.
     ignores: [
       "dist/**",
+      "build/**",
+      "artifacts/**",
       "node_modules/**",
-      "src-tauri/**",
       "js/**",
       "tests/**",
       "tools/**",
