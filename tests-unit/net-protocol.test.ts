@@ -71,13 +71,14 @@ describe("client→server round-trips (every union arm is wire-safe)", () => {
     roundTripClient({ t: "input", seq: 44, intent: { k: "move", dir: "down", run: true, dir8: 5 } });
     roundTripClient({ t: "input", seq: 45, intent: { k: "move", dir: "up", dir8: 0 } });
     roundTripClient({ t: "input", seq: 46, intent: { k: "attack" } });
+    roundTripClient({ t: "input", seq: 47, intent: { k: "ability", slot: 1 } });
     // §C5 world-write menu verbs (defined now, routed live once the world-side
     // verb API is extracted).
-    roundTripClient({ t: "input", seq: 47, intent: { k: "useItem", id: 3 } });
-    roundTripClient({ t: "input", seq: 48, intent: { k: "useItem", id: 3, target: 2 } });
-    roundTripClient({ t: "input", seq: 49, intent: { k: "equip", actor: 1, slot: "weapon2", id: 4 } });
-    roundTripClient({ t: "input", seq: 50, intent: { k: "equip", actor: 1, slot: "armor", id: 0 } }); // 0 = remove
-    roundTripClient({ t: "input", seq: 51, intent: { k: "formation", from: 0, to: 2 } });
+    roundTripClient({ t: "input", seq: 48, intent: { k: "useItem", id: 3 } });
+    roundTripClient({ t: "input", seq: 49, intent: { k: "useItem", id: 3, target: 2 } });
+    roundTripClient({ t: "input", seq: 50, intent: { k: "equip", actor: 1, slot: "weapon2", id: 4 } });
+    roundTripClient({ t: "input", seq: 51, intent: { k: "equip", actor: 1, slot: "armor", id: 0 } }); // 0 = remove
+    roundTripClient({ t: "input", seq: 52, intent: { k: "formation", from: 0, to: 2 } });
   });
 
   it("replies: every directive kind's answer", () => {
@@ -249,6 +250,9 @@ describe("decoder strictness (hostile input comes back {ok:false}, never a throw
     rejectClient({ t: "input", seq: 1, intent: { k: "equip", actor: 0, slot: "ring", id: 1 } }, /bad slot/);
     rejectClient({ t: "input", seq: 1, intent: { k: "equip", actor: 0, slot: "weapon" } }, /bad id/);
     rejectClient({ t: "input", seq: 1, intent: { k: "formation", from: 0 } }, /bad to/);
+    rejectClient({ t: "input", seq: 1, intent: { k: "ability" } }, /bad slot/);
+    rejectClient({ t: "input", seq: 1, intent: { k: "ability", slot: -1 } }, /bad slot/);
+    rejectClient({ t: "input", seq: 1, intent: { k: "ability", slot: 1.5 } }, /bad slot/);
   });
 
   it("reply: unknown kinds and malformed shop transcripts fail", () => {

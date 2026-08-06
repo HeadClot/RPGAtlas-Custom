@@ -2231,3 +2231,16 @@ PATCH_NOTES.push({
     "Updated the architecture overview to describe shared ability resolution and combat snapshot fields.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T11:45:00-06:00",
+  title: "Repaired Action Combat authority parity",
+  summary:
+    "Action Combat hotbar abilities now validate, replicate, and consume resources consistently across local, Node, and Cloudflare field runtimes.",
+  items: [
+    "Accepted and validated ability intents on the v1 wire, including malformed slot rejection.",
+    "Allowed authoritative remote item abilities through the owner-client inventory model and fixed local pure-heal item consumption.",
+    "Replicated cooldowns, active ability metadata, and real-time states to remote player entities, and restored self-target selection semantics.",
+  ],
+});

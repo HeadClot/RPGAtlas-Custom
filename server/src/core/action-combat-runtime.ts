@@ -258,10 +258,13 @@ export function createCloudActionCombatRuntime(ctx: ZoneRuntimeContext): ZoneRun
       const kind = slot ? slot.kind as "skill" | "item" : "skill";
       const ability = slot ? resolveActionAbility(world.proj, kind, slot.id) : null;
       const resources = { mp: Number(player.mp) || 0, tp: Number(player.tp) || 0, cooldowns: player.combat.resourceCooldowns || (player.combat.resourceCooldowns = {}) };
-      if (!slot || !ability || !canUseActionAbility(ability, resources, kind, 0).ok) return;
-      spendActionAbility(ability, resources, kind);
-      player.mp = resources.mp; player.tp = resources.tp;
+      // The authority deliberately does not own player bags; itemUsed is
+      // addressed to the owner's client. Treat the item as present here so
+      // remote item hotbars follow the same action path as local abilities.
+      if (!slot || !ability || !canUseActionAbility(ability, resources, kind, 1).ok) return;
       if (startAttack(player.combat, player.dir, ability.windupFrames, ability.activeFrames, ability.recoveryFrames)) {
+        spendActionAbility(ability, resources, kind);
+        player.mp = resources.mp; player.tp = resources.tp;
         player.combat.activeAbilityId = ability.id;
         player.combat.activeAbilityKind = ability.kind;
         record({ tick: world.tick, kind: "telegraph", source: player.id, target: 0, mapId, x: player.x, y: player.y, dir: player.dir, animationId: ability.telegraphAnimationId || ability.animationId, sound: ability.telegraphSound || ability.attackSound });

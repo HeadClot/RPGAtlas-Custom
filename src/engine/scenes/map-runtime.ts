@@ -814,10 +814,13 @@ export function startPlayerAbility(slotIndex: number): boolean {
   };
   const check = canUseActionAbility(ability, resources, kind, kind === "item" ? invCount("item", slot.id) : 1);
   if (!check.ok || !ability) return false;
-  spendActionAbility(ability, resources, kind);
-  if (lead) { lead.mp = resources.mp; lead.tp = resources.tp; lead.maxMp = mpMax; lead.maxTp = tpMax; }
-  p.mp = resources.mp; p.tp = resources.tp; p.maxMp = mpMax; p.maxTp = tpMax;
+  const commitResources = (): void => {
+    spendActionAbility(ability, resources, kind);
+    if (lead) { lead.mp = resources.mp; lead.tp = resources.tp; lead.maxMp = mpMax; lead.maxTp = tpMax; }
+    p.mp = resources.mp; p.tp = resources.tp; p.maxMp = mpMax; p.maxTp = tpMax;
+  };
   if (slot.kind === "item" && (ability.targetMode === "self" || ability.targetMode === "nearestAlly" || ability.targetMode === "allAllies")) {
+    commitResources();
     const hp = Math.max(0, Number((ctx.proj.items || []).find((item: any) => Number(item.id) === slot.id)?.hp) || 0);
     const mp = Math.max(0, Number((ctx.proj.items || []).find((item: any) => Number(item.id) === slot.id)?.mp) || 0);
     if (lead) {
@@ -826,14 +829,16 @@ export function startPlayerAbility(slotIndex: number): boolean {
       p.hp = lead.hp; p.mp = lead.mp;
     }
     emitLocalCombat({ tick: ctx.globalT || 0, kind: "damage", source: Number(p.id) || 0, target: Number(p.id) || 0, mapId: G.mapId, x: p.x, y: p.y, amount: -hp, hpAfter: p.hp, animationId: ability.hitAnimationId, sound: ability.hitSound });
+    if (ability.consumeOnStart) addInv("item", slot.id, -1);
     if (!ability.damage && !ability.stateId) return true;
   }
   const total = ability.windupFrames + ability.activeFrames + ability.recoveryFrames;
   if (!sharedStartAttack(p.combat, p.dir, ability.windupFrames, ability.activeFrames, ability.recoveryFrames)) return false;
+  commitResources();
   p.combat.activeAbilityId = ability.id;
   p.combat.activeAbilityKind = ability.kind;
   p.attack = { total, framesLeft: total, dir: p.dir, windup: ability.windupFrames, active: ability.activeFrames, hitbox: ability.hitbox, range: ability.range, knockbackTiles: ability.knockbackTiles, staggerFrames: ability.staggerFrames, ability, hitIds: new Set() };
-  if (slot.kind === "item" && ability.consumeOnStart) addInv("item", slot.id, -1);
+  if (slot.kind === "item" && ability.consumeOnStart && ability.targetMode !== "self" && ability.targetMode !== "nearestAlly" && ability.targetMode !== "allAllies") addInv("item", slot.id, -1);
   emitLocalCombat({ tick: ctx.globalT || 0, kind: "telegraph", source: Number(p.id) || 0, target: 0, mapId: G.mapId, x: p.x, y: p.y, dir: p.dir, animationId: ability.telegraphAnimationId, sound: ability.telegraphSound });
   return true;
 }

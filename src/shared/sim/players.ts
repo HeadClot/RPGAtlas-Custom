@@ -268,7 +268,9 @@ export interface PlayerState {
 }
 
 function wireCombat(state: CombatState | undefined): CombatNetState | undefined {
-  if (!state || (state.phase === "idle" && state.attackId === 0 && !state.dead && state.hurtFlash <= 0 && state.stagger <= 0)) return undefined;
+  if (!state) return undefined;
+  const hasActionState = Object.keys(state.resourceCooldowns || {}).length > 0 || Number(state.activeAbilityId) > 0 || (state.states || []).length > 0;
+  if (state.phase === "idle" && state.attackId === 0 && !state.dead && state.hurtFlash <= 0 && state.stagger <= 0 && !hasActionState) return undefined;
   return toCombatNetState(state);
 }
 
@@ -382,6 +384,15 @@ export function applyPlayerStates(
       e.combat.stagger = s.combat.stagger;
       e.combat.dead = s.combat.dead;
       e.combat.hurtFlash = s.combat.hurtFlash;
+      e.combat.resourceCooldowns = { ...(s.combat.resourceCooldowns || {}) };
+      e.combat.activeAbilityId = Number(s.combat.activeAbilityId) || 0;
+      e.combat.activeAbilityKind = s.combat.activeAbilityKind || null;
+      e.combat.states = (s.combat.states || []).map((state) => ({
+        stateId: Number(state.stateId) || 0,
+        remainingFrames: Math.max(0, Number(state.remainingFrames) || 0),
+        tickFrames: Math.max(0, Number(state.tickFrames) || 0),
+        stacks: Math.max(1, Number(state.stacks) || 1),
+      }));
     } else {
       Object.assign(e.combat, createCombatState());
     }
