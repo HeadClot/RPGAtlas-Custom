@@ -268,7 +268,7 @@ the editor (`src/editor/` — `core/` shell infrastructure, map editor, database
 feature-grouped tools, importers, and export), the
 three.js HD-2D renderer (`src/renderer/`), shared services (`src/shared/` — map, project, asset,
 audio, event, presentation, networking, and simulation groups), and the storage
-platform adapters (`src/platform/` — browser and Tauri). The procedural asset/audio/data
+platform adapters (`src/platform/` — browser and Electrobun). The procedural asset/audio/data
 generators remain classic scripts under `js/` (`assets.js`, `sfx.js`, `data.js`) alongside
 `js/editor/project-io.js` (persistence/export) and `js/standalone-template.mjs` +
 `js/build-manifest.mjs` (the shared export/packaging pipeline). Shared engine services such
@@ -287,9 +287,9 @@ Choose **File > Export Standalone Game** to build the current project as:
   manifest, icons, and an offline service worker: host it anywhere static and players can install
   it like an app and replay offline.
 
-With the Rust toolchain, `bun scripts/package-game-exe.mjs <project.json>` additionally packages
-any exported project as a **native desktop executable** (its own window, no browser) using the same
-Tauri shell as the RPGAtlas desktop app.
+With Bun and the Electrobun native toolchain, `bun scripts/package-game-exe.mjs <project.json>`
+additionally packages any exported project as a **native desktop executable** (its own window, no
+browser) using the same Electrobun shell as the RPGAtlas desktop app.
 
 Players do not need RPGAtlas, the editor, a local web server, or a separate project file.
 Save slots are stored by the player's browser. The Windows launcher is unsigned, so Windows may show

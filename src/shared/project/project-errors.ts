@@ -1,11 +1,11 @@
 /* RPGAtlas — src/shared/project/project-errors.ts
    Kid-friendly error copy for the project-folder surface (Project Harbor, Phase
-   H1·C). The typed host maps a Rust `code` → the copy below; the child never sees a
+   H1·C). The typed host maps a native `code` → the copy below; the child never sees a
    raw OS message. The table is i18n-ready (a single map the future locale layer can
    translate). Pure, env=node (trap 3). Copy is FINAL — docs/harbor-1-spec.md §6.
    GPL-3.0-or-later (see LICENSE). */
 
-/** The finite command-failure taxonomy (matches the Rust `ProjectErrorCode`). */
+/** The finite command-failure taxonomy (matches the native `ProjectErrorCode`). */
 export type ProjectErrorCode =
   | "FOLDER_EXISTS"
   | "NO_PERMISSION"

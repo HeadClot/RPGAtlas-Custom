@@ -12,7 +12,7 @@
      .atlas/cache/<hash> — regenerable data, safe to delete.
 
    The index is .atlas/library.json (an AssetMeta[]). All filesystem work goes through
-   a small `ProjectAssetHost` (the real Tauri host or the ?fakehost test host), so the
+   a small `ProjectAssetHost` (the real Electrobun host or the ?fakehost test host), so the
    whole thing is drivable in the browser build. docs/harbor-4-spec.md §2.
    GPL-3.0-or-later (see LICENSE). */
 

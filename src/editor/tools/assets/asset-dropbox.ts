@@ -1,10 +1,10 @@
 /* RPGAtlas — src/editor/tools/assets/asset-dropbox.ts
    The "copy files straight from your file manager" bridge for the desktop
    build. Beginners kept asking where to put their PNGs and sound files; this
-   pairs a set of plain, per-type drop-folders on disk (created by the Tauri
-   library_* commands in src-tauri/src/lib.rs) with a scan that hands whatever
-   turned up back to the Asset Browser's normal import path. Purely a thin,
-   Tauri-only wrapper: browser builds keep the drag-drop / file-picker flow and
+   pairs a set of plain, per-type drop-folders on disk (created by the Electrobun
+   library_* handlers) with a scan that hands whatever turned up back to the Asset
+   Browser's normal import path. Purely a thin desktop-only wrapper: browser
+   builds keep the drag-drop / file-picker flow and
    these helpers report themselves unavailable. GPL-3.0-or-later (see LICENSE). */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -13,17 +13,17 @@ import type { AssetMeta } from "../../../shared/services";
 
 type ImportType = AssetMeta["type"];
 
-function tauri(): any {
-  return typeof window !== "undefined" ? (window as any).__TAURI__ : null;
+function desktop(): any {
+  return typeof window !== "undefined" ? (window as any).__ATLAS_ELECTROBUN__ : null;
 }
 
 /** True on the desktop build, where the on-disk drop-folders exist. */
 export function dropFolderAvailable(): boolean {
-  return !!tauri();
+  return !!desktop();
 }
 
 function invoke(cmd: string, args?: Record<string, unknown>): Promise<any> {
-  return tauri().core.invoke(cmd, args);
+  return desktop().rpc.request[cmd](args);
 }
 
 /** One file the scan turned up, ferried over IPC as base64. */

@@ -4,7 +4,7 @@
    first 16 bytes XORed with the 16-byte key (hex in the user's OWN System.json,
    locked decision 5). Detection is by *extension*, not the System flags (D9):
    real projects mix plain + encrypted assets. Pure Uint8Array in/out so it runs
-   in the browser, Tauri, and node/vitest alike.
+   in the browser, Electrobun, and node/vitest alike.
    Copyright (C) 2026 RPGAtlas contributors — GPL-3.0-or-later (see LICENSE). */
 
 /** The 16-byte fake header MV/MZ prepend ("RPGMV\0\0\0\0\x03\x01\0\0\0\0\0"). */

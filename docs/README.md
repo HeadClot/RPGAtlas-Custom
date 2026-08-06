@@ -49,11 +49,11 @@ bun run build
 - `src/shared/` — stable contract primitives plus feature groups for project persistence, maps,
   assets, audio, events, presentation, networking protocol, and deterministic simulation.
 - `src/renderer/` — Three.js HD-2D renderer and render planning.
-- `src/platform/` — browser storage plus Tauri project and asset adapters.
+- `src/platform/` — browser storage plus Electrobun project and asset adapters.
 - `js/` — compatibility globals, procedural assets/audio/data, legacy project I/O, and standalone
   export assembly.
 - `server/src/` — Beacon's shared-authority Node and Cloudflare server targets.
-- `src-tauri/` — native desktop host, project-folder commands, and packaged playtest window.
+- `src/electrobun/` — native desktop host entrypoint, staged frontend bridge, and packaged playtest window.
 - `scripts/` — staging, docs generation, fixtures, demos, and packaging.
 - `tests-unit/` and `tests-e2e/` — pure-core/unit tests and browser coverage.
 
@@ -75,7 +75,7 @@ the wiki and `server/README.md`.
 
 The dated `phase-*`, `mp-*`, `mig-*`, and `harbor-*` documents record the design and implementation
 history of completed work. They are not the current user manual. Current behavior belongs in the
-wiki, this contributor guide, the architecture overview, or the specialized server/Tauri READMEs.
+wiki, this contributor guide, the architecture overview, or the specialized server/Electrobun desktop guide.
 
 ## Contribution conventions
 

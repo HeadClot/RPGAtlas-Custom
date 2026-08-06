@@ -3,7 +3,7 @@
    for the Project Manager (H2) — NO document bytes here. `project_create` is
    template-agnostic: the manager resolves the chosen template into a complete
    blob-free document with the existing TS builders (DataDefaults / sample-map) at
-   wire-up time and hands the bytes to Rust (§3.1). Copy is kid-friendly + final.
+   wire-up time and hands the bytes to the native host (§3.1). Copy is kid-friendly + final.
    docs/harbor-1-spec.md §5.3. GPL-3.0-or-later (see LICENSE). */
 
 export type TemplateId = "blank" | "starter" | "platformer" | "atlas-quest";

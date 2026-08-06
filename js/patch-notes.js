@@ -2309,3 +2309,16 @@ PATCH_NOTES.push({
     "Kept the legacy node --test suite, Tauri staging hooks, and Beacon production entrypoint on Node.js with explicit compatibility checks.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T07:20:38-06:00",
+  title: "Electrobun desktop host",
+  summary:
+    "Replaced the Rust/Tauri desktop stack with a Bun and Electrobun 1.18.1 host while preserving browser, project-folder, asset, dialog, playtest, and native export workflows.",
+  items: [
+    "Added typed Electrobun RPC, native project and asset services, authenticated single-instance forwarding, launch-path handling, and .rpgatlas association helpers.",
+    "Kept the browser and ?fakehost paths independent of the desktop bridge and preserved the reusable native playtest window workflow.",
+    "Updated staging, packaging, the root RPGAtlas-Desktop.exe rebuild, desktop documentation, and focused native contract tests.",
+  ],
+});

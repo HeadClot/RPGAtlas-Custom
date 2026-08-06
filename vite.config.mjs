@@ -40,6 +40,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const ENTRY_SOURCES = {
   editor: "src/editor/main.ts",
   engine: "src/engine/main.ts",
+  desktopBridge: "src/platform/electrobun/view-bridge.ts",
 };
 // Which built entry each HTML page swaps its dev-time module <script> for.
 const HTML_ENTRY_MAP = {

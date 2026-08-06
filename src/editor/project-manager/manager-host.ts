@@ -1,22 +1,21 @@
 /* RPGAtlas — src/editor/project-manager/manager-host.ts
    The Project Manager's view of the world (Project Harbor, Phase H2·A). The
-   manager UI talks to ONE interface — `ManagerHost` — so the real Tauri surface
+   manager UI talks to ONE interface — `ManagerHost` — so the real Electrobun surface
    and the H2·D `?fakehost` test host are interchangeable. The real host delegates
    filesystem work to the H1 `projectHost` façade and pops the parent-directory /
-   Browse pickers through the dialog plugin's JS API (available because
-   `withGlobalTauri: true` and `dialog:default` is granted — no new command, no new
-   capability). docs/harbor-2-spec.md §1.1. GPL-3.0-or-later (see LICENSE). */
+   Browse pickers through typed native RPC. docs/harbor-2-spec.md §1.1.
+   GPL-3.0-or-later (see LICENSE). */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { isTauri } from "../../../js/editor/host.js";
+import { isDesktop } from "../../../js/editor/host.js";
 import {
   projectHost,
-  ProjectHostError,
   type AssetBlobResult,
   type ProjectBundle,
   type ScannedFile,
-} from "../../platform/tauri/project-host";
+} from "../../platform/electrobun/project-host";
+import { getBridge } from "../../platform/electrobun/project-host";
 import type { Recent } from "../../shared/project/recents";
 import type { AssetMeta } from "../../shared/services";
 
@@ -51,8 +50,8 @@ export interface ManagerHost {
   takeLaunchPath?(): Promise<string | null>;
 
   /** Subscribe to "open this project" requests raised by a SECOND launch (Project Harbor
-   *  H5·B): tauri-plugin-single-instance forwards the new launch's path to the running
-   *  app, which emits `atlas://open-project`. The manager installs one listener that
+   *  H5·B): Electrobun's authenticated loopback broker forwards the new launch's path
+   *  to the running app. The manager installs one listener that
    *  routes the path through its normal open flow (guarding unsaved work). Absent on hosts
    *  with no second-launch concept (the pure browser never calls it). */
   onOpenProjectRequest?(cb: (path: string) => void): void;
@@ -97,29 +96,7 @@ function base64ToBlob(base64: string, mime?: string): Blob {
   return new Blob([bytes], mime ? { type: mime } : undefined);
 }
 
-/** Raw invoke for the app-data `library_*` commands (the legacy bridge only). */
-function invokeTauri(cmd: string, args?: Record<string, unknown>): Promise<any> {
-  return (window as any).__TAURI__.core.invoke(cmd, args);
-}
-
-/** The dialog plugin's JS API (withGlobalTauri). Missing → a friendly IO error
- *  rather than a raw `undefined is not a function`. */
-function tauriDialog(): any {
-  const d = (window as any).__TAURI__ && (window as any).__TAURI__.dialog;
-  if (!d || typeof d.open !== "function") {
-    throw new ProjectHostError("IO", "The folder picker isn't available.");
-  }
-  return d;
-}
-
-/** The dialog `open` result is a string, a string[] (multiple), or null. */
-function firstPath(res: unknown): string | null {
-  if (typeof res === "string") return res;
-  if (Array.isArray(res) && typeof res[0] === "string") return res[0];
-  return null;
-}
-
-/** The desktop host: H1 native commands + dialog-plugin pickers. */
+/** The desktop host: native Electrobun RPC commands + pickers. */
 const realManagerHost: ManagerHost = {
   create: (parentDir, leaf, documentJson) => projectHost.create(parentDir, leaf, documentJson),
   open: (target) => projectHost.open(target),
@@ -130,31 +107,13 @@ const realManagerHost: ManagerHost = {
   reveal: (root) => projectHost.reveal(root),
   takeLaunchPath: () => projectHost.takeLaunchPath(),
   onOpenProjectRequest(cb) {
-    // The withGlobalTauri event API (core:default covers listen). A second launch's
-    // path arrives as the event payload; a missing API just means no second-launch
-    // support (never throws — the running editor keeps working).
-    const ev = (window as any).__TAURI__ && (window as any).__TAURI__.event;
-    if (ev && typeof ev.listen === "function") {
-      void ev.listen("atlas://open-project", (e: any) => {
-        if (e && typeof e.payload === "string" && e.payload) cb(e.payload);
-      });
-    }
+    getBridge()?.onOpenProjectRequest(cb);
   },
   async pickDirectory() {
-    const res = await tauriDialog().open({
-      directory: true,
-      multiple: false,
-      title: "Choose where to make your game",
-    });
-    return firstPath(res);
+    return getBridge()?.rpc.request.pick_directory({ title: "Choose where to make your game" }) ?? null;
   },
   async pickFolder() {
-    const res = await tauriDialog().open({
-      directory: true,
-      multiple: false,
-      title: "Open your game's folder",
-    });
-    return firstPath(res);
+    return getBridge()?.rpc.request.pick_folder({ title: "Open your game's folder" }) ?? null;
   },
 
   // Per-project asset filesystem → the H4 project_assets.rs commands via the façade.
@@ -168,14 +127,14 @@ const realManagerHost: ManagerHost = {
   assetsScan: (root) => projectHost.assetsScan(root),
   ensureAssetsReadme: (root) => projectHost.ensureAssetsReadme(root),
 
-  // Legacy bridge → the existing app-data library_* commands (no new Rust needed).
+  // Legacy bridge → the existing app-data library_* RPC handlers.
   async globalAssetList() {
-    const json: string = await invokeTauri("library_list");
+    const json: string = await getBridge()!.rpc.request.library_list();
     const parsed = JSON.parse(json || "[]");
     return Array.isArray(parsed) ? (parsed as AssetMeta[]) : [];
   },
   async globalAssetRead(key: string) {
-    const res: { data: string; mime?: string } | null = await invokeTauri("library_read", { key });
+    const res: { data: string; mime?: string } | null = await getBridge()!.rpc.request.library_read({ key });
     if (!res || !res.data) return null;
     return base64ToBlob(res.data, res.mime || undefined);
   },
@@ -192,11 +151,11 @@ export function hasFakeHostParam(): boolean {
 
 /** Whether the Project Manager should mount at all: desktop, or the test hook. */
 export function managerActive(): boolean {
-  return isTauri || hasFakeHostParam();
+  return isDesktop || hasFakeHostParam();
 }
 
 /** The host the manager should use right now: the installed fake host if present
- *  (only under ?fakehost), otherwise the real Tauri host. */
+ *  (only under ?fakehost), otherwise the real Electrobun host. */
 export function activeManagerHost(): ManagerHost {
   const fake = (window as any).__ATLAS_TEST_HOST__;
   if (fake) return fake as ManagerHost;

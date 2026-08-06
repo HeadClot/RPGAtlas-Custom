@@ -13,7 +13,7 @@ RPGAtlas is one game-authoring product with several hosts:
 |---|---|---|
 | Browser/Vite | `index.html` | Editor and project authoring |
 | Browser/Vite | `play.html` | Playtest and exported-game runtime |
-| Tauri desktop | `src-tauri/` | Project Manager, folder projects, native dialogs, and dedicated playtest |
+| Electrobun desktop | `src/electrobun/`, `src/platform/electrobun/` | Project Manager, folder projects, native dialogs, and dedicated playtest |
 | Windows launcher | `tools/` and `bin/` | Serves the browser app locally or wraps a standalone export |
 | Beacon Node | `server/src/node/` | Server-authoritative friend rooms and persistent worlds |
 | Beacon Cloudflare | `server/src/cf/` | Durable Object room/world deployment |
@@ -85,8 +85,8 @@ tests, Beacon Node, and Cloudflare:
 
 `src/renderer/` contains the Three.js/WebGL2 HD-2D renderer and render plan. The classic canvas
 renderer and the HD-2D renderer consume the same project/map data. `src/platform/browser/` provides
-browser storage and IndexedDB asset access; `src/platform/tauri/` provides native project and
-asset access through typed Tauri commands.
+browser storage and IndexedDB asset access; `src/platform/electrobun/` provides native project and
+asset access through typed Electrobun RPC.
 
 The compatibility layer under `js/` still supplies procedural assets, audio, data defaults,
 legacy globals, and export support. `Assets`, `RA`, and the plugin bridge remain stable globals for
@@ -120,7 +120,7 @@ and cutscenes require `--engine-events`, with `--zone-workers` for multi-map sha
 ### Playtest
 
 1. The editor saves the current project through its active repository.
-2. Browser playtests open `play.html`; Tauri playtests use the dedicated native window.
+2. Browser playtests open `play.html`; Electrobun playtests use the dedicated native window.
 3. `src/engine/boot.ts` loads the project, applies system settings, prepares assets, installs the
    interpreter and plugin bridge, and enters the title or map scene.
 4. The fixed loop drives input, event interpretation, simulation, interpolation, UI, and render.
@@ -140,7 +140,7 @@ and cutscenes require `--engine-events`, with `--zone-workers` for multi-map sha
 2. Only referenced custom assets are embedded.
 3. `js/standalone-template.mjs` assembles the self-contained HTML payload.
 4. Web/HTML exports contain the playable page; Windows EXE export appends that payload to the
-   launcher; native game EXE packaging uses the Tauri shell.
+   launcher; native game EXE packaging uses the Electrobun shell.
 
 ## Extension surfaces
 
@@ -155,7 +155,7 @@ and cutscenes require `--engine-events`, with `--zone-workers` for multi-map sha
 
 ## Quality and compatibility constraints
 
-- The browser, standalone, Tauri, Node, and Cloudflare targets must consume compatible project
+- The browser, standalone, Electrobun, Node, and Cloudflare targets must consume compatible project
   data and shared simulation rules.
 - Do not use WebGPU APIs; the renderer is Three.js/WebGL2.
 - Keep pure shared modules free of DOM and host-specific imports.
@@ -167,7 +167,7 @@ and cutscenes require `--engine-events`, with `--zone-workers` for multi-map sha
 
 - [`README.md`](README.md) — current repository setup and build commands.
 - [`server/README.md`](../server/README.md) — Beacon deployment and CLI reference.
-- [`src-tauri/README.md`](../src-tauri/README.md) — desktop packaging and staging.
+- [`ELECTROBUN_DESKTOP.md`](ELECTROBUN_DESKTOP.md) — desktop packaging and staging.
 - [`../wiki/Plugin-and-Script-API.md`](../wiki/Plugin-and-Script-API.md) — creator extension API.
 - `PRODUCTION_ROADMAP.md`, `MULTIPLAYER_ROADMAP.md`, `MZ_MV_MIGRATION_ROADMAP.md`, and the dated
   phase specifications — historical design and implementation records.

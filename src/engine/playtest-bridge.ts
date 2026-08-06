@@ -3,7 +3,7 @@
    while a playtest runs, and "playtest <map> <x> <y>" start positions).
 
    Two channels, both same-origin so they work in the browser AND between the
-   Tauri editor/playtest windows:
+   Electrobun editor/playtest windows:
    - A localStorage handoff for the start position: the editor writes
      PLAYTEST_START_KEY just before opening the play window; boot consumes it
      (read + remove) and skips the title screen, dropping the player straight

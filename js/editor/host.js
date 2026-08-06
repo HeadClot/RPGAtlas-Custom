@@ -1,17 +1,18 @@
 /* RPGAtlas — editor/host.js
    Host abstraction. On the plain web build (served by the bundled local web
-   server) every entry point reports isTauri=false and callers fall back to
-   normal browser behavior. Inside the Tauri desktop wrapper these route
+   server) every entry point reports isDesktop=false and callers fall back to
+   normal browser behavior. Inside the Electrobun desktop wrapper these route
    through native file dialogs and a dedicated play-test window.
    GPL-3.0-or-later (see LICENSE). */
 
-const tauri = typeof window !== "undefined" ? window.__TAURI__ : undefined;
+const desktop = typeof window !== "undefined" ? window.__ATLAS_ELECTROBUN__ : undefined;
 
-/** True when running inside the Tauri desktop wrapper. */
-export const isTauri = !!tauri;
+/** True when running inside the Electrobun desktop wrapper. */
+export const isDesktop = !!desktop;
 
 function invoke(cmd, args) {
-  return tauri.core.invoke(cmd, args);
+  if (!desktop) return Promise.reject(new Error("The desktop bridge is unavailable."));
+  return desktop.rpc.request[cmd](args);
 }
 
 /** Open (or focus) the native play-test window. */
@@ -50,9 +51,9 @@ export async function openProjectFromFile() {
 }
 
 // --- Project folders (Project Harbor H1·C) ---------------------------------
-// Thin isTauri-gated wrappers over the native project commands (src-tauri/src/
-// project.rs). Each is a one-liner over invoke; the typed façade lives in
-// src/platform/tauri/project-host.ts. Nothing here is wired into boot yet (H2).
+// Thin desktop-gated wrappers over the native project commands (src/platform/
+// project.ts). Each is a one-liner over invoke; the typed façade lives in
+// src/platform/electrobun/project-host.ts. Nothing here is wired into boot yet (H2).
 
 /** Create a project folder; resolves to { root, name, document }. */
 export function projectCreate(parentDir, name, documentJson) {

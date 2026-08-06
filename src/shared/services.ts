@@ -2,7 +2,7 @@
    Phase 1 Stage D service contracts (Fable-authored, per docs/phase-1-spec.md).
 
    These interfaces name the seams the Phase 1 split produced, so later phases
-   (Tauri FS + IndexedDB storage in Phase 6, the three.js renderer in Phase 2)
+   (Electrobun FS + IndexedDB storage, the three.js renderer in Phase 2)
    can swap implementations at the edges without touching engine/editor logic.
 
    Phase 1 rule: adapters must reproduce today's behavior EXACTLY — same
@@ -17,7 +17,7 @@
 import type { Project } from "./schema";
 
 /** Minimal synchronous key-value driver — the shape both repositories consume.
- *  Today: window.localStorage. Phase 6 adds IndexedDB- and Tauri-FS-backed
+ *  Today: window.localStorage. Desktop adds the Electrobun-FS-backed
  *  drivers (async variants will extend this; keep consumers behind the
  *  repositories, never on the driver directly). */
 export interface StorageDriver {
@@ -67,8 +67,8 @@ export interface AssetMeta {
 }
 
 /** The per-device binary asset library (Phase 6): IndexedDB in the browser
- *  (src/platform/browser/idb-asset-store.ts), app-data files under the Tauri
- *  desktop wrapper (src/platform/tauri/fs-asset-store.ts). Async by nature —
+ *  (src/platform/browser/idb-asset-store.ts), app-data files under the Electrobun
+ *  desktop wrapper (src/platform/electrobun/fs-asset-store.ts). Async by nature —
  *  consumers go through src/shared/assets/asset-library.ts, never the store
  *  directly (mirroring the StorageDriver/repository split above). */
 export interface AssetStore {

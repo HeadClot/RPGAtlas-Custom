@@ -57,7 +57,7 @@ async function fetchBuildSource(path) {
 
 // The standalone-export file list lives in the shared build manifest, and the
 // HTML assembly in the shared template module, so the in-editor export, the
-// Tauri staging step, the packaged exe, AND the native game packager never
+// Electrobun staging step, the packaged exe, AND the native game packager never
 // drift apart. In the browser (Vite serves js/*.mjs) a direct dynamic import
 // resolves; in the Node test harness this module is evaluated from a data:
 // URL where a relative import cannot be resolved, so we fall back to fetching
@@ -92,7 +92,7 @@ export async function loadStandaloneTemplate() {
 // The player runtime is fetched from a different URL depending on where the
 // editor is running: under `npm run dev` the atlas-player-bundle plugin serves
 // a freshly-bundled IIFE at PLAYER_BUNDLE_DEV_URL, whereas a built / previewed /
-// Tauri / EXE editor loads the emitted PLAYER_BUNDLE_FILE sitting next to
+// Electrobun / EXE editor loads the emitted PLAYER_BUNDLE_FILE sitting next to
 // index.html. import.meta.env.DEV (injected by Vite) is the discriminator; it
 // is absent in the Node test harness (data: URL), where we keep the dist path.
 function resolvePlayerBundleUrl(manifest) {

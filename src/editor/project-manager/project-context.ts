@@ -8,8 +8,6 @@
    cycle. H3 will read the root to rebind autosave to the folder.
    docs/harbor-2-spec.md §1, §3. GPL-3.0-or-later (see LICENSE). */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /** The open game's on-disk identity. `name` is the human display name (the
  *  document's `system.title`), `root` is the canonical project folder. */
 export interface OpenProjectContext {
@@ -51,16 +49,6 @@ function applyWindowTitle(name: string | null): void {
   } catch {
     /* document may be unavailable in odd embeds */
   }
-  try {
-    const w: any = (window as any).__TAURI__ && (window as any).__TAURI__.window;
-    const cur =
-      w && typeof w.getCurrentWindow === "function"
-        ? w.getCurrentWindow()
-        : w && typeof w.getCurrent === "function"
-          ? w.getCurrent()
-          : null;
-    if (cur && typeof cur.setTitle === "function") void cur.setTitle(title);
-  } catch {
-    /* best-effort: no native title without the permission (added for H6) */
-  }
+  // Electrobun reflects the document title in the native BrowserWindow. Keep
+  // this adapter DOM-only so browser, fakehost, and desktop boots share it.
 }
