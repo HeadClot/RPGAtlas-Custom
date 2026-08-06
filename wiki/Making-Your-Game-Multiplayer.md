@@ -25,7 +25,7 @@ you both fight it side by side (and both keep the full rewards).
 Generate the demo project (it's derived from the sample game — no map is edited):
 
 ```
-node scripts/build-coop-demo.mjs      # writes Atlas_Quest_Coop.json
+bun scripts/build-coop-demo.mjs       # writes Atlas_Quest_Coop.json
 ```
 
 **Host a demo room** two ways:
@@ -35,7 +35,7 @@ node scripts/build-coop-demo.mjs      # writes Atlas_Quest_Coop.json
   of the box:
 
   ```
-  cd server && npm install && npm run build
+  cd server && bun install && bun run build
   node dist/beacon.mjs --project ../Atlas_Quest_Coop.json --port 8787
   ```
 

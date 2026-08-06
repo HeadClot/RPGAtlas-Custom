@@ -24,7 +24,8 @@ not a replacement.
 
 ## Prerequisites
 
-- **Node.js** (for the staging script and the Tauri CLI) — already used here.
+- **Bun 1.3.14** (for dependency installation and the frontend toolchain).
+- **Node.js 24 or newer** (for the compatibility-sensitive staging hook and Tauri CLI).
 - **Rust toolchain** — install via <https://rustup.rs>. Tauri compiles a small
   native shell in Rust.
 - **Platform WebView + build tools:**
@@ -37,18 +38,18 @@ not a replacement.
 Run from the repository root:
 
 ```sh
-npm install          # one-time: fetches @tauri-apps/cli
-npm run dev          # live desktop app (stages frontend, then tauri dev)
-npm run build        # produces an installer in src-tauri/target/release/bundle
-npm run package:exe  # rebuilds the standalone RPGAtlas-Desktop.exe at the repo root
+bun install          # one-time: fetches @tauri-apps/cli
+bun run dev          # live desktop app (stages frontend, then tauri dev)
+bun run build        # produces an installer in src-tauri/target/release/bundle
+bun run package:exe  # rebuilds the standalone RPGAtlas-Desktop.exe at the repo root
 ```
 
-`npm run stage` only stages the frontend. Use it when inspecting the embedded
+`bun run stage` only stages the frontend. Use it when inspecting the embedded
 files without building the native shell. The staging step copies the
 editor/player assets and generates the asset manifest needed because a desktop
 webview has no HTTP directory listings.
 
-To refresh the desktop app after adding features, run `npm run package:exe`
+To refresh the desktop app after adding features, run `bun run package:exe`
 (vite build → `cargo build --release` → copy the exe to the project root). On
 Windows you can instead double-click **`Rebuild-Desktop-App.bat`** in the repo
 root — a beginner-friendly wrapper that checks the build tools are installed,

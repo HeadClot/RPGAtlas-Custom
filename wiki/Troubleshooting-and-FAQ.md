@@ -21,8 +21,9 @@ finishes, double-click `RPGAtlas.exe` again. See
 [Installation & Setup](Installation-and-Setup#running-from-a-source-checkout-git-clone).
 
 ### "RPGAtlas could not start Node.js (is it installed?)"
-Running from a source checkout needs [Node.js](https://nodejs.org/) **20 or newer** on your computer.
-Install the LTS version from nodejs.org (one-time), then run `RPGAtlas.exe` again.
+Running from a source checkout needs [Bun](https://bun.com/) **1.3.14** and
+[Node.js](https://nodejs.org/) **24 or newer** on your computer. Install both one time, run
+`bun install` in the checkout, then run `RPGAtlas.exe` again.
 
 ### "Windows protected your PC" / unknown publisher
 Expected — the launcher is **unsigned**. Click **More info ▸ Run anyway**. It only starts a local

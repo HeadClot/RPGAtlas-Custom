@@ -2296,3 +2296,16 @@ PATCH_NOTES.push({
     "Updated wiki navigation and authoring guidance while keeping the wiki Markdown as the source for the generated documentation site.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T06:31:49-06:00",
+  title: "Bun-first development toolchain",
+  summary:
+    "RPGAtlas now uses Bun 1.3.14 for locked installs, development scripts, CI, and Cloudflare tooling while preserving Node compatibility paths.",
+  items: [
+    "Added pinned root and Beacon Bun lockfiles, hoisted installation configuration, and locked Wrangler tooling.",
+    "Updated contributor, server, desktop, tutorial, and CI commands to use bun and bunx.",
+    "Kept the legacy node --test suite, Tauri staging hooks, and Beacon production entrypoint on Node.js with explicit compatibility checks.",
+  ],
+});

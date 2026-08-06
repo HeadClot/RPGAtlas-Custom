@@ -19,7 +19,7 @@ shadows, animated water, day/night, weather, full post-processing) layered on to
 assets, nothing to install for creators or players — everything (code, tiles, sprites, monsters,
 sound effects, even the music) is generated procedurally, imports are welcome when you want them,
 and exported games are single self-contained files. (Only working from a *source checkout* needs
-free [Node.js](https://nodejs.org/); downloaded copies ship the editor pre-built.)
+[Bun](https://bun.com/) and [Node.js](https://nodejs.org/); downloaded copies ship the editor pre-built.)
 
 🕹️ **Play Together and authoritative action combat.** Tick one checkbox and friends join your game
 online with a short **room code**: they walk the same maps, wave and chat, party up, and fight
@@ -52,9 +52,9 @@ install, no admin rights. Keep the little black window open while you work; clos
 *More info → Run anyway*.)
 
 Working from a **source checkout** (git clone) instead? The editor source is TypeScript, which needs
-the Vite dev server: install [Node.js](https://nodejs.org/) 20 or newer, run `npm install` once in
-the RPGAtlas folder, and the same double-click then works — the launcher detects the tooling and
-boots Vite automatically.
+the Vite dev server: install [Bun](https://bun.com/) 1.3.14 and [Node.js](https://nodejs.org/) 24 or
+newer, run `bun install` once in the RPGAtlas folder, and the same double-click then works — the
+launcher detects the tooling and boots Vite automatically.
 
 The launcher picks the first free port in the **8080–8099** range (the address is printed in the
 black window). Pass `--no-browser` if you don't want it to open a browser tab automatically.
@@ -242,16 +242,16 @@ Using RPGAtlas needs no tooling at all — the sections above work by serving th
 static files. Contributing to the engine uses a modern toolchain (Node 20+):
 
 ```
-npm install
-npm run dev        # Vite dev server for editor + player
-npm test           # engine test suites (node --test)
-npm run test:unit  # vitest unit tests
-npm run test:e2e   # Playwright smoke + golden-image render tests
-npm run build      # production build in dist/ (verbatim runtime passthrough)
-npm run typecheck  # TypeScript (new code is TS; legacy JS migrates per phase)
-npm run lint
-npm run docs:build # regenerate docs-site from wiki/*.md
-npm run docs:check # check wiki links and generated-page parity
+bun install
+bun run dev        # Vite dev server for editor + player
+bun run test       # legacy engine suites executed by node --test
+bun run test:unit  # Vitest unit tests
+bun run test:e2e   # Playwright smoke + golden-image render tests
+bun run build      # production build in dist/ (verbatim runtime passthrough)
+bun run typecheck  # TypeScript (new code is TS; legacy JS migrates per phase)
+bun run lint
+bun run docs:build # regenerate docs-site from wiki/*.md
+bun run docs:check # check wiki links and generated-page parity
 ```
 
 The historical Atlas HD, migration, multiplayer, and project-folder phase specifications are
@@ -287,7 +287,7 @@ Choose **File > Export Standalone Game** to build the current project as:
   manifest, icons, and an offline service worker: host it anywhere static and players can install
   it like an app and replay offline.
 
-With the Rust toolchain, `node scripts/package-game-exe.mjs <project.json>` additionally packages
+With the Rust toolchain, `bun scripts/package-game-exe.mjs <project.json>` additionally packages
 any exported project as a **native desktop executable** (its own window, no browser) using the same
 Tauri shell as the RPGAtlas desktop app.
 

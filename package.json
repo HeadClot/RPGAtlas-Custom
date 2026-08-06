@@ -2,6 +2,7 @@
   "name": "rpgatlas-desktop",
   "version": "2.1.0",
   "private": true,
+  "packageManager": "bun@1.3.14",
   "description": "Tauri desktop wrapper for the RPGAtlas editor",
   "license": "GPL-3.0-or-later",
   "scripts": {
@@ -16,13 +17,13 @@
     "test:unit": "vitest run",
     "test:net": "vitest run --config vitest.net.config.mjs",
     "test:e2e": "playwright test --config=playwright.config.mjs",
-    "stage": "node scripts/stage-frontend.mjs",
-    "docs:build": "node scripts/build-docs-site.mjs",
-    "docs:check": "node scripts/check-docs.mjs",
+    "stage": "bun scripts/stage-frontend.mjs",
+    "docs:build": "bun scripts/build-docs-site.mjs",
+    "docs:check": "bun scripts/check-docs.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "package:exe": "node scripts/package-exe.mjs"
+    "package:exe": "bun scripts/package-exe.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",

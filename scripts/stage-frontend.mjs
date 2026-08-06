@@ -30,7 +30,7 @@ const dist = join(root, "src-tauri", "dist");
 // Produce the web build (rewritten HTML + hashed chunks + player-bundle.js +
 // passthrough css/img/bin/js). This is the exact artifact set that ships.
 console.log("[stage-frontend] building web frontend (vite build)…");
-execSync("npm run build", { cwd: root, stdio: "inherit" });
+execSync("bun run build", { cwd: root, stdio: "inherit" });
 if (!existsSync(webDist)) {
   console.error("[stage-frontend] vite build produced no dist/ at " + webDist);
   process.exit(1);
