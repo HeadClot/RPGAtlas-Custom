@@ -2093,3 +2093,16 @@ PATCH_NOTES.push({
     "Documented the cold-cache fallback and the cache-backed Linux verification flow.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T20:34:13-06:00",
+  title: "Hardened Linux renderer cache recovery",
+  summary:
+    "Linux renderer-golden CI now rotates stale cache contents and reports missing pull-request fallback assets directly.",
+  items: [
+    "Bumped the Linux renderer cache key to v2 so the next main run seeds a complete authoritative baseline.",
+    "Added an explicit pull-request fallback check for all eleven checked-in Linux renderer snapshots.",
+    "Kept Ubuntu-only regeneration and cache saving restricted to main-branch cache misses.",
+  ],
+});
