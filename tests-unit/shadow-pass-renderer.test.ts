@@ -76,6 +76,7 @@ describe("ShadowPassRenderer readiness", () => {
 
     pass.markSceneFrame(1);
     expect(pass.sceneFrameId).toBe(1);
+    expect(pass.ready).toBe(true);
     pass.renderPointPass(renderer, 1, false);
     expect(pass.frameId).toBe(2);
     expect(pass.ready).toBe(true);
@@ -86,5 +87,9 @@ describe("ShadowPassRenderer readiness", () => {
     expect(pass.frameId).toBe(3);
     expect(pass.ready).toBe(false);
     expect(rendered.count).toBe(12);
+
+    pass.markSceneFrame(1);
+    expect(pass.sceneFrameId).toBe(3);
+    expect(pass.ready).toBe(true);
   });
 });

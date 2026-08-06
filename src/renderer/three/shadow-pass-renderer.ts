@@ -241,7 +241,11 @@ export class ShadowPassRenderer {
   }
 
   markSceneFrame(count: number): void {
-    if (count > 0) this.pointSceneFrameId = this.pointFrameId;
+    if (count <= 0) return;
+    this.pointSceneFrameId = this.pointFrameId;
+    if (this.pointFrameId > 0 && this.pointRenderedCasterRevision === this.casterRevisionValue) {
+      this.pointReady = true;
+    }
   }
 
   private ensureShadowTarget(): void {

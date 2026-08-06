@@ -2170,6 +2170,18 @@ PATCH_NOTES.push({
 
 PATCH_NOTES.push({
   date: "August 6, 2026",
+  timestamp: "2026-08-06T00:23:57-06:00",
+  title: "Stabilized point-shadow readiness",
+  summary:
+    "HD-2D point-light shadow diagnostics now recognize the atlas as ready immediately after the current scene consumes it.",
+  items: [
+    "Removed a transient false-not-ready state after moving sprites or refreshed map casters update the point-shadow atlas.",
+    "Point-shadow golden captures now remain synchronized with the rendered scene frame without changing their committed pixels.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
   timestamp: "2026-08-06T09:00:00-06:00",
   title: "Auto-refreshed Linux renderer golden cache",
   summary:
