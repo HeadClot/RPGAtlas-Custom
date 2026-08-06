@@ -2131,3 +2131,39 @@ PATCH_NOTES.push({
     "Hardened the renderer-golden harness against first-use SwiftShader shadow frames and stale title-canvas captures without changing the baseline image.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T22:24:15-06:00",
+  title: "Modular Three.js renderer internals",
+  summary:
+    "Reorganized the HD-2D renderer into focused internal services while preserving its public API and visual parity behavior.",
+  items: [
+    "Separated WebGL lifecycle, scene graph, settings, shader/material creation, map composition, sprites, weather, shadows, reflections, post-processing, and frame ordering.",
+    "Kept deterministic engine-tick animation, render ordering, diagnostics, revision counters, and context-restoration replay unchanged.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T22:43:37-06:00",
+  title: "Stabilized renderer golden captures",
+  summary:
+    "Renderer golden tests now wait for completed map frames and expose title-transition diagnostics before capturing pixels.",
+  items: [
+    "Hardened point-shadow and generalized-layer capture handshakes without changing committed baselines.",
+    "Removed avoidable per-frame coordination allocations and added focused point-shadow readiness coverage.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T23:10:00-06:00",
+  title: "Optimized modular renderer hot paths",
+  summary:
+    "Reduced repeated HD-2D frame work while preserving renderer behavior, diagnostics, and golden-image parity.",
+  items: [
+    "Reused frame math, post-process descriptors, culling state, sprite state, and dirty texture bookkeeping.",
+    "Cached unchanged sun and point-shadow depth work with explicit caster and light revisions.",
+  ],
+});
