@@ -222,6 +222,22 @@ describe("per-zone engine event runtime (D-8-0)", () => {
     expect(enemy.combat?.dead).toBe(true);
   });
 
+  it("routes an item hotbar action without requiring an authority-side bag", async () => {
+    const project = makeProject([]);
+    project.classes = [{ id: 1, base: {}, actionCombat: { hotbar: [{ kind: "item", id: 2 }] } }];
+    project.actors = [{ id: 1, name: "Hero", classId: 1, combat: {} }];
+    project.items = [{ id: 2, name: "Potion", hp: 10, actionCombat: { enabled: true, targetMode: "self", cooldownFrames: 9 } }];
+    const { zone: z } = mkZone(project);
+    z.admit(8, "Ada", "", 1, 1, 2, false);
+    z.frame(8, input({ k: "ability", slot: 0 }, 1));
+    expect((z.world.roster.players.get(8) as any)?.combat).toMatchObject({
+      activeAbilityId: 2,
+      activeAbilityKind: "item",
+      resourceCooldowns: { "item:2": 9 },
+    });
+    await flush();
+  });
+
   it("restoreData re-applies snapshotted event positions after an eviction", async () => {
     const project = makeProject([ev(6, 10, 10, [page({ trigger: "action" })])]);
     const { zone: z } = mkZone(project);

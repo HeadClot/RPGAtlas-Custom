@@ -15,6 +15,8 @@ import {
   playersOnMap,
   removePlayer,
   resolveSpawn,
+  applyPlayerStates,
+  entityState,
 } from "../src/shared/sim/players";
 
 const PROJ = {
@@ -132,5 +134,28 @@ describe("playersOnMap", () => {
     expect(playersOnMap(w, 3).map((p) => p.id).sort()).toEqual([1, 2]);
     expect(playersOnMap(w, 8).map((p) => p.id)).toEqual([3]);
     expect(playersOnMap(w, 99)).toEqual([]);
+  });
+});
+
+describe("combat state replication", () => {
+  it("keeps cooldowns, active abilities, and states on the wire and applies them", () => {
+    const source = createWorld(PROJ);
+    const remote = addPlayer(source, 2, "Robin", { mapId: 3, x: 4, y: 5 });
+    remote.combat.resourceCooldowns = { "item:5": 8 };
+    remote.combat.activeAbilityId = 5;
+    remote.combat.activeAbilityKind = "item";
+    remote.combat.states = [{ stateId: 3, remainingFrames: 12, tickFrames: 4, stacks: 2 }];
+    const wire = entityState(remote);
+    expect(wire.combat).toMatchObject({
+      resourceCooldowns: { "item:5": 8 }, activeAbilityId: 5, activeAbilityKind: "item",
+      states: [{ stateId: 3, remainingFrames: 12, tickFrames: 4, stacks: 2 }],
+    });
+
+    const client = createWorld(PROJ);
+    applyPlayerStates(client, 1, [wire]);
+    expect(client.roster.players.get(2)!.combat).toMatchObject({
+      resourceCooldowns: { "item:5": 8 }, activeAbilityId: 5, activeAbilityKind: "item",
+      states: [{ stateId: 3, remainingFrames: 12, tickFrames: 4, stacks: 2 }],
+    });
   });
 });

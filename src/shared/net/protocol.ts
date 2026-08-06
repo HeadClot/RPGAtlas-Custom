@@ -504,6 +504,8 @@ function checkIntent(v: unknown): string | null {
       return null;
     case "attack":
       return null;
+    case "ability":
+      return isUint(v.slot) ? null : "ability: bad slot";
     case "loadout":
       return checkPlayerLoadout(v.loadout, "loadout");
     case "useItem":
