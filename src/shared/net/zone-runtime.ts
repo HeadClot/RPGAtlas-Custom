@@ -81,6 +81,8 @@ export interface ZoneRuntime {
   onArrive(pid: PlayerId, x: number, y: number): void;
   /** A player requested a field-combat attack; the runtime validates and applies it. */
   onAttack?(pid: PlayerId): void;
+  /** A player requested an authored Skill/Item hotbar action. */
+  onAbility?(pid: PlayerId, slot: number): void;
   /** Live event states for the world-zone broadcast. */
   eventStates(): EventNetState[];
   /** Ordered presentation/reconciliation outcomes since the previous broadcast. */

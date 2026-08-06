@@ -64,6 +64,10 @@ export interface PlayerEntity {
   /** Authoritative runtime HP; omitted from network state until HUD support is added. */
   hp?: number;
   maxHp?: number;
+  mp?: number;
+  maxMp?: number;
+  tp?: number;
+  maxTp?: number;
   /** Remaining revive/respawn ticks; 0 means immediately revivable. */
   revive?: number;
   /** Social overlay (MP4·C fills these): a transient emote bubble / say line,
@@ -174,6 +178,10 @@ export function addPlayer(world: World, id: PlayerId, name: string, spawn: Spawn
     },
     hp: 100,
     maxHp: 100,
+    mp: 0,
+    maxMp: 0,
+    tp: 0,
+    maxTp: 100,
     revive: 0,
     emote: null,
     say: null,
@@ -252,6 +260,10 @@ export interface PlayerState {
   combat?: CombatNetState;
   hp?: number;
   maxHp?: number;
+  mp?: number;
+  maxMp?: number;
+  tp?: number;
+  maxTp?: number;
   revive?: number;
 }
 
@@ -280,6 +292,10 @@ export function localPlayerState(world: World, name: string, charset: string): P
     combat: wireCombat(p.combat),
     hp: typeof p.hp === "number" ? p.hp : undefined,
     maxHp: typeof p.maxHp === "number" ? p.maxHp : undefined,
+    mp: typeof p.mp === "number" ? p.mp : undefined,
+    maxMp: typeof p.maxMp === "number" ? p.maxMp : undefined,
+    tp: typeof p.tp === "number" ? p.tp : undefined,
+    maxTp: typeof p.maxTp === "number" ? p.maxTp : undefined,
     revive: typeof p.revive === "number" ? p.revive : undefined,
   };
 }
@@ -292,6 +308,10 @@ export function entityState(e: PlayerEntity): PlayerState {
     combat: wireCombat(e.combat),
     hp: e.hp,
     maxHp: e.maxHp,
+    mp: e.mp,
+    maxMp: e.maxMp,
+    tp: e.tp,
+    maxTp: e.maxTp,
     revive: e.revive,
   };
 }
@@ -347,6 +367,10 @@ export function applyPlayerStates(
     e.animT = s.animT;
     if (typeof s.hp === "number") e.hp = s.hp;
     if (typeof s.maxHp === "number") e.maxHp = s.maxHp;
+    if (typeof s.mp === "number") e.mp = s.mp;
+    if (typeof s.maxMp === "number") e.maxMp = s.maxMp;
+    if (typeof s.tp === "number") e.tp = s.tp;
+    if (typeof s.maxTp === "number") e.maxTp = s.maxTp;
     if (typeof s.revive === "number") e.revive = s.revive;
     if (s.combat) {
       e.combat.phase = s.combat.phase;

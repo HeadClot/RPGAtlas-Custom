@@ -72,6 +72,10 @@ export interface ResolvedEnemyCombat {
 export interface ResolvedActorCombat {
   actorId: number;
   maxHp: number;
+  maxMp: number;
+  maxTp: number;
+  attackRate: number;
+  defenseRate: number;
   damage: number;
   damageScale: number;
   profileId: number;
@@ -234,14 +238,20 @@ export function resolveActorCombat(project: Partial<Project>, actorId: number, r
   const classAtk = effectiveStat("atk");
   const authoredHp = n(ac.maxHp, 0);
   const maxHp = authoredHp > 0 ? authoredHp : Math.max(1, effectiveStat("mhp") || 100);
+  const authoredMp = n(ac.maxMp, 0);
+  const classCombat: any = (cls as any)?.actionCombat || {};
+  const maxMp = authoredMp > 0 ? authoredMp : Math.max(0, n(classCombat.maxMp, effectiveStat("mmp"), 0, 999999));
+  const maxTp = Math.max(1, n(ac.maxTp ?? classCombat.maxTp, 100, 1, 999));
+  const attackRate = n(ac.attackRate ?? classCombat.attackRate, 1, 0, 2);
+  const defenseRate = n(ac.defenseRate ?? classCombat.defenseRate, 1, 0, 2);
   // Legacy test projects and hand-authored prototypes often omit the actor
   // database entirely. Preserve the pre-profile action-combat feel with a
   // useful fallback strike instead of making every unconfigured swing deal 1.
   const baseDamage = actor ? profile.damage + classAtk : 10;
   const damageScale = n(ac.damageScale ?? wc.damageScale ?? profile.damageScale, 1, 0, 100);
   return {
-    actorId, maxHp,
-    damage: n(ac.damage, baseDamage) * damageScale,
+    actorId, maxHp, maxMp, maxTp, attackRate, defenseRate,
+    damage: n(ac.damage, baseDamage) * damageScale * attackRate,
     damageScale,
     profileId, windupFrames: n(ac.windupFrames ?? wc.windupFrames, profile.windupFrames, 0, 180),
     activeFrames: n(ac.activeFrames ?? wc.activeFrames, profile.activeFrames, 1, 180),
@@ -304,6 +314,10 @@ export function validateCombatProject(project: Partial<Project>): CombatValidati
   const profileIds = new Set(profiles.map((p) => Number(p.id)));
   const animationIds = new Set((project.animations || []).map((a) => Number(a.id)));
   const soundIds = new Set(Object.keys((project.system as any)?.sounds || {}));
+  const skillIds = new Set((project.skills || []).map((entry) => Number(entry.id)));
+  const itemIds = new Set((project.items || []).map((entry) => Number(entry.id)));
+  const stateIds = new Set((project.states || []).map((entry) => Number(entry.id)));
+  const targetModes = new Set(["self", "facing", "nearestEnemy", "allEnemies", "nearestAlly", "allAllies", "radius"]);
   const checkReferences = (where: string, value: any, allowProfile = true): void => {
     const profileRef = value?.profileId ?? value?.attackProfileId;
     if (allowProfile && profileRef && !profileIds.has(Number(profileRef))) {
@@ -327,6 +341,40 @@ export function validateCombatProject(project: Partial<Project>): CombatValidati
       }
     }
   };
+  const checkAction = (where: string, value: any, kind: "skill" | "item"): void => {
+    if (!value || value.enabled === false) return;
+    checkReferences(where, value, false);
+    checkNumbers(where, value, {
+      windupFrames: [0, 180], activeFrames: [1, 180], recoveryFrames: [0, 600], cooldownFrames: [0, 3600],
+      range: [1, 16], mpCost: [0, 999999], tpCost: [0, 999999], damage: [0, 999999], damageScale: [0, 100],
+      knockbackTiles: [0, 8], staggerFrames: [0, 600], stateChance: [0, 100],
+    });
+    if (value.targetMode && !targetModes.has(String(value.targetMode))) issues.push({ where, message: "has impossible target mode " + value.targetMode, severity: "error" });
+    if (value.stateId && !stateIds.has(Number(value.stateId))) issues.push({ where, message: "references missing state " + value.stateId, severity: "error" });
+    if (kind === "item" && value.consumeOnStart === false && Number(value.cooldownFrames || 0) === 0) {
+      issues.push({ where, message: "item does not consume and has no cooldown; it can be used every frame", severity: "warning" });
+    }
+  };
+  const checkHotbar = (where: string, hotbar: any, actorSkills?: Set<number>): void => {
+    if (!Array.isArray(hotbar)) return;
+    const seen = new Set<string>();
+    hotbar.slice(0, 8).forEach((slot: any, index: number) => {
+      const kind = String(slot?.kind || "");
+      const id = Number(slot?.id) || 0;
+      const key = kind + ":" + id;
+      if (!kind || !id) return;
+      if (seen.has(key)) issues.push({ where, message: "hotbar slot " + (index + 1) + " duplicates " + key, severity: "warning" });
+      seen.add(key);
+      if (kind === "skill") {
+        if (!skillIds.has(id)) issues.push({ where, message: "hotbar slot " + (index + 1) + " references missing skill " + id, severity: "error" });
+        else if (!project.skills!.find((skill) => Number(skill.id) === id)?.actionCombat?.enabled) issues.push({ where, message: "hotbar skill " + id + " is not Action Combat enabled", severity: "error" });
+        if (actorSkills && !actorSkills.has(id)) issues.push({ where, message: "hotbar skill " + id + " is unavailable to this actor/class", severity: "error" });
+      } else if (kind === "item") {
+        if (!itemIds.has(id)) issues.push({ where, message: "hotbar slot " + (index + 1) + " references missing item " + id, severity: "error" });
+        else if (!project.items!.find((item) => Number(item.id) === id)?.actionCombat?.enabled) issues.push({ where, message: "hotbar item " + id + " is not Action Combat enabled", severity: "error" });
+      } else if (id) issues.push({ where, message: "hotbar slot " + (index + 1) + " has invalid kind", severity: "error" });
+    });
+  };
   const attackRanges: Record<string, [number, number]> = {
     damage: [0, 999999], damageScale: [0, 100], windupFrames: [0, 180], activeFrames: [1, 180],
     recoveryFrames: [0, 600], cooldown: [0, 3600], range: [1, 16], knockbackTiles: [0, 8], staggerFrames: [0, 600],
@@ -341,6 +389,18 @@ export function validateCombatProject(project: Partial<Project>): CombatValidati
     checkNumbers(where, p, attackRanges);
     checkReferences(where, p, false);
   }
+  for (const skill of project.skills || []) checkAction("Skill: " + skill.name, skill.actionCombat, "skill");
+  for (const item of project.items || []) checkAction("Item: " + item.name, item.actionCombat, "item");
+  for (const state of project.states || []) if (state.actionCombat) {
+    const where = "State: " + state.name;
+    checkNumbers(where, state.actionCombat, { durationFrames: [1, 36000], tickIntervalFrames: [1, 36000], maxStacks: [1, 99], damagePerTick: [-999999, 999999], resistance: [0, 100] });
+    if (state.actionCombat.enabled && Number(state.actionCombat.tickIntervalFrames || 1) > Number(state.actionCombat.durationFrames || 1)) issues.push({ where, message: "tick interval exceeds state duration", severity: "warning" });
+  }
+  for (const cls of project.classes || []) {
+    const allowed = new Set((cls.actionCombat?.allowedSkillIds || []).map(Number));
+    for (const id of allowed) if (!skillIds.has(id)) issues.push({ where: "Class: " + cls.name, message: "allowed skill list references missing skill " + id, severity: "error" });
+    checkHotbar("Class: " + cls.name, cls.actionCombat?.hotbar, allowed.size ? allowed : undefined);
+  }
   for (const enemy of project.enemies || []) {
     const p = enemy.actionCombat; if (!p) continue;
     const where = "Enemy: " + enemy.name;
@@ -348,6 +408,12 @@ export function validateCombatProject(project: Partial<Project>): CombatValidati
     checkNumbers(where, p, enemyRanges);
     if (Number(p.attackRange ?? 1) < 1 || Number(p.attackActiveFrames ?? 1) < 1) issues.push({ where, message: "has invalid attack range or active-frame values", severity: "error" });
     if (p.persistentDefeat && Number(p.respawnFrames || 0) > 0) issues.push({ where, message: "Persistent Defeat overrides respawn; set respawn frames to 0", severity: "warning" });
+    for (const ability of p.abilities || []) {
+      if (!skillIds.has(Number(ability.skillId))) issues.push({ where, message: "ability references missing skill " + ability.skillId, severity: "error" });
+      else if (!project.skills!.find((skill) => Number(skill.id) === Number(ability.skillId))?.actionCombat?.enabled) issues.push({ where, message: "ability skill " + ability.skillId + " is not Action Combat enabled", severity: "error" });
+      checkNumbers(where, ability, { weight: [1, 999], cooldownFrames: [0, 3600] });
+      if (ability.targetMode && !targetModes.has(String(ability.targetMode))) issues.push({ where, message: "ability has impossible target mode " + ability.targetMode, severity: "error" });
+    }
   }
   for (const actor of project.actors || []) {
     const p = actor.combat;
@@ -358,6 +424,12 @@ export function validateCombatProject(project: Partial<Project>): CombatValidati
     if (!p) continue;
     checkReferences(where, p);
     checkNumbers(where, p, { ...attackRanges, maxHp: [1, 999999], invulnFrames: [0, 600], staggerResistance: [0, 100], reviveFrames: [0, 36000], reviveHp: [1, 999999] });
+    const cls = (project.classes || []).find((entry) => Number(entry.id) === Number(actor.classId));
+    const learned = new Set<number>([
+      ...(cls?.learnings || []).filter((learning) => Number(learning.level) <= Number(actor.level || 1)).map((learning) => Number(learning.skillId)),
+      ...(((actor as any).skills || []).map(Number)),
+    ]);
+    checkHotbar(where, p.hotbar, learned.size ? learned : undefined);
   }
   for (const weapon of project.weapons || []) if (weapon.combat) {
     checkReferences("Weapon: " + weapon.name, weapon.combat);
@@ -375,6 +447,16 @@ export function validateCombatProject(project: Partial<Project>): CombatValidati
     checkNumbers(where, c, enemyRanges);
     if (c.hp < 0 || Number(c.attackRange ?? 1) < 1 || Number(c.attackActiveFrames ?? 1) < 1) issues.push({ where, message: "has invalid HP, range, or active-frame values", severity: "error", mapId: map.id, eventId: ev.id });
     if (c.persistentDefeat && Number(c.respawnFrames || 0) > 0) issues.push({ where, message: "Persistent Defeat overrides respawn; set respawn frames to 0", severity: "warning", mapId: map.id, eventId: ev.id });
+  }
+  const systemCombat: any = (project.system as any)?.actionCombat;
+  if (systemCombat) {
+    checkNumbers("System: Action Combat", systemCombat, { hotbarSlots: [1, 8] });
+    if (systemCombat.enabled && systemCombat.hotbarSlots == null) issues.push({ where: "System: Action Combat", message: "enabled combat should define hotbar slots", severity: "warning" });
+  }
+  for (const map of project.maps || []) if (map.actionCombat) {
+    const where = "Map: " + map.name;
+    checkNumbers(where, map.actionCombat, { hotbarSlots: [1, 8] });
+    if (map.actionCombat.targetingMode && !["facing", "nearest"].includes(String(map.actionCombat.targetingMode))) issues.push({ where, message: "has impossible targeting mode " + map.actionCombat.targetingMode, severity: "error" });
   }
   return issues;
 }

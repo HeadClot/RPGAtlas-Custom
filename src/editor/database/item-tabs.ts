@@ -13,7 +13,7 @@ import { touch } from "../persistence";
 import { cmdListWidget } from "../event-editor/command-list";
 import { PARAM_KEYS, listFormTab, nameRefresher, iconPickerField, subTabs } from "./shared";
 import { damageFormulaEditor, extraEffectsEditor } from "./battler-tabs";
-import { combatAttackOverrideFields, combatPresentationFields, combatProfileIdField } from "./combat-tab";
+import { actionAbilityFields, combatAttackOverrideFields, combatPresentationFields, combatProfileIdField } from "./combat-tab";
 
 export const itemsTab = () => listFormTab({
   kind: "items",
@@ -57,6 +57,9 @@ export const itemsTab = () => listFormTab({
     }));
     box.appendChild(h("div", { class: "subhead" }, "Extra effects (optional)"));
     box.appendChild(extraEffectsEditor(e));
+    e.actionCombat = e.actionCombat || {};
+    box.appendChild(actionAbilityFields(e.actionCombat, "Action Combat map-use profile"));
+    box.appendChild(h("div", { class: "dim" }, "When enabled, this item can be assigned to an actor hotbar and used during map combat. Consumption follows the profile's consume-on-start rule."));
   },
 });
 

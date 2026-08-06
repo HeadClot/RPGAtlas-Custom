@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { editorState as S } from "../core/editor-state";
-import { h, nIn, sel, field, row, dbOpts } from "../core/dom";
+import { h, nIn, sel, chk, tIn, field, row, dbOpts } from "../core/dom";
 import { touch } from "../persistence";
 import { listFormTab, nameRefresher } from "./shared";
 import { attackHitboxesAt, swordHitboxAt } from "../../shared/sim/action-combat";
@@ -139,4 +139,76 @@ export function combatResetButton(target: any, keys: string[], label = "Reset pa
 
 export function combatSourceNote(text: string) {
   return h("div", { class: "dim" }, text);
+}
+
+export function actionTargetModeOptions() {
+  const options: any = [
+    { v: "facing", l: "Facing target" }, { v: "nearestEnemy", l: "Nearest enemy" },
+    { v: "allEnemies", l: "All enemies" }, { v: "nearestAlly", l: "Nearest ally" },
+    { v: "allAllies", l: "All allies" }, { v: "self", l: "Self" }, { v: "radius", l: "Radius" },
+  ];
+  options.stringValues = true;
+  return options;
+}
+
+/** Shared editor fields for Skill and Item real-time action profiles. */
+export function actionAbilityFields(target: any, label = "Action Combat") {
+  target.enabled = target.enabled !== false;
+  if (target.consumeOnStart == null) target.consumeOnStart = true;
+  return h("div", { class: "action-ability-fields" },
+    h("div", { class: "subhead" }, label),
+    row(field("Enabled", chk(target, "enabled")), field("Target mode", sel(target, "targetMode", actionTargetModeOptions())),
+      field("Hitbox", sel(target, "hitbox", [{ v: "directional", l: "Directional" }, { v: "adjacent", l: "Adjacent" }, { v: "radius", l: "Radius" }])),
+      field("Range", nIn(target, "range", 1, 16))),
+    row(field("Wind-up", nIn(target, "windupFrames", 0, 180)), field("Active", nIn(target, "activeFrames", 1, 180)),
+      field("Recovery", nIn(target, "recoveryFrames", 0, 600)), field("Cooldown", nIn(target, "cooldownFrames", 0, 3600))),
+    row(field("MP cost", nIn(target, "mpCost", 0, 999999)), field("TP cost", nIn(target, "tpCost", 0, 999999)),
+      field("Damage", nIn(target, "damage", 0, 999999)), field("Damage scale", nIn(target, "damageScale", 0, 100, 0.05))),
+    row(field("Knockback", nIn(target, "knockbackTiles", 0, 8)), field("Stagger", nIn(target, "staggerFrames", 0, 600)),
+      field("State", sel(target, "stateId", dbOpts(S.proj.states, "(none)"))), field("State chance %", nIn(target, "stateChance", 0, 100))),
+    row(field("Consume item at start", chk(target, "consumeOnStart")), field("Formula (optional)", tIn(target, "formula"))),
+    combatPresentationFields(target, "full"),
+    attackTimeline({ windupFrames: target.windupFrames, activeFrames: target.activeFrames, recoveryFrames: target.recoveryFrames, cooldown: target.cooldownFrames }),
+    directionalHitboxPreview(target),
+  );
+}
+
+export function actionStateFields(target: any) {
+  target.enabled = target.enabled !== false;
+  return h("div", { class: "action-state-fields" },
+    row(field("Enabled", chk(target, "enabled")), field("Duration frames", nIn(target, "durationFrames", 1, 36000)),
+      field("Tick interval", nIn(target, "tickIntervalFrames", 1, 36000)), field("Damage per tick", nIn(target, "damagePerTick", -999999, 999999))),
+    row(field("Stacking", sel(target, "stacking", [{ v: "refresh", l: "Refresh duration" }, { v: "replace", l: "Replace" }, { v: "stack", l: "Stack" }])),
+      field("Max stacks", nIn(target, "maxStacks", 1, 99)), field("Movement rate", nIn(target, "movementRate", 0, 2, 0.05)), field("Attack rate", nIn(target, "attackRate", 0, 2, 0.05))),
+    row(field("Stagger rate", nIn(target, "staggerRate", 0, 2, 0.05)), field("Root movement", chk(target, "root")), field("Silence", chk(target, "silence")), field("Invulnerable", chk(target, "invulnerable")), field("Resistance %", nIn(target, "resistance", 0, 100))),
+  );
+}
+
+/** Eight-slot editor shared by actor/class action defaults. */
+export function combatHotbarEditor(target: any, skills: any[], items: any[]) {
+  target.hotbar = Array.isArray(target.hotbar) ? target.hotbar : [];
+  const wrap = h("div", { class: "minilist" });
+  const redraw = () => {
+    wrap.innerHTML = "";
+    for (let i = 0; i < 8; i++) {
+      const slot = target.hotbar[i] || { kind: "skill", id: 0 };
+      const holder = { v: String(slot.kind || "skill") };
+      const id = h("span");
+      const redrawId = () => {
+        id.innerHTML = "";
+        id.appendChild(sel(slot, "id", dbOpts(holder.v === "item" ? items : skills, "(empty)"), (value: any) => {
+          if (Number(value) > 0) target.hotbar[i] = slot;
+          else delete target.hotbar[i];
+          touch();
+        }));
+      };
+      const kind = sel(holder, "v", [{ v: "skill", l: "Skill" }, { v: "item", l: "Item" }], (value: any) => {
+        slot.kind = value; slot.id = 0; delete target.hotbar[i]; touch(); redrawId();
+      });
+      redrawId();
+      wrap.appendChild(h("div", { class: "minirow" }, h("span", null, "Slot " + (i + 1)), kind, id));
+    }
+  };
+  redraw();
+  return wrap;
 }

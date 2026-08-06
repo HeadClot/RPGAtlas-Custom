@@ -2193,3 +2193,16 @@ PATCH_NOTES.push({
     "Persisted local Persistent Defeat state through map reloads and saves, and aligned authoritative hit testing, cooldowns, presentation events, and defeat/respawn precedence.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T01:55:00-06:00",
+  title: "Expanded Action-RPG authoring",
+  summary:
+    "Added optional real-time skills, items, states, hotbars, enemy abilities, system/map rules, and shared validation to the Action Combat workflow.",
+  items: [
+    "Added action profiles for Skills and Items, frame-based States, class/actor hotbars and resource defaults, and weighted telegraphed Enemy abilities.",
+    "Added configurable Combat slot 1–8 controls, System and map Action Combat settings, and database editors for all new records.",
+    "Added shared ability resolution, target selection, resource/cooldown checks, state ticking, server intent validation, combat snapshots, and authored map VFX playback.",
+  ],
+});

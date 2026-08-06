@@ -27,6 +27,10 @@ export interface PlayerCombatSnapshot {
   maxHp: number;
   dead: boolean;
   revive: number;
+  mp?: number;
+  maxMp?: number;
+  tp?: number;
+  maxTp?: number;
   mapId?: number;
   x?: number;
   y?: number;

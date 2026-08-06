@@ -84,6 +84,7 @@ import {
   toCombatNetState,
 } from "../../shared/sim/action-combat.js";
 import { resolveActorCombat, resolveEnemyCombat, type ResolvedEnemyCombat } from "../../shared/sim/combat-profiles.js";
+import { canUseActionAbility, resolveActionAbility, resolveActorHotbar, spendActionAbility, tickActionCooldowns } from "../../shared/sim/combat-abilities.js";
 import { CombatLedger, type CombatEvent } from "../../shared/sim/combat-persistence.js";
 import { CombatEventStream, knockbackStep, playerDamageFor, selectCombatTarget } from "../../shared/sim/action-combat-adapter.js";
 import type { JsonValue, PlayerId } from "../../shared/net/protocol.js";
@@ -269,11 +270,13 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
 
   function playerAttackDamage(player: any, rt: any): number {
     const resolved = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
+    const ability = player.combat.activeAbilityId ? resolveActionAbility(world.proj as any, player.combat.activeAbilityKind || "skill", player.combat.activeAbilityId) : null;
+    if (ability) return Math.max(1, Math.round((Number(ability.damage) || resolved.damage) * (Number(ability.damageScale) || 1)));
     const enemy = world.proj && world.proj.enemies
       ? world.proj.enemies.find((e: any) => Number(e.id) === Number(rt.combat.enemyId))
       : null;
     const def = Number(enemy && enemy.stats && enemy.stats.def) || 0;
-    return playerDamageFor(world.proj as any, player.loadout || { actorId: resolved.actorId }, def);
+    return playerDamageFor(world.proj as any, player.loadout || { actorId: resolved.actorId }, def) * resolved.attackRate;
   }
 
   function defeatEvent(rt: any, cfg: ResolvedEnemyCombat): void {
@@ -300,13 +303,15 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
     const dmg = playerAttackDamage(player, rt);
     rt.combat.hp = Math.max(0, Number(rt.combat.hp || 100) - dmg);
-    recordCombat({ tick: world.tick, kind: "hit", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, attackId: player.combat.attackId, x: rt.x, y: rt.y, dir: player.combat.dir, animationId: actor.hitAnimationId, sound: actor.hitSound });
+    const ability = player.combat.activeAbilityId ? resolveActionAbility(world.proj as any, player.combat.activeAbilityKind || "skill", player.combat.activeAbilityId) : null;
+    recordCombat({ tick: world.tick, kind: "hit", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, attackId: player.combat.attackId, x: rt.x, y: rt.y, dir: player.combat.dir, animationId: ability?.hitAnimationId || actor.hitAnimationId, sound: ability?.hitSound || actor.hitSound });
     recordCombat({ tick: world.tick, kind: "damage", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, amount: dmg, hpAfter: Math.max(0, rt.combat.hp), attackId: player.combat.attackId, x: rt.x, y: rt.y, animationId: cfg.hurtAnimationId, sound: cfg.hurtSound });
-    applyHurt(rt.combat, cfg.invulnFrames, actor.staggerFrames);
+    applyHurt(rt.combat, cfg.invulnFrames, ability?.staggerFrames || actor.staggerFrames);
     if (rt.combat.hp <= 0) defeatEvent(rt, cfg);
     else {
-      if (actor.knockbackTiles > 0 && !rt.moving && knockbackStep(rt, player.combat.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) {
-        rt.combat.knockback = Math.max(0, Number(actor.knockbackTiles) || 0) - 1;
+      const knockback = Number(ability?.knockbackTiles) || actor.knockbackTiles;
+      if (knockback > 0 && !rt.moving && knockbackStep(rt, player.combat.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) {
+        rt.combat.knockback = Math.max(0, knockback) - 1;
         rt.combat.knockbackDir = player.combat.dir;
       }
     }
@@ -319,7 +324,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     player.hp = Math.max(0, Number(player.hp || 100) - Math.max(0, cfg.touchDamage));
     recordCombat({ tick: world.tick, kind: "damage", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, amount: Math.max(0, cfg.touchDamage), hpAfter: player.hp, attackId: rt.combat.attackId, x: player.x, y: player.y, sound: cfg.hurtSound });
     const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
-    applyHurt(player.combat, actor.invulnFrames, cfg.staggerFrames || 0);
+    applyHurt(player.combat, Math.round(actor.invulnFrames * actor.defenseRate), cfg.staggerFrames || 0);
     if (player.hp <= 0) {
       const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
       const reviveFrames = Math.max(1, actor.reviveFrames || 300);
@@ -334,6 +339,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     for (const player of players) {
       if (!player.combat) continue;
       const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
+      tickActionCooldowns({ mp: player.mp || 0, tp: player.tp || 0, cooldowns: player.combat.resourceCooldowns || (player.combat.resourceCooldowns = {}) });
       if (player.combat.dead) {
         tickAttack(player.combat, 0, 0);
         if (respawnIfReady(player.combat)) {
@@ -348,7 +354,8 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       if (attackIsActive(player.combat)) {
         for (const rt of world.evRTs) {
           if (!rt.combat || rt.combat.dead || player.combat.hitIds.has(rt.ev.id)) continue;
-          if (attackHitsEntity(player, rt, player.combat.dir, actor.hitbox, actor.range)) {
+          const ability = player.combat.activeAbilityId ? resolveActionAbility(world.proj as any, player.combat.activeAbilityKind || "skill", player.combat.activeAbilityId) : null;
+          if (attackHitsEntity(player, rt, player.combat.dir, ability?.hitbox || actor.hitbox, ability?.range || actor.range)) {
             player.combat.hitIds.add(rt.ev.id);
             hitEvent(player, rt);
           }
@@ -807,9 +814,29 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       if (!player || player.moving || player.combat.dead || world.blocking.has(pid)) return;
       const actor = resolveActorCombat(world.proj, player.loadout?.actorId || 1, player.loadout);
       if (player.combat.attackCooldown > 0) return;
+      player.combat.activeAbilityId = 0;
+      player.combat.activeAbilityKind = null;
       if (startAttack(player.combat, player.dir, actor.windupFrames, actor.activeFrames, actor.recoveryFrames)) {
         player.combat.attackCooldown = actor.cooldown;
         recordCombat({ tick: world.tick, kind: "telegraph", source: player.id, target: 0, mapId, x: player.x, y: player.y, dir: player.dir, animationId: actor.telegraphAnimationId, sound: actor.telegraphSound });
+      }
+    },
+    onAbility(pid: PlayerId, slotIndex: number): void {
+      const player = world.roster.players.get(pid) as any;
+      if (!player || player.moving || player.combat.dead || player.combat.phase !== "idle") return;
+      const slots = resolveActorHotbar(world.proj as any, player.loadout?.actorId || 1, 8);
+      const slot = slots[Math.max(0, Math.floor(Number(slotIndex) || 0))];
+      if (!slot) return;
+      const kind = slot.kind as "skill" | "item";
+      const ability = resolveActionAbility(world.proj as any, kind, slot.id);
+      const resources = { mp: Number(player.mp) || 0, tp: Number(player.tp) || 0, cooldowns: player.combat.resourceCooldowns || (player.combat.resourceCooldowns = {}) };
+      if (!ability || !canUseActionAbility(ability, resources, kind, 0).ok) return;
+      spendActionAbility(ability, resources, kind);
+      player.mp = resources.mp; player.tp = resources.tp;
+      if (startAttack(player.combat, player.dir, ability.windupFrames, ability.activeFrames, ability.recoveryFrames)) {
+        player.combat.activeAbilityId = ability.id;
+        player.combat.activeAbilityKind = ability.kind;
+        recordCombat({ tick: world.tick, kind: "telegraph", source: player.id, target: 0, mapId, x: player.x, y: player.y, dir: player.dir, animationId: ability.telegraphAnimationId || ability.animationId, sound: ability.telegraphSound || ability.attackSound });
       }
     },
 

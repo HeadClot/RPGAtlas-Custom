@@ -3,7 +3,7 @@
     "engine": "rpgatlas",
     "version": 3,
     "builtinsSeeded": true,
-    "formatVersion": 3
+    "formatVersion": 4
   },
   "plugins": [
     {

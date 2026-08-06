@@ -57,6 +57,7 @@ import {
   combatChaseDir,
   combatStaggered,
   startPlayerAttack,
+  startPlayerAbility,
   tickPlayerAttackPresentation,
   setRoute,
   regionAt,
@@ -325,11 +326,14 @@ export function update(): void {
     // concern, not a world write, so it never rides the intent channel (the
     // world-mutating menu VERBS are the §C5 additive intents).
     const d = ctx.Input.dir(!!ctx.proj.system.eightDirectionMovement);
+    let abilitySlot = -1;
+    for (let slot = 0; slot < 8; slot++) if (ctx.Input.consume("combat" + (slot + 1))) { abilitySlot = slot; break; }
     const attack = ctx.Input.consume("attack");
     const ok = ctx.Input.consume("ok");
     const cancel = ctx.Input.consume("cancel");
     // client → transport (attack XOR move, matching the old if/else-if priority)
-    if (attack) soloClient.sendInput({ k: "attack" });
+    if (abilitySlot >= 0) soloClient.sendInput({ k: "ability", slot: abilitySlot });
+    else if (attack) soloClient.sendInput({ k: "attack" });
     else if (d >= 0)
       soloClient.sendInput({ k: "move", dir: CARDINAL_OF[d], dir8: d as GridDir, run: wantsDash() });
     if (ok) soloClient.sendInput({ k: "act" });
@@ -445,6 +449,10 @@ function applyPlayerIntent(intent: InputIntent): void {
   const p = G.player;
   if (intent.k === "attack") {
     if (!G.vehicle) startPlayerAttack();
+    return;
+  }
+  if (intent.k === "ability") {
+    startPlayerAbility(intent.slot);
     return;
   }
   if (intent.k === "move") {

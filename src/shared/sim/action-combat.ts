@@ -65,6 +65,12 @@ export interface CombatState {
   /** Remaining authoritative knockback steps and their direction. */
   knockback?: number;
   knockbackDir?: number;
+  /** Action-RPG resource/cooldown state. Optional so legacy combat snapshots
+   * remain byte-compatible while no abilities are authored. */
+  resourceCooldowns: Record<string, number>;
+  activeAbilityId: number;
+  activeAbilityKind: "skill" | "item" | null;
+  states: import("../schema.js").CombatStateEffect[];
 }
 
 export interface CombatNetState {
@@ -77,6 +83,10 @@ export interface CombatNetState {
   stagger: number;
   dead: boolean;
   hurtFlash: number;
+  resourceCooldowns: Record<string, number>;
+  activeAbilityId: number;
+  activeAbilityKind: "skill" | "item" | null;
+  states: Array<{ stateId: number; remainingFrames: number; tickFrames: number; stacks: number }>;
 }
 
 export const DEFAULT_ACTION_COMBAT: Omit<ActionCombatConfig, "enabled" | "enemyId" | "ai" | "hp" | "touchDamage" | "knockbackTiles" | "invulnFrames" | "defeatSelfSwitch"> = {
@@ -142,6 +152,10 @@ export function createCombatState(): CombatState {
     respawn: 0,
     knockback: 0,
     knockbackDir: 0,
+    resourceCooldowns: {},
+    activeAbilityId: 0,
+    activeAbilityKind: null,
+    states: [],
   };
 }
 
@@ -239,6 +253,10 @@ export function toCombatNetState(state: CombatState): CombatNetState {
     stagger: state.stagger,
     dead: state.dead,
     hurtFlash: state.hurtFlash,
+    resourceCooldowns: { ...(state.resourceCooldowns || {}) },
+    activeAbilityId: Number(state.activeAbilityId) || 0,
+    activeAbilityKind: state.activeAbilityKind || null,
+    states: (state.states || []).map((s) => ({ stateId: s.stateId, remainingFrames: s.remainingFrames, tickFrames: Number(s.tickFrames) || 0, stacks: Number(s.stacks) || 1 })),
   };
 }
 
