@@ -6,7 +6,7 @@
    wire-up time and hands the bytes to Rust (§3.1). Copy is kid-friendly + final.
    docs/harbor-1-spec.md §5.3. GPL-3.0-or-later (see LICENSE). */
 
-export type TemplateId = "blank" | "starter" | "atlas-quest";
+export type TemplateId = "blank" | "starter" | "platformer" | "atlas-quest";
 
 export interface TemplateDescriptor {
   id: TemplateId;
@@ -14,7 +14,7 @@ export interface TemplateDescriptor {
   description: string;
 }
 
-/** The three starter choices, in manager display order. */
+/** The four starter choices, in manager display order. */
 export const TEMPLATES: TemplateDescriptor[] = [
   {
     id: "blank",
@@ -27,6 +27,11 @@ export const TEMPLATES: TemplateDescriptor[] = [
     description: "A ready-to-edit little game with the basics already set up.",
   },
   {
+    id: "platformer",
+    label: "Platformer game",
+    description: "A side-on running and jumping game with a starter floor and platformer controls.",
+  },
+  {
     id: "atlas-quest",
     label: "Atlas Quest sample",
     description:
@@ -36,5 +41,5 @@ export const TEMPLATES: TemplateDescriptor[] = [
 
 /** Narrowing guard for an unknown template id from IPC/UI. */
 export function isTemplateId(x: unknown): x is TemplateId {
-  return x === "blank" || x === "starter" || x === "atlas-quest";
+  return x === "blank" || x === "starter" || x === "platformer" || x === "atlas-quest";
 }

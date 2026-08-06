@@ -83,6 +83,8 @@ export const ctx: any = {
   playerOptions: {},
   dashLatch: false,
   dashPrev: false,
+  platformerCameraX: null,
+  platformerCameraY: null,
 };
 
 // ---- Project Beacon MP1·A compat shim -------------------------------------

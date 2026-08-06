@@ -319,6 +319,35 @@ const RA = {
       respawnFrames: 0,
     };
   },
+  defaultPlatformer() {
+    return {
+      maxRunSpeed: 5, groundAcceleration: 45, airAcceleration: 30,
+      groundFriction: 60, gravity: 30, jumpSpeed: 11.5,
+      maxFallSpeed: 16, jumpCutMultiplier: 2.2, coyoteFrames: 6,
+      jumpBufferFrames: 6, dropThroughFrames: 8,
+      respawnInvulnerabilityFrames: 60, fallMargin: 2,
+    };
+  },
+  normalizePlatformer(value) {
+    const base = RA.defaultPlatformer();
+    const src = value && typeof value === "object" ? value : {};
+    const clamp = (key, min, max) => {
+      const n = Number(src[key]);
+      return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : base[key];
+    };
+    for (const [key, min, max] of [
+      ["maxRunSpeed", 0.1, 30], ["groundAcceleration", 0.1, 240],
+      ["airAcceleration", 0.1, 240], ["groundFriction", 0.1, 240],
+      ["gravity", 0.1, 240], ["jumpSpeed", 0.1, 60],
+      ["maxFallSpeed", 0.1, 120], ["jumpCutMultiplier", 1, 8],
+      ["coyoteFrames", 0, 30], ["jumpBufferFrames", 0, 30],
+      ["dropThroughFrames", 1, 60], ["respawnInvulnerabilityFrames", 0, 600],
+      ["fallMargin", 0, 20],
+    ]) base[key] = clamp(key, min, max);
+    for (const key of ["coyoteFrames", "jumpBufferFrames", "dropThroughFrames", "respawnInvulnerabilityFrames"])
+      base[key] = Math.round(base[key]);
+    return base;
+  },
   defaultActionCombatSystem() {
     return {
       enabled: false,
@@ -479,6 +508,7 @@ const RA = {
     { key: "right", label: "Right" },
     { key: "ok", label: "Confirm" },
     { key: "cancel", label: "Cancel" },
+    { key: "jump", label: "Jump" },
     { key: "dash", label: "Dash" },
     { key: "attack", label: "Attack" },
     { key: "combat1", label: "Combat slot 1" },
@@ -498,7 +528,7 @@ const RA = {
       keyboard: {
         up: ["ArrowUp", "KeyW"], down: ["ArrowDown", "KeyS"],
         left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"],
-        ok: ["KeyZ", "Enter", "Space"], cancel: ["KeyX", "Escape"],
+        ok: ["KeyZ", "Enter", "Space"], cancel: ["KeyX", "Escape"], jump: ["Space"],
         dash: ["ShiftLeft", "ShiftRight"], attack: ["KeyF", "KeyJ"],
         combat1: ["Digit1"], combat2: ["Digit2"], combat3: ["Digit3"], combat4: ["Digit4"],
         combat5: ["Digit5"], combat6: ["Digit6"], combat7: ["Digit7"], combat8: ["Digit8"],
@@ -509,7 +539,7 @@ const RA = {
         // lstick_* names from the stick axes) so each is a visible, editable binding.
         up: ["dpad_up", "lstick_up"], down: ["dpad_down", "lstick_down"],
         left: ["dpad_left", "lstick_left"], right: ["dpad_right", "lstick_right"],
-        ok: ["face_south"], cancel: ["face_east"], dash: ["face_west"], attack: ["face_north"],
+        ok: ["face_south"], cancel: ["face_east"], jump: ["face_south"], dash: ["face_west"], attack: ["face_north"],
         combat1: [], combat2: [], combat3: [], combat4: [], combat5: [], combat6: [], combat7: [], combat8: [],
         hud: ["select"],
       },
@@ -699,7 +729,7 @@ const RA = {
       defeatSound: "combatDefeat", reviveSound: "combatRevive",
     };
   },
-  FORMAT_VERSION: 4,
+  FORMAT_VERSION: 5,
   migrations: [
     {
       // v0 -> v1: the pre-existing ad-hoc migration (decor2 layer, shadows,
@@ -730,6 +760,11 @@ const RA = {
       // system/map rules. All defaults are disabled or empty.
       version: 4,
       migrate(p) { RA._migrateV3toV4(p); },
+    },
+    {
+      // v4 -> v5: opt-in platformer mode and additive map collision plane.
+      version: 5,
+      migrate(p) { RA._migrateV4toV5(p); },
     },
   ],
   // upgrade older projects in place (adds the decor2 layer, shadows,
@@ -976,6 +1011,17 @@ const RA = {
     }
     for (const map of (Array.isArray(p.maps) ? p.maps : [])) if (map.actionCombat && typeof map.actionCombat !== "object") delete map.actionCombat;
   },
+  _migrateV4toV5(p) {
+    const sys = p.system || (p.system = {});
+    sys.gameMode = sys.gameMode === "platformer" ? "platformer" : "rpg";
+    sys.platformer = RA.normalizePlatformer(sys.platformer);
+    for (const map of p.maps || []) {
+      const n = Math.max(0, Number(map.width) | 0) * Math.max(0, Number(map.height) | 0);
+      if (!Array.isArray(map.platformerCollision) || map.platformerCollision.length !== n) {
+        map.platformerCollision = new Array(n).fill(0);
+      }
+    }
+  },
   // v1 -> v2 (Phase 5): gameplay-systems backfills. Idempotent; every field
   // is additive and inert at its default, so a migrated project plays
   // identically until an author opts in.
@@ -1011,7 +1057,7 @@ const RA = {
     for (const role of ["ground", "decor", "decor2", "over"]) {
       if (!Array.isArray(layers[role]) || layers[role].length !== n) layers[role] = new Array(n).fill(0);
     }
-    for (const plane of ["shadows", "passOv", "heights", "regions"]) {
+    for (const plane of ["shadows", "passOv", "heights", "regions", "platformerCollision"]) {
       if (!Array.isArray(m[plane]) || m[plane].length !== n) m[plane] = new Array(n).fill(0);
     }
     return m;
@@ -1026,6 +1072,12 @@ const RA = {
     if (current > RA.FORMAT_VERSION) return p; // forward-compat: don't touch it
     for (const step of RA.migrations) {
       if (step.version > current) step.migrate(p);
+    }
+    // Keep the opt-in system contract normalized even when a project is
+    // already stamped at the current format version and was edited by hand.
+    if (p.system && typeof p.system === "object") {
+      p.system.gameMode = p.system.gameMode === "platformer" ? "platformer" : "rpg";
+      p.system.platformer = RA.normalizePlatformer(p.system.platformer);
     }
     // Backfill every map's tile/plane arrays. The version-gated steps above only
     // fire for OLDER projects; an already-current (v2) project — every MZ/MV
@@ -1051,6 +1103,8 @@ const RA = {
     // Optional eight-direction grid movement. Normalize at every load boundary
     // because already-current v2 projects skip the version-gated migrations.
     p.system = p.system && typeof p.system === "object" ? p.system : {};
+    p.system.gameMode = p.system.gameMode === "platformer" ? "platformer" : "rpg";
+    p.system.platformer = RA.normalizePlatformer(p.system.platformer);
     p.system.eightDirectionMovement = p.system.eightDirectionMovement === true;
     p.system.actionCombat = Object.assign(RA.defaultActionCombatSystem(), p.system.actionCombat || {});
     p.system.actionCombat.hotbarSlots = Math.max(1, Math.min(8, Number(p.system.actionCombat.hotbarSlots) || 8));
@@ -1096,6 +1150,7 @@ const DataDefaults = (() => {
       passOv: new Array(n).fill(0),    // passability override: 0=auto 1=force pass 2=force block
       heights: new Array(n).fill(0),   // HD-2D elevation in tile units (visual only; 0 = flat)
       regions: new Array(n).fill(0),   // region tag per tile: 0 = none, 1-63 (Phase 5)
+      platformerCollision: new Array(n).fill(0), // 0=auto 1=solid 2=empty 3=one-way
       events: [],
       actionCombat: {},
     };
@@ -1555,6 +1610,8 @@ const DataDefaults = (() => {
         music: RA.defaultMusic(),
         types: RA.defaultTypes(),
         input: RA.defaultInput(),
+        gameMode: "rpg",
+        platformer: RA.defaultPlatformer(),
         battleSystem: "turn", atbWait: true,       // Phase 5 battle mode
         followers: false, minimap: false,          // Phase 5 map systems
         eightDirectionMovement: false,             // optional diagonal grid steps

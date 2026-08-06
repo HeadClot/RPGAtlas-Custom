@@ -2257,3 +2257,16 @@ PATCH_NOTES.push({
     "Replicated cooldowns, active ability metadata, and real-time states to remote player entities, and restored self-target selection semantics.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T13:30:00-06:00",
+  title: "Platformer game mode",
+  summary:
+    "Added an opt-in side-on platformer mode that reuses RPGAtlas maps and events for a playable run, jump, checkpoint, hazard, and goal slice.",
+  items: [
+    "Added forgiving acceleration, friction, gravity, variable jumps, coyote time, jump buffering, solid and one-way collision, drop-through, fall recovery, and checkpoint respawn.",
+    "Added platformer collision painting, hazard/checkpoint/goal event roles, a remappable jump action, Canvas side-follow camera behavior, and save/load state support.",
+    "Platformer projects keep HD-2D and Beacon multiplayer disabled in this release while existing RPG projects remain unchanged.",
+  ],
+});

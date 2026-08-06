@@ -335,6 +335,17 @@ import { resolveEnemyCombat, validateCombatProject } from "../../shared/sim/comb
             { v: "action", l: "Action button" }, { v: "touch", l: "Player touch" },
             { v: "auto", l: "Autorun" }, { v: "parallel", l: "Parallel" }])),
           propRow("Movement", sel(pg, "moveType", [{ v: "fixed", l: "Fixed" }, { v: "random", l: "Random" }])),
+          // Platformer roles reuse this page's existing commands as a
+          // collision-triggered hazard, checkpoint, or goal.
+          (() => {
+            const platformer = (pg.platformer = Object.assign({}, pg.platformer || {}));
+            return h("div", { class: "platformer-event-role" },
+              propRow("Platformer role", sel(platformer, "role", [
+                { v: "", l: "None" }, { v: "hazard", l: "Hazard" },
+                { v: "checkpoint", l: "Checkpoint" }, { v: "goal", l: "Goal" },
+              ])),
+              propRow("Save on checkpoint", chk(platformer, "saveOnReach")));
+          })(),
           // Wander leash (post-2.0). 0 keeps the old "wander anywhere"
           // behaviour, so every existing page reads exactly as it did.
           propRow("Max wander", nIn(pg, "maxDistance", 0, 99)),

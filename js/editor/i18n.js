@@ -39,7 +39,7 @@ const SHARED = {
       "Clear Selection": "Limpiar selección",
       // modes
       "Map (Tile) Mode": "Modo mapa (mosaicos)", "Event Mode": "Modo eventos",
-      "Passability Mode": "Modo transitabilidad", "Height Mode (HD-2D)": "Modo altura (HD-2D)",
+      "Passability Mode": "Modo transitabilidad", "Platformer Collision Mode": "Modo de colisión de plataformas", "Height Mode (HD-2D)": "Modo altura (HD-2D)",
       "Region Mode": "Modo regiones",
       // layers
       "Auto layer": "Capa automática", "Layer 1 (Ground)": "Capa 1 (Suelo)",
@@ -125,7 +125,7 @@ const SHARED = {
       "Clear Selection": "Effacer la sélection",
       // modes
       "Map (Tile) Mode": "Mode carte (tuiles)", "Event Mode": "Mode événements",
-      "Passability Mode": "Mode praticabilité", "Height Mode (HD-2D)": "Mode hauteur (HD-2D)",
+      "Passability Mode": "Mode praticabilité", "Platformer Collision Mode": "Mode de collision plateforme", "Height Mode (HD-2D)": "Mode hauteur (HD-2D)",
       "Region Mode": "Mode régions",
       // layers
       "Auto layer": "Calque automatique", "Layer 1 (Ground)": "Calque 1 (Sol)",
@@ -211,7 +211,7 @@ const SHARED = {
       "Clear Selection": "Auswahl aufheben",
       // modes
       "Map (Tile) Mode": "Kartenmodus (Kacheln)", "Event Mode": "Ereignismodus",
-      "Passability Mode": "Passierbarkeitsmodus", "Height Mode (HD-2D)": "Höhenmodus (HD-2D)",
+      "Passability Mode": "Passierbarkeitsmodus", "Platformer Collision Mode": "Platformer-Kollisionsmodus", "Height Mode (HD-2D)": "Höhenmodus (HD-2D)",
       "Region Mode": "Regionsmodus",
       // layers
       "Auto layer": "Automatische Ebene", "Layer 1 (Ground)": "Ebene 1 (Boden)",
@@ -297,7 +297,7 @@ const SHARED = {
       "Clear Selection": "選択を解除",
       // modes
       "Map (Tile) Mode": "マップ（タイル）モード", "Event Mode": "イベントモード",
-      "Passability Mode": "通行設定モード", "Height Mode (HD-2D)": "高さモード（HD-2D）",
+      "Passability Mode": "通行設定モード", "Platformer Collision Mode": "プラットフォーマー衝突モード", "Height Mode (HD-2D)": "高さモード（HD-2D）",
       "Region Mode": "リージョンモード",
       // layers
       "Auto layer": "自動レイヤー", "Layer 1 (Ground)": "レイヤー1（地面）",
@@ -383,7 +383,7 @@ const SHARED = {
       "Clear Selection": "清除選取範圍",
       // modes
       "Map (Tile) Mode": "地圖（圖塊）模式", "Event Mode": "事件模式",
-      "Passability Mode": "通行模式", "Height Mode (HD-2D)": "高度模式（HD-2D）",
+      "Passability Mode": "通行模式", "Platformer Collision Mode": "平台游戏碰撞模式", "Height Mode (HD-2D)": "高度模式（HD-2D）",
       "Region Mode": "區域模式",
       // layers
       "Auto layer": "自動圖層", "Layer 1 (Ground)": "圖層1（地面）",
@@ -469,7 +469,7 @@ const SHARED = {
       "Clear Selection": "清除选区",
       // modes
       "Map (Tile) Mode": "地图（图块）模式", "Event Mode": "事件模式",
-      "Passability Mode": "通行模式", "Height Mode (HD-2D)": "高度模式（HD-2D）",
+      "Passability Mode": "通行模式", "Platformer Collision Mode": "平台遊戲碰撞模式", "Height Mode (HD-2D)": "高度模式（HD-2D）",
       "Region Mode": "区域模式",
       // layers
       "Auto layer": "自动图层", "Layer 1 (Ground)": "图层1（地面）",
@@ -555,7 +555,7 @@ const SHARED = {
       "Clear Selection": "Limpar seleção",
       // modes
       "Map (Tile) Mode": "Modo mapa (tiles)", "Event Mode": "Modo de eventos",
-      "Passability Mode": "Modo de passabilidade", "Height Mode (HD-2D)": "Modo de altura (HD-2D)",
+      "Passability Mode": "Modo de passabilidade", "Platformer Collision Mode": "Modo de colisão de plataforma", "Height Mode (HD-2D)": "Modo de altura (HD-2D)",
       "Region Mode": "Modo de regiões",
       // layers
       "Auto layer": "Camada automática", "Layer 1 (Ground)": "Camada 1 (Chão)",
@@ -641,7 +641,7 @@ const SHARED = {
       "Clear Selection": "선택 해제",
       // modes
       "Map (Tile) Mode": "맵(타일) 모드", "Event Mode": "이벤트 모드",
-      "Passability Mode": "통행 설정 모드", "Height Mode (HD-2D)": "높이 모드(HD-2D)",
+      "Passability Mode": "통행 설정 모드", "Platformer Collision Mode": "플랫포머 충돌 모드", "Height Mode (HD-2D)": "높이 모드(HD-2D)",
       "Region Mode": "리전 모드",
       // layers
       "Auto layer": "자동 레이어", "Layer 1 (Ground)": "레이어 1(지면)",
@@ -727,7 +727,7 @@ const SHARED = {
       "Clear Selection": "Cancella selezione",
       // modes
       "Map (Tile) Mode": "Modalità mappa (tile)", "Event Mode": "Modalità eventi",
-      "Passability Mode": "Modalità transitabilità", "Height Mode (HD-2D)": "Modalità altezza (HD-2D)",
+      "Passability Mode": "Modalità transitabilità", "Platformer Collision Mode": "Modalità collisione platform", "Height Mode (HD-2D)": "Modalità altezza (HD-2D)",
       "Region Mode": "Modalità regioni",
       // layers
       "Auto layer": "Livello automatico", "Layer 1 (Ground)": "Livello 1 (Terreno)",
@@ -813,7 +813,7 @@ const SHARED = {
       "Clear Selection": "Снять выделение",
       // modes
       "Map (Tile) Mode": "Режим карты (тайлы)", "Event Mode": "Режим событий",
-      "Passability Mode": "Режим проходимости", "Height Mode (HD-2D)": "Режим высот (HD-2D)",
+      "Passability Mode": "Режим проходимости", "Platformer Collision Mode": "Режим столкновений платформера", "Height Mode (HD-2D)": "Режим высот (HD-2D)",
       "Region Mode": "Режим регионов",
       // layers
       "Auto layer": "Автослой", "Layer 1 (Ground)": "Слой 1 (Земля)",

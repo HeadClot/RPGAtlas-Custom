@@ -60,6 +60,7 @@ export function createInitialGameState(): any {
     // scripts drive it (game.setTimeOfDay) — nothing advances it implicitly.
     timeOfDay: 12,
     player: null,
+    platformerCheckpoint: null,
   };
 }
 

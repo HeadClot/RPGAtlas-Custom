@@ -35,6 +35,7 @@ describe("createWorld — fresh state", () => {
       steps: 0,
       encSteps: 0,
       timeOfDay: 12,
+      platformerCheckpoint: null,
       player: null,
     });
   });

@@ -121,6 +121,21 @@ export function systemTab() {
     if (s.followers == null) s.followers = false;
     if (s.minimap == null) s.minimap = false;
     if (s.eightDirectionMovement == null) s.eightDirectionMovement = false;
+    s.gameMode = s.gameMode === "platformer" ? "platformer" : "rpg";
+    s.platformer = Object.assign(RA.defaultPlatformer(), s.platformer || {});
+    p.appendChild(row(
+      field("Game mode", sel(s, "gameMode", [{ v: "rpg", l: "RPG (grid movement)" }, { v: "platformer", l: "Platformer (side-on movement)" }])),
+    ));
+    p.appendChild(h("div", { class: "dim" }, "Platformer mode is project-wide. It uses the classic Canvas renderer; HD-2D and Beacon multiplayer are unavailable in this release."));
+    p.appendChild(row(
+      field("Run speed (tiles/s)", nIn(s.platformer, "maxRunSpeed", 1, 20, 0.1)),
+      field("Gravity", nIn(s.platformer, "gravity", 1, 100, 0.5)),
+      field("Jump speed", nIn(s.platformer, "jumpSpeed", 1, 30, 0.1)),
+      field("Jump cut", nIn(s.platformer, "jumpCutMultiplier", 1, 8, 0.1))));
+    p.appendChild(row(
+      field("Coyote frames", nIn(s.platformer, "coyoteFrames", 0, 30)),
+      field("Jump buffer frames", nIn(s.platformer, "jumpBufferFrames", 0, 30)),
+      field("Respawn invulnerability", nIn(s.platformer, "respawnInvulnerabilityFrames", 0, 600))));
     p.appendChild(row(
       field("Party followers (members trail the player)", chk(s, "followers")),
       field("Minimap (corner map + quest tracker HUD; M toggles)", chk(s, "minimap")),

@@ -76,6 +76,15 @@ import { counterAt, damageFloorAt } from "./tile-behavior.js";
 import { autosaveNow } from "../state/save.js";
 import { resolveBoundaryCrossing } from "../../shared/map/map-connections.js";
 import { knockbackStep } from "../../shared/sim/action-combat-adapter.js";
+import {
+  platformerEnabled,
+  platformerPlayerInput,
+  platformerEvents,
+  platformerActionEvent,
+  setPlatformerCheckpoint,
+  respawnAtPlatformerCheckpoint,
+  platformerPlayerInvulnerable,
+} from "./platformer-runtime.js";
 
 let frameWaiters: any[] = [];
 let seamlessCrossing = false;
@@ -304,17 +313,42 @@ export function update(): void {
   // next one immediately, so there's no dead frame at each tile. activePlayerControl()
   // stays false during events/battles, so chaining can't spawn a spurious move.
   const playerSpeed = wantsDash() ? 0.13 : 0.085;
-  if (p.jumping) {
+  if (platformerEnabled()) {
+    const control = activePlayerControl();
+    const axis = control && ctx.Input.pressed("right") ? 1 : control && ctx.Input.pressed("left") ? -1 : 0;
+    const jumpPressed = control && ctx.Input.consume("jump");
+    const jumpHeld = control && ctx.Input.pressed("jump");
+    const downHeld = control && ctx.Input.pressed("down");
+    const platformerResult = platformerPlayerInput({ axis, jumpPressed, jumpHeld, downHeld });
+    if (platformerResult.fell) respawnAtPlatformerCheckpoint();
+    if (control && !jumpPressed && ctx.Input.consume("ok")) {
+      const actionEvent = platformerActionEvent();
+      if (actionEvent) runEventBlocking(actionEvent, PLAYER_CTX);
+    }
+    if (control && ctx.Input.consume("cancel")) fns.openMenu();
+    for (const rt of platformerEvents()) {
+      const role = rt.page.platformer.role;
+      if (role === "hazard") {
+        if (!platformerPlayerInvulnerable()) respawnAtPlatformerCheckpoint();
+        if (rt.page.commands.length) runEventBlocking(rt, PLAYER_CTX);
+      } else if (role === "checkpoint") {
+        if (setPlatformerCheckpoint(rt, !!rt.page.platformer.saveOnReach)) autosaveNow();
+        if (rt.page.commands.length) runEventBlocking(rt, PLAYER_CTX);
+      } else if (role === "goal" && rt.page.commands.length) {
+        runEventBlocking(rt, PLAYER_CTX);
+      }
+    }
+  } else if (p.jumping) {
     if (updateJumpMotion(p)) onPlayerStep(); // landed: triggers/encounters fire
   } else if (p.moving) {
     const arrived = updateEntityMotion(p, playerSpeed);
     if (arrived) onPlayerStep();
   }
   // touch-to-move routes yield to the player: any directional press cancels
-  if (p.route && p.route.touch && ctx.Input.dir() >= 0) p.route = null;
-  if (!p.moving && !p.jumping && p.route) {
+  if (!platformerEnabled() && p.route && p.route.touch && ctx.Input.dir() >= 0) p.route = null;
+  if (!platformerEnabled() && !p.moving && !p.jumping && p.route) {
     updateRoute(p);
-  } else if (!p.moving && !p.jumping && activePlayerControl()) {
+  } else if (!platformerEnabled() && !p.moving && !p.jumping && activePlayerControl()) {
     // Project Beacon MP2·B: player map-control input rides the protocol. The
     // CLIENT reads the device and emits move/attack/act intents; they cross the
     // in-process LoopbackTransport to the WORLD host, which hands them back for
@@ -351,19 +385,26 @@ export function update(): void {
     if (cancel) fns.openMenu();
   }
   if (p.moving) p.animT = (p.animT || 0) + 0; // animT advanced in motion fn
-  updateFollowers(playerSpeed);
-  updateMapCombat();
+  if (!platformerEnabled()) {
+    updateFollowers(playerSpeed);
+    updateMapCombat();
+  }
   // MP4·B (host): advance remote players' in-progress steps. No-op in solo.
   if (defaultWorld.roster.players.size) advanceRemotePlayers();
 
   // events
   for (const rt of ctx.evRTs) {
     if (rt.erased || !rt.page) continue;
+    if (platformerEnabled()) {
+      rt.moving = false;
+      rt.jumping = null;
+      rt.route = null;
+    }
     // Same no-dead-frame pattern as the player above: a finished step chains into the next
     // route/random step this same tick instead of pausing a frame at each tile.
-    if (rt.jumping) {
+    if (!platformerEnabled() && rt.jumping) {
       updateJumpMotion(rt); // route "jump" steps: NPC hops advance like the player's
-    } else if (rt.moving) {
+    } else if (!platformerEnabled() && rt.moving) {
       const arrived = updateEntityMotion(rt, rt.combat && rt.combat.knockback ? 0.18 : rt.speed);
       if (arrived && rt.combat && Number(rt.combat.knockback) > 0) {
         const remaining = Number(rt.combat.knockback) || 0;
@@ -371,9 +412,9 @@ export function update(): void {
         else rt.combat.knockback = 0;
       }
     }
-    if (!rt.moving && !rt.jumping && rt.route) {
+    if (!platformerEnabled() && !rt.moving && !rt.jumping && rt.route) {
       updateRoute(rt);
-    } else if (!rt.moving && !rt.jumping) {
+    } else if (!platformerEnabled() && !rt.moving && !rt.jumping) {
       const chaseDir = combatChaseDir(rt);
       if (chaseDir >= 0) {
         startMove(rt, chaseDir);

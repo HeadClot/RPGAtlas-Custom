@@ -38,6 +38,27 @@
  *  sheets render diagonal facings with their matching left/right row. */
 export type Dir = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
+/** The project-wide runtime family. Absent/"rpg" keeps the classic grid game. */
+export type GameMode = "rpg" | "platformer";
+
+/** Tunable forgiving action-platformer physics, expressed in tiles/second and
+ * fixed at the engine's 60 Hz simulation tick. */
+export interface PlatformerSettings {
+  maxRunSpeed?: number;
+  groundAcceleration?: number;
+  airAcceleration?: number;
+  groundFriction?: number;
+  gravity?: number;
+  jumpSpeed?: number;
+  maxFallSpeed?: number;
+  jumpCutMultiplier?: number;
+  coyoteFrames?: number;
+  jumpBufferFrames?: number;
+  dropThroughFrames?: number;
+  respawnInvulnerabilityFrames?: number;
+  fallMargin?: number;
+}
+
 /** Item bucket kind used across inventory, shop goods, change-items, etc. */
 export type ItemKind = "item" | "weapon" | "armor";
 
@@ -324,6 +345,10 @@ export interface SystemData {
   music: Record<string, string>;
   types: SystemTypes;
   input: InputBindings;
+  /** Project-wide runtime family. Missing/"rpg" preserves the classic game. */
+  gameMode?: GameMode;
+  /** Global platformer physics, used only when gameMode is "platformer". */
+  platformer?: PlatformerSettings;
   /** Global rules for the optional map Action Combat layer. */
   actionCombat?: {
     enabled?: boolean;
@@ -1871,6 +1896,11 @@ export interface EventPage {
   trigger?: "action" | "touch" | "auto" | "parallel" | string;
   priority?: "below" | "same" | "above" | string;
   through?: boolean;
+  /** Optional platformer trigger role for this event page. */
+  platformer?: {
+    role: "hazard" | "checkpoint" | "goal" | string;
+    saveOnReach?: boolean;
+  };
   combat?: ActionCombat;
   commands: AnyCommand[];
   /** Atlas Graph source (Phase 4). When present, `commands` is its compiled
@@ -2075,6 +2105,8 @@ export interface GameMap {
   shadows?: number[];
   /** passability override per tile: 0=auto 1=force pass 2=force block. */
   passOv?: number[];
+  /** Platformer collision override: 0 auto, 1 solid, 2 empty, 3 one-way. */
+  platformerCollision?: number[];
   /** HD-2D elevation in tile units per tile (visual only). */
   heights?: number[];
   /** Region tag per tile: 0 = none, 1–63 (Phase 5). Backfilled by v2. */

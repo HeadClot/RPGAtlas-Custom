@@ -38,6 +38,33 @@ export function buildTemplateDocument(templateId: TemplateId, displayName: strin
     doc.system.startX = Math.floor(map.width / 2);
     doc.system.startY = Math.floor(map.height / 2);
     doc.quests = [];
+  } else if (templateId === "platformer") {
+    doc = DataDefaults.newProject();
+    const map = DataDefaults.newMap(1, "First Platform", 24, 14);
+    doc.maps = [map];
+    doc.quests = [];
+    doc.system.gameMode = "platformer";
+    doc.system.startMapId = map.id;
+    doc.system.startX = 2;
+    doc.system.startY = 8;
+    doc.system.startDir = 2;
+    // A minimal playable blockout: floor, two raised platforms, and a goal.
+    for (let x = 0; x < map.width; x++) map.platformerCollision[(map.height - 1) * map.width + x] = 1;
+    for (let x = 6; x <= 9; x++) map.platformerCollision[9 * map.width + x] = 3;
+    for (let x = 13; x <= 17; x++) map.platformerCollision[6 * map.width + x] = 3;
+    const checkpoint = DataDefaults.newEvent(2, 5, 12, "Checkpoint");
+    checkpoint.pages[0].platformer = { role: "checkpoint", saveOnReach: false };
+    checkpoint.pages[0].charset = "";
+    map.events.push(checkpoint);
+    const hazard = DataDefaults.newEvent(3, 11, 12, "Hazard");
+    hazard.pages[0].platformer = { role: "hazard" };
+    hazard.pages[0].charset = "";
+    map.events.push(hazard);
+    const goal = DataDefaults.newEvent(1, 21, 12, "Goal");
+    goal.pages[0].platformer = { role: "goal" };
+    goal.pages[0].charset = "";
+    goal.pages[0].commands = [{ t: "text", name: "", text: "Level complete!" }];
+    map.events.push(goal);
   } else {
     // "starter": today's first-run project (DataDefaults), unchanged.
     doc = DataDefaults.newProject();

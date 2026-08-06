@@ -81,6 +81,7 @@ export async function render(): Promise<void> {
   const ip = (pv: any, cv: any) => (pv == null ? cv : pv + (cv - pv) * alpha);
   const pix = ip(p.prx, p.rx), piy = ip(p.pry, p.ry);
   const viewW = ctx.SCREEN_W / ctx.cameraZoom, viewH = ctx.SCREEN_H / ctx.cameraZoom;
+  const platformer = ctx.proj?.system?.gameMode === "platformer";
   // Map-scene camera offset from a Scroll Map command (Project Compass M2·A);
   // added to the follow-camera before edge-clamping so it can't leave the map.
   const scr = ctx.scene === "map" ? scrollOffsetPx() : { x: 0, y: 0 };
@@ -89,8 +90,28 @@ export async function render(): Promise<void> {
   // below. Bounded maps (and the HD path) keep the exact edge clamp.
   const loopH = !hdLive && !!(ctx.map.loop && ctx.map.loop.h);
   const loopV = !hdLive && !!(ctx.map.loop && ctx.map.loop.v);
-  const rawCamX = pix * TILE + TILE / 2 - viewW / 2 + scr.x;
-  const rawCamY = piy * TILE + TILE / 2 - viewH / 2 + scr.y;
+  let rawCamX = pix * TILE + TILE / 2 - viewW / 2 + scr.x;
+  let rawCamY = piy * TILE + TILE / 2 - viewH / 2 + scr.y;
+  if (platformer) {
+    const lookAhead = p.dir === 1 ? -viewW * 0.12 : p.dir === 2 ? viewW * 0.12 : 0;
+    const targetX = pix * TILE + TILE / 2 + lookAhead;
+    const targetY = piy * TILE + TILE / 2;
+    let camX = Number.isFinite(ctx.platformerCameraX) ? ctx.platformerCameraX : targetX - viewW / 2;
+    let camY = Number.isFinite(ctx.platformerCameraY) ? ctx.platformerCameraY : targetY - viewH * 0.55;
+    const leftZone = camX + viewW * 0.35, rightZone = camX + viewW * 0.65;
+    const topZone = camY + viewH * 0.35, bottomZone = camY + viewH * 0.65;
+    if (targetX < leftZone) camX = targetX - viewW * 0.35;
+    else if (targetX > rightZone) camX = targetX - viewW * 0.65;
+    if (targetY < topZone) camY = targetY - viewH * 0.35;
+    else if (targetY > bottomZone) camY = targetY - viewH * 0.65;
+    ctx.platformerCameraX = ctx.platformerCameraX == null ? camX : ctx.platformerCameraX + (camX - ctx.platformerCameraX) * 0.18;
+    ctx.platformerCameraY = ctx.platformerCameraY == null ? camY : ctx.platformerCameraY + (camY - ctx.platformerCameraY) * 0.18;
+    rawCamX = ctx.platformerCameraX + scr.x;
+    rawCamY = ctx.platformerCameraY + scr.y;
+  } else {
+    ctx.platformerCameraX = null;
+    ctx.platformerCameraY = null;
+  }
   const cameraBounds = connectedCameraBounds(ctx.map, connected.map((neighbor) => neighbor.map));
   const camX = loopH ? rawCamX : clampCameraAxis(
     rawCamX, viewW, cameraBounds.minX * TILE, cameraBounds.maxX * TILE,

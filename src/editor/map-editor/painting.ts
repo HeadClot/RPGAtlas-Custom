@@ -114,6 +114,16 @@ import { tileId } from "../../shared/map/tile-flags";
     passOvOf(m)[cell.y * m.width + cell.x] = val;
     touch(); renderMap();
   }
+  export function platformerCollisionOf(m: any) {
+    const n = m.width * m.height;
+    if (!m.platformerCollision || m.platformerCollision.length !== n) m.platformerCollision = new Array(n).fill(0);
+    return m.platformerCollision;
+  }
+  export function paintPlatformerCollision(cell: any, val: any) {
+    const m = curMap();
+    platformerCollisionOf(m)[cell.y * m.width + cell.x] = val;
+    touch(); renderMap();
+  }
   // HD-2D elevation layer (projects from before the heights layer existed may
   // lack the array until their next load runs the migration)
   export function heightsOf(m: any) {
@@ -284,6 +294,11 @@ import { tileId } from "../../shared/map/tile-flags";
         setStatus();
         return;
       }
+      if (S.mode === "platformerCollision") { // eyedropper: pick up the collision value
+        S.platformerVal = platformerCollisionOf(curMap())[cell.y * curMap().width + cell.x] || 0;
+        setStatus();
+        return;
+      }
       if (S.mode === "map") { // eyedropper from the topmost visible tile
         const ln = S.layer === "auto" ? topLayerAt(cell.x, cell.y) : S.layer;
         // Mask Stage-E flags: the palette selection is always a clean id (the
@@ -307,6 +322,16 @@ import { tileId } from "../../shared/map/tile-flags";
       S.passVal = cur === 0 ? 2 : cur === 2 ? 1 : cur === 1 ? 3 : 0;
       S.painting = true;
       paintPass(cell, S.passVal);
+      return;
+    }
+    if (S.mode === "platformerCollision") {
+      pushUndo("Platformer collision edit");
+      const m = curMap();
+      const cur = platformerCollisionOf(m)[cell.y * m.width + cell.x] || 0;
+      // auto → solid → empty → one-way → auto
+      S.platformerVal = cur === 0 ? 1 : cur === 1 ? 2 : cur === 2 ? 3 : 0;
+      S.painting = true;
+      paintPlatformerCollision(cell, S.platformerVal);
       return;
     }
     if (S.mode === "height") {
@@ -360,6 +385,8 @@ import { tileId } from "../../shared/map/tile-flags";
       paintShadow(cell, q, S.shadowSet);
     } else if (S.mode === "pass" && S.painting) {
       paintPass(cell, S.passVal);
+    } else if (S.mode === "platformerCollision" && S.painting) {
+      paintPlatformerCollision(cell, S.platformerVal);
     } else if (S.mode === "height" && S.painting && S.tool !== "rect" && S.tool !== "circle" && S.tool !== "fill") {
       paintHeight(cell, S.tool === "erase" ? 0 : S.heightVal);
     } else if (S.mode === "region" && S.painting && S.tool !== "fill") {

@@ -20,7 +20,7 @@ const evaluate = (src) => vm.runInContext(src, context);
 const plain = (o) => JSON.parse(JSON.stringify(o));
 
 const ROLES = ["ground", "decor", "decor2", "over"];
-const PLANES = ["shadows", "passOv", "heights", "regions"];
+const PLANES = ["shadows", "passOv", "heights", "regions", "platformerCollision"];
 
 function normalize(map) {
   context.__m = map;
@@ -40,6 +40,7 @@ function fullMap(w, h, extra) {
   return Object.assign({
     id: 1, name: "M", width: w, height: h,
     layers: { ground: mk(), decor: mk(), decor2: mk(), over: mk() },
+    platformerCollision: mk(),
   }, extra || {});
 }
 

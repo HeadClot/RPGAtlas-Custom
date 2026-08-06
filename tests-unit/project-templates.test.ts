@@ -1,7 +1,7 @@
 /* RPGAtlas — tests-unit/project-templates.test.ts
    Template descriptors (src/shared/project/project-templates.ts, Harbor H1·C §5.3). Every
    TemplateId has a non-empty label + description; isTemplateId accepts exactly the
-   three ids and rejects everything else. GPL-3.0-or-later. */
+   four ids and rejects everything else. GPL-3.0-or-later. */
 
 import { describe, expect, it } from "vitest";
 import {
@@ -10,7 +10,7 @@ import {
   type TemplateId,
 } from "../src/shared/project/project-templates";
 
-const ALL_IDS: TemplateId[] = ["blank", "starter", "atlas-quest"];
+const ALL_IDS: TemplateId[] = ["blank", "starter", "platformer", "atlas-quest"];
 
 describe("TEMPLATES", () => {
   it("has a descriptor for every id with non-empty label + description", () => {
@@ -22,8 +22,8 @@ describe("TEMPLATES", () => {
     }
   });
 
-  it("lists exactly the three ids, once each, in manager order", () => {
-    expect(TEMPLATES.map((t) => t.id)).toEqual(["blank", "starter", "atlas-quest"]);
+  it("lists exactly the four ids, once each, in manager order", () => {
+    expect(TEMPLATES.map((t) => t.id)).toEqual(["blank", "starter", "platformer", "atlas-quest"]);
   });
 });
 

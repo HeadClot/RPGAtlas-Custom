@@ -147,6 +147,7 @@ function buildSavePayload(): any {
         windowTone: G.windowTone || null,
       },
       mapId: G.mapId,
+      platformerCheckpoint: G.platformerCheckpoint || null,
       combatLedger: Array.isArray((G as any).combatLedger) ? (G as any).combatLedger.slice(-1024) : [],
       combatEvents: (ctx.evRTs || []).filter((rt: any) => rt.combat).map((rt: any) => ({
         id: rt.ev.id, x: rt.x, y: rt.y, erased: !!rt.erased,
@@ -160,6 +161,11 @@ function buildSavePayload(): any {
         hp: Number((G.player as any).hp ?? (G.party[0] && G.party[0].hp) ?? 0),
         maxHp: Number((G.player as any).maxHp ?? (G.party[0] && param(G.party[0], "mhp")) ?? 100),
         combat: (G.player as any).combat ? toCombatNetState((G.player as any).combat) : null,
+        platformer: (G.player as any).platformer ? {
+          x: Number((G.player as any).platformer.x) || 0,
+          y: Number((G.player as any).platformer.y) || 0,
+          grounded: !!(G.player as any).platformer.grounded,
+        } : null,
       },
     },
   };
@@ -202,6 +208,7 @@ async function applySave(d: any): Promise<void> {
   G.bgs = d.bgs || null;
   G.savedBgm = d.savedBgm || null;
   G.jingles = d.jingles || null;
+  G.platformerCheckpoint = d.platformerCheckpoint || null;
   ctx.cameraZoom = clamp(Number(d.cameraZoom) || 1, 0.25, 4);
   // Presentation layer (Project Compass M2·A): old saves lack the field →
   // restorePresentation(undefined) resets to a clean screen.
@@ -223,6 +230,17 @@ async function applySave(d: any): Promise<void> {
   if (p.maxHp != null) (G.player as any).maxHp = Number(p.maxHp) || 100;
   if (p.combat && (G.player as any).combat) Object.assign((G.player as any).combat, p.combat);
   await loadMap(d.mapId);
+  if (p.platformer && (G.player as any).platformer) {
+    Object.assign((G.player as any).platformer, {
+      x: Number(p.platformer.x) || (G.player as any).platformer.x,
+      y: Number(p.platformer.y) || (G.player as any).platformer.y,
+      vx: 0, vy: 0, grounded: !!p.platformer.grounded,
+    });
+    G.player.x = (G.player as any).platformer.x;
+    G.player.y = (G.player as any).platformer.y;
+    G.player.rx = G.player.x; G.player.ry = G.player.y;
+    G.player.prx = G.player.x; G.player.pry = G.player.y;
+  }
   for (const saved of d.combatEvents || []) {
     const rt = (ctx.evRTs || []).find((item: any) => item.ev && item.ev.id === saved.id);
     if (!rt) continue;

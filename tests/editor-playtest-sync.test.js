@@ -32,8 +32,8 @@ assert.match(
 // the mode reads are v.mode (the classic editor binds v to S via viewFromS).
 assert.match(
   mapRenderSource,
-  /if \(!v\.preview && v\.mode !== "pass" && v\.mode !== "height" && v\.mode !== "region"\) \{/,
-  "editor draws event pins outside the overlay paint modes (pass/height/region)",
+  /if \(!v\.preview && v\.mode !== "pass" && v\.mode !== "platformerCollision" && v\.mode !== "height" && v\.mode !== "region"\) \{/,
+  "editor draws event pins outside the overlay paint modes (pass/platformer/height/region)",
 );
 
 assert.match(

@@ -55,6 +55,7 @@ import {
   applyActionState, canUseActionAbility, resolveActionAbility,
   resolveActorHotbar, selectEnemyCombatAbility, spendActionAbility, tickActionCooldowns, tickActionStates,
 } from "../../shared/sim/combat-abilities.js";
+import { ensurePlatformerPlayer } from "./platformer-runtime.js";
 
 const TILE = Assets.TILE;
 
@@ -74,6 +75,7 @@ function browserLoadout(): any {
 const hdOverride = new URLSearchParams(location.search).get("hd2d");
 export function hdMapEnabled(candidateMap: any): boolean {
   if (!candidateMap) return false;
+  if (ctx.proj?.system?.gameMode === "platformer") return false;
   const hd = candidateMap.hd2d;
   if (hd && Object.prototype.hasOwnProperty.call(hd, "enabled")) return hd.enabled === true;
   if (hd && (hd.lights || hd.tilt != null || hd.ambient != null)) return true;
@@ -602,6 +604,7 @@ export async function loadMap(mapId: any): Promise<void> {
     // Absent `zones` ⇒ empty state, zero per-step work.
     mapLoadPhase("zones");
     resetZoneState(ctx.map);
+    ensurePlatformerPlayer();
     finishMapLoad();
   } catch (error) {
     failMapLoad(error);
