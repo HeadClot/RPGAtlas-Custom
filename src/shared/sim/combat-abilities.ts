@@ -5,7 +5,7 @@
  * uses the same normalization, cost, cooldown, target, and state rules. */
 
 import type {
-  ActionAbilityProfile, ActionStateProfile, ActionTargetMode, CombatHotbarSlot,
+  ActionAbilityProfile, ActionStateProfile, ActionTargetMode, Actor, CombatHotbarSlot,
   CombatStateEffect, EnemyCombatAbility, Project, Skill, Item,
 } from "../schema.js";
 
@@ -80,7 +80,7 @@ export function resolveActionAbility(project: Partial<Project>, kind: ActionKind
   const source = record(project, kind, id);
   const authored = source?.actionCombat;
   if (!source || !authored || authored.enabled === false) return null;
-  const p: any = { ...DEFAULT_ABILITY, ...authored };
+  const p: ActionAbilityProfile = { ...DEFAULT_ABILITY, ...authored };
   return {
     ...authored,
     kind,
@@ -118,7 +118,7 @@ export function resolveActorHotbar(project: Partial<Project>, actorId: number, s
   const allowed = new Set((cls?.actionCombat?.allowedSkillIds || []).map(Number));
   const learned = new Set<number>([
     ...(cls?.learnings || []).filter((learning) => Number(learning.level) <= Number(actor?.level || 1)).map((learning) => Number(learning.skillId)),
-    ...(((actor as any)?.skills || []).map(Number)),
+    ...(((actor as (Actor & { skills?: unknown[] }) | undefined)?.skills || []).map(Number)),
   ]);
   return Array.from({ length: Math.max(1, Math.min(8, Number(slots) || 8)) }, (_, index) => {
     const row = source[index];

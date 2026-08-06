@@ -1,20 +1,22 @@
 import { describe, expect, it } from "vitest";
+import type { CombatStateEffect, Project } from "../src/shared/schema";
 import {
   applyActionState, canUseActionAbility, resolveActionAbility, resolveActorHotbar,
   selectActionTargets, selectEnemyCombatAbility, spendActionAbility, tickActionCooldowns,
   tickActionStates,
 } from "../src/shared/sim/combat-abilities";
+import type { ActionResources } from "../src/shared/sim/combat-abilities";
 import { validateCombatProject } from "../src/shared/sim/combat-profiles";
 
-const project: any = {
+const project: Pick<Project, "skills" | "items" | "states" | "classes" | "actors" | "enemies"> = {
   system: { sounds: {} },
   skills: [
-    { id: 1, name: "Flame", power: 24, mp: 4, actionCombat: { enabled: true, windupFrames: 3, activeFrames: 2, cooldownFrames: 12, targetMode: "facing", damage: 24, mpCost: 4 } },
+    { id: 1, name: "Flame", type: "physical", power: 24, mp: 4, actionCombat: { enabled: true, windupFrames: 3, activeFrames: 2, cooldownFrames: 12, targetMode: "facing", damage: 24, mpCost: 4 } },
     { id: 2, name: "Disabled", actionCombat: { enabled: false } },
   ],
   items: [{ id: 5, name: "Potion", hp: 30, actionCombat: { enabled: true, targetMode: "self", cooldownFrames: 8, consumeOnStart: true } }],
   states: [{ id: 3, name: "Burn", actionCombat: { enabled: true, durationFrames: 4, tickIntervalFrames: 2, stacking: "stack", maxStacks: 2, damagePerTick: 5 } }],
-  classes: [{ id: 1, name: "Mage", learnings: [{ level: 1, skillId: 1 }], actionCombat: { hotbar: [{ kind: "skill", id: 1 }, { kind: "item", id: 5 }], allowedSkillIds: [1] } }],
+  classes: [{ id: 1, name: "Mage", base: {}, growth: {}, traits: [], learnings: [{ level: 1, skillId: 1 }], actionCombat: { hotbar: [{ kind: "skill", id: 1 }, { kind: "item", id: 5 }], allowedSkillIds: [1] } }],
   actors: [{ id: 1, name: "Hero", classId: 1, combat: {} }],
   enemies: [{ id: 9, name: "Slime", stats: { mhp: 20 }, actionCombat: { abilities: [{ skillId: 1, weight: 2 }] } }],
 };
@@ -30,7 +32,7 @@ describe("shared Action Combat abilities", () => {
 
   it("enforces resources and cooldowns, then ticks them down", () => {
     const ability = resolveActionAbility(project, "skill", 1)!;
-    const resources: any = { mp: 4, tp: 0, cooldowns: {} };
+    const resources: ActionResources = { mp: 4, tp: 0, cooldowns: {} };
     expect(canUseActionAbility(ability, resources)).toEqual({ ok: true });
     spendActionAbility(ability, resources);
     expect(resources).toMatchObject({ mp: 0, cooldowns: { "skill:1": 12 } });
@@ -47,8 +49,8 @@ describe("shared Action Combat abilities", () => {
   });
 
   it("stacks and ticks real-time states", () => {
-    const effects: any[] = [];
-    const profile: any = project.states[0].actionCombat;
+    const effects: CombatStateEffect[] = [];
+    const profile = project.states[0].actionCombat!;
     applyActionState(effects, 3, profile);
     applyActionState(effects, 3, profile);
     expect(effects[0].stacks).toBe(2);
