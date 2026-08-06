@@ -2179,3 +2179,16 @@ PATCH_NOTES.push({
     "Point-shadow golden captures now remain synchronized with the rendered scene frame without changing their committed pixels.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T09:00:00-06:00",
+  title: "Auto-refreshed Linux renderer golden cache",
+  summary:
+    "Linux renderer golden caches now refresh automatically when the checked-in baseline images change.",
+  items: [
+    "Changed the main-branch cache identity to include a hash of the checked-in Linux renderer PNGs.",
+    "Preserved pull-request fallback validation and main-only bootstrap and cache saving behavior.",
+    "Added baseline hash and computed cache-key diagnostics to the E2E workflow.",
+  ],
+});
