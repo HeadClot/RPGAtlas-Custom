@@ -34,12 +34,12 @@ export interface FramePipelineFrame {
   zoom: number;
   targetX: number;
   targetZ: number;
-  mvp: number[];
-  clear: number[];
+  mvp: ArrayLike<number>;
+  clear: ArrayLike<number>;
   near: number;
   far: number;
   distance: number;
-  eye: number[];
+  eye: ArrayLike<number>;
   sunDaylight: number;
   lightCount: number;
   sampleHeight(rx: number, ry: number): number;
@@ -64,13 +64,18 @@ export interface FramePipelineOptions {
 /** Keeps the frame's pass order and pass-local timing in one place. */
 export class RenderFramePipeline {
   readonly frame = {} as FramePipelineFrame;
+  private readonly postFrame;
 
-  constructor(private readonly options: FramePipelineOptions) {}
+  constructor(private readonly options: FramePipelineOptions) {
+    this.postFrame = options.postProcess.frame;
+  }
 
   render(frame: FramePipelineFrame): void {
     const { renderer, cfg, extra, timing, perfTraceEnabled } = frame;
     const { spriteRenderer, weatherRenderer, shadowPass, reflectionPass, postProcess, waterGroup, scene, camera, clearColor } = this.options;
-    spriteRenderer.update(frame.sprites, frame.worldBaseX, frame.worldBaseY, cfg.dropShadows, frame.sampleHeight);
+    if (spriteRenderer.update(frame.sprites, frame.worldBaseX, frame.worldBaseY, cfg.dropShadows, frame.sampleHeight)) {
+      shadowPass.invalidateCasters();
+    }
     weatherRenderer.update(cfg.weather, extra.motionScale, frame.targetX, frame.targetZ - 40,
       frame.width / frame.zoom / 2 + 100, frame.height / frame.zoom / 2 + 200);
 
@@ -97,11 +102,11 @@ export class RenderFramePipeline {
     clearColor.setRGB(frame.clear[0], frame.clear[1], frame.clear[2]);
     if (cfg.water > 0 && waterGroup.children.length) {
       const start = perfTraceEnabled ? performance.now() : 0;
-      reflectionPass.render(renderer, frame.mvp, frame.clear, frame.runtimeWidth, frame.runtimeHeight);
+      reflectionPass.render(renderer, frame.mvp, frame.clear, frame.runtimeWidth, frame.runtimeHeight, shadowPass.casterRevision);
       if (perfTraceEnabled) timing.reflectionMs = performance.now() - start;
     }
 
-    const post = cfg.bloom > 0 || cfg.dof > 0 || cfg.ssao > 0 || cfg.aces || cfg.vignette > 0 || !!cfg.grade || cfg.fxaa;
+    const post = cfg.post;
     if (post) {
       postProcess.ensureTargets(frame.width, frame.height, cfg.fxaa);
       renderer.setRenderTarget(postProcess.targets!.scene);
@@ -115,12 +120,22 @@ export class RenderFramePipeline {
     this.options.setViewCull(0, 0, 0, 0, false);
 
     if (post) {
-      timing.postMs = postProcess.render(renderer, {
-        cfg, width: frame.width, height: frame.height, near: frame.near, far: frame.far,
-        distance: frame.distance, eye: frame.eye, extra, worldBaseX: frame.worldBaseX,
-        worldBaseY: frame.worldBaseY, tile: frame.tile, fov: this.options.fov,
-        sampleHeight: frame.sampleHeight, perfTraceEnabled,
-      });
+      const postFrame = this.postFrame;
+      postFrame.cfg = cfg;
+      postFrame.width = frame.width;
+      postFrame.height = frame.height;
+      postFrame.near = frame.near;
+      postFrame.far = frame.far;
+      postFrame.distance = frame.distance;
+      postFrame.eye = frame.eye;
+      postFrame.extra = extra;
+      postFrame.worldBaseX = frame.worldBaseX;
+      postFrame.worldBaseY = frame.worldBaseY;
+      postFrame.tile = frame.tile;
+      postFrame.fov = this.options.fov;
+      postFrame.sampleHeight = frame.sampleHeight;
+      postFrame.perfTraceEnabled = perfTraceEnabled;
+      timing.postMs = postProcess.render(renderer, postFrame);
     }
   }
 }

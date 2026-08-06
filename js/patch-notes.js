@@ -2155,3 +2155,15 @@ PATCH_NOTES.push({
     "Removed avoidable per-frame coordination allocations and added focused point-shadow readiness coverage.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T23:10:00-06:00",
+  title: "Optimized modular renderer hot paths",
+  summary:
+    "Reduced repeated HD-2D frame work while preserving renderer behavior, diagnostics, and golden-image parity.",
+  items: [
+    "Reused frame math, post-process descriptors, culling state, sprite state, and dirty texture bookkeeping.",
+    "Cached unchanged sun and point-shadow depth work with explicit caster and light revisions.",
+  ],
+});

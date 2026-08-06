@@ -100,10 +100,21 @@ export function createThreeRenderer(): any {
   const shaders = createShaderLibrary(TILE, MAX_LIGHTS, MAX_PLS, PL_FACE, PL_NEAR);
   const math = new RenderMath();
   const perspective = math.perspective.bind(math);
+  const perspectiveInto = math.perspectiveInto.bind(math);
   const lookAt = math.lookAt.bind(math);
+  const lookAtInto = math.lookAtInto.bind(math);
   const mul = math.multiply.bind(math);
+  const mulInto = math.multiplyInto.bind(math);
   const hexRGB = math.hexRGB.bind(math);
   const ortho = math.ortho.bind(math);
+  const orthoInto = math.orthoInto.bind(math);
+  const frameProjection = new Float32Array(16);
+  const frameView = new Float32Array(16);
+  const frameMVP = new Float32Array(16);
+  const frameEye = new Float32Array(3);
+  const frameClear = new Float32Array(3);
+  const emptyExtra: any = {};
+  const emptyLights: any[] = [];
 
   const runtime = new WebGLRuntime();
   const graph = new ThreeSceneGraph(MAX_LIGHTS);
@@ -118,7 +129,7 @@ export function createThreeRenderer(): any {
   const perfTraceEnabled = (() => {
     try {
       const q = new URLSearchParams(window.location.search);
-      return q.get("perf") === "runtime.renderer" || q.get("perfRenderer") === "1";
+      return q.get("perf") === "runtime.renderer" || q.get("perf") === "renderer" || q.get("perfRenderer") === "1";
     } catch {
       return false;
     }
@@ -167,7 +178,7 @@ export function createThreeRenderer(): any {
     worldBaseY = 0,
     worldSurfaceCount = 1;
   let lastSunFitKey = "";
-  let cfg: any = { tilt: 50, bloom: 0, dof: 0, fog: null, lights: false, ambient: 0.45, shadows: 0, pointShadows: 0 };
+  let cfg: any = { tilt: 50, bloom: 0, dof: 0, fog: null, lights: false, ambient: 0.45, shadows: 0, pointShadows: 0, post: false };
   const gradeFor = settings.gradeFor.bind(settings);
   const cachedDayNightAt = settings.cachedDayNightAt.bind(settings);
 
@@ -183,6 +194,8 @@ export function createThreeRenderer(): any {
     lower: Array<{ tex: THREE.CanvasTexture; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }>;
     upper: Array<{ tex: THREE.CanvasTexture; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }>;
   } | null = null;
+  const dirtyChunkKeys = new Set<number>();
+  const shiftedDirtyCells: DirtyMapCell[] = [];
 
   function hAt(tx: number, ty: number): number {
     if (!heights || tx < 0 || ty < 0 || tx >= mapW || ty >= mapH) return 0;
@@ -371,11 +384,13 @@ export function createThreeRenderer(): any {
     chunks: Array<{ tex: THREE.CanvasTexture; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }>,
     dirtyCells?: readonly DirtyMapCell[],
   ): void {
-    const dirtyChunks = dirtyCells && dirtyCells.length
-      ? new Set(dirtyCells.map((cell) => `${Math.floor(cell.x * TILE / CHUNK)}:${Math.floor(cell.y * TILE / CHUNK)}`))
-      : null;
+    const dirtyChunks = dirtyCells && dirtyCells.length ? dirtyChunkKeys : null;
+    if (dirtyChunks) {
+      dirtyChunks.clear();
+      for (const cell of dirtyCells!) dirtyChunks.add(chunkKey(Math.floor(cell.x * TILE / CHUNK), Math.floor(cell.y * TILE / CHUNK)));
+    }
     for (const ch of chunks) {
-      if (dirtyChunks && !dirtyChunks.has(`${Math.floor(ch.x / CHUNK)}:${Math.floor(ch.y / CHUNK)}`)) continue;
+      if (dirtyChunks && !dirtyChunks.has(chunkKey(Math.floor(ch.x / CHUNK), Math.floor(ch.y / CHUNK)))) continue;
       const dst = ch.canvas.getContext("2d")!;
       dst.clearRect(0, 0, ch.w, ch.h);
       dst.drawImage(source, ch.x, ch.y, ch.w, ch.h, 0, 0, ch.w, ch.h);
@@ -402,6 +417,7 @@ export function createThreeRenderer(): any {
     ) return false;
     refreshChunkTextures(lowerBuf, mapTextureCache.lower, dirtyCells);
     mapTextureRevision++;
+    shadowPass.invalidateCasters();
     return true;
   }
 
@@ -415,7 +431,7 @@ export function createThreeRenderer(): any {
     const lower = mapTextureCache.lowerBuf.getContext("2d");
     const upper = mapTextureCache.upperBuf.getContext("2d");
     if (!lower || !upper) return false;
-    const shifted: DirtyMapCell[] = [];
+    shiftedDirtyCells.length = 0;
     const dx = source.offsetX - worldBaseX;
     const dy = source.offsetY - worldBaseY;
     for (const cell of dirtyCells) {
@@ -426,12 +442,16 @@ export function createThreeRenderer(): any {
       upper.clearRect(x * TILE, y * TILE, TILE, TILE);
       lower.drawImage(source.lowerBuf, cell.x * TILE, cell.y * TILE, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
       upper.drawImage(source.upperBuf, cell.x * TILE, cell.y * TILE, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
-      shifted.push({ x, y });
+      const shifted = shiftedDirtyCells[shiftedDirtyCells.length] || { x: 0, y: 0 };
+      shifted.x = x;
+      shifted.y = y;
+      shiftedDirtyCells.push(shifted);
     }
-    if (!shifted.length) return false;
-    refreshChunkTextures(mapTextureCache.lowerBuf, mapTextureCache.lower, shifted);
-    refreshChunkTextures(mapTextureCache.upperBuf, mapTextureCache.upper, shifted);
+    if (!shiftedDirtyCells.length) return false;
+    refreshChunkTextures(mapTextureCache.lowerBuf, mapTextureCache.lower, shiftedDirtyCells);
+    refreshChunkTextures(mapTextureCache.upperBuf, mapTextureCache.upper, shiftedDirtyCells);
     mapTextureRevision++;
+    shadowPass.invalidateCasters();
     return true;
   }
 
@@ -449,6 +469,7 @@ export function createThreeRenderer(): any {
       refreshChunkTextures(lowerBuf, mapTextureCache.lower);
       refreshChunkTextures(upperBuf, mapTextureCache.upper);
       mapTextureRevision++;
+      shadowPass.invalidateCasters();
       return;
     }
     lastMapArgs = [lowerBuf, upperBuf, map];
@@ -468,6 +489,7 @@ export function createThreeRenderer(): any {
     mapH = map.height;
     heights = map.heights || null;
     mapDiag = (mapW + mapH) * TILE;
+    spriteRenderer.invalidate();
 
     const c = map.hd2d || {};
     cfg = {
@@ -504,6 +526,7 @@ export function createThreeRenderer(): any {
       dayNight: !!c.dayNight,
       sun: c.sun || null,
     };
+    cfg.post = cfg.bloom > 0 || cfg.dof > 0 || cfg.ssao > 0 || cfg.aces || cfg.vignette > 0 || !!cfg.grade || cfg.fxaa;
     shadowPass.reset(cfg.pointShadows);
     lastSunFitKey = "";
     // Sun direction (used by water glints now, the day/night cycle later) —
@@ -730,9 +753,13 @@ export function createThreeRenderer(): any {
     pointWidth: PL_W,
     pointHeight: PL_H,
     perspective,
+    perspectiveInto,
     lookAt,
+    lookAtInto,
     multiply: mul,
+    multiplyInto: mulInto,
     ortho,
+    orthoInto,
     getConfig: () => cfg,
   });
   const fitSunCamera = shadowPass.fitSunCamera.bind(shadowPass);
@@ -745,6 +772,7 @@ export function createThreeRenderer(): any {
     camera,
     clearColor,
     multiply: mul,
+    multiplyInto: mulInto,
     waterY: WATER_Y,
   });
 
@@ -822,7 +850,7 @@ export function createThreeRenderer(): any {
       perfTrace.sceneMs = 0;
       perfTrace.postMs = 0;
     }
-    extra = extra || {};
+    extra = extra || emptyExtra;
     const r = runtime.renderer;
     if (runtime.isLost() || !r) return null;
     runtime.resize(w, h);
@@ -840,32 +868,41 @@ export function createThreeRenderer(): any {
       shZ = (extra.shakeY || 0) / zoom;
     const tX = camX - worldBaseX * TILE + w / zoom / 2 + shX,
       tZ = camY - worldBaseY * TILE + h / zoom / 2 + shZ;
-    const eye = [tX, dist * Math.sin(pitch), tZ + dist * Math.cos(pitch)];
-    const mvp = mul(perspective(FOV, w / h, near, far), lookAt(eye[0], eye[1], eye[2], tX, 0, tZ));
-    U.uMVP.value.fromArray(mvp); // both column-major — direct copy
-    U.uEye.value[0] = eye[0];
-    U.uEye.value[1] = eye[1];
-    U.uEye.value[2] = eye[2];
+    frameEye[0] = tX;
+    frameEye[1] = dist * Math.sin(pitch);
+    frameEye[2] = tZ + dist * Math.cos(pitch);
+    perspectiveInto(frameProjection, FOV, w / h, near, far);
+    lookAtInto(frameView, frameEye[0], frameEye[1], frameEye[2], tX, 0, tZ);
+    mulInto(frameMVP, frameProjection, frameView);
+    U.uMVP.value.fromArray(frameMVP); // both column-major — direct copy
+    U.uEye.value[0] = frameEye[0];
+    U.uEye.value[1] = frameEye[1];
+    U.uEye.value[2] = frameEye[2];
 
     if (cfg.fog) {
-      U.uFog.value.set([cfg.fog.color[0], cfg.fog.color[1], cfg.fog.color[2], 1]);
+      U.uFog.value[0] = cfg.fog.color[0];
+      U.uFog.value[1] = cfg.fog.color[1];
+      U.uFog.value[2] = cfg.fog.color[2];
+      U.uFog.value[3] = 1;
       U.uFogRange.value[0] = cfg.fog.near || dist;
       U.uFogRange.value[1] = cfg.fog.far || dist * 2.2;
     } else {
-      U.uFog.value.set([0, 0, 0, 0]);
+      U.uFog.value[0] = 0;
+      U.uFog.value[1] = 0;
+      U.uFog.value[2] = 0;
+      U.uFog.value[3] = 0;
       U.uFogRange.value[0] = 1;
       U.uFogRange.value[1] = 2;
     }
     // Ambient is always the base light level; point-light events (already gated
     // by the host's "Point lights" toggle) add on top of it.
-    const lights = (cfg.lights && extra.lights) || [];
+    const lights = (cfg.lights && extra.lights) || emptyLights;
     if (cfg.pointShadows > 0 && lights.length > 1) {
       // Shadow casters are the first MAX_PLS entries — sort by distance to the
       // camera target so the closest lights are the ones that cast. `lights`
       // is a frame-local host array (as is `sprites`, sorted below), so sorting
       // it in place avoids cloning the whole light list every frame.
-      const d2 = (L: any) => ((L.rx - worldBaseX + 0.5) * TILE - tX) ** 2 + ((L.ry - worldBaseY + 0.5) * TILE - tZ) ** 2;
-      lights.sort((a: any, b: any) => d2(a) - d2(b));
+      sortLightsByDistance(lights, worldBaseX, worldBaseY, TILE, tX, tZ);
     }
     const nLights = Math.min(lights.length, MAX_LIGHTS);
     for (let i = 0; i < nLights; i++) {
@@ -915,7 +952,15 @@ export function createThreeRenderer(): any {
     U.uGlow.value = Math.min(1, Math.max(0, (0.45 - effAmbient) / 0.45));
     if (perfTraceEnabled) perfTrace.setupMs = performance.now() - perfFrameStart;
 
-    const clear = cfg.fog ? cfg.fog.color : [16 / 255, 16 / 255, 24 / 255];
+    if (cfg.fog) {
+      frameClear[0] = cfg.fog.color[0];
+      frameClear[1] = cfg.fog.color[1];
+      frameClear[2] = cfg.fog.color[2];
+    } else {
+      frameClear[0] = 16 / 255;
+      frameClear[1] = 16 / 255;
+      frameClear[2] = 24 / 255;
+    }
     const frame = framePipeline.frame;
     frame.renderer = r;
     frame.sprites = sprites;
@@ -935,12 +980,12 @@ export function createThreeRenderer(): any {
     frame.zoom = zoom;
     frame.targetX = tX;
     frame.targetZ = tZ;
-    frame.mvp = mvp;
-    frame.clear = clear;
+    frame.mvp = frameMVP;
+    frame.clear = frameClear;
     frame.near = near;
     frame.far = far;
     frame.distance = dist;
-    frame.eye = eye;
+    frame.eye = frameEye;
     frame.sunDaylight = sunDl;
     frame.lightCount = nLights;
     frame.sampleHeight = sampleH;
@@ -990,4 +1035,34 @@ export function createThreeRenderer(): any {
   }
 
   return { available, setMap, setWorld, updateMapTextures, updateWorldTextures, renderFrame, isLost, stats };
+}
+
+function sortLightsByDistance(
+  lights: any[], worldBaseX: number, worldBaseY: number, tile: number, targetX: number, targetZ: number,
+): void {
+  for (let i = 1; i < lights.length; i++) {
+    const current = lights[i];
+    const currentDistance = lightDistance2(current, worldBaseX, worldBaseY, tile, targetX, targetZ);
+    let j = i - 1;
+    while (
+      j >= 0 &&
+      lightDistance2(lights[j], worldBaseX, worldBaseY, tile, targetX, targetZ) > currentDistance
+    ) {
+      lights[j + 1] = lights[j];
+      j--;
+    }
+    lights[j + 1] = current;
+  }
+}
+
+function lightDistance2(
+  light: any, worldBaseX: number, worldBaseY: number, tile: number, targetX: number, targetZ: number,
+): number {
+  const x = (light.rx - worldBaseX + 0.5) * tile - targetX;
+  const z = (light.ry - worldBaseY + 0.5) * tile - targetZ;
+  return x * x + z * z;
+}
+
+function chunkKey(x: number, y: number): number {
+  return x + y * 65536;
 }

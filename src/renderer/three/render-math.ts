@@ -4,12 +4,28 @@ export class RenderMath {
   private readonly hexRGBCache = new Map<string, [number, number, number]>();
 
   perspective(fovY: number, aspect: number, near: number, far: number): number[] {
+    return this.perspectiveInto(new Array(16), fovY, aspect, near, far) as number[];
+  }
+
+  perspectiveInto(out: number[] | Float32Array, fovY: number, aspect: number, near: number, far: number): typeof out {
     const f = 1 / Math.tan(fovY / 2);
     const nf = 1 / (near - far);
-    return [f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0];
+    out[0] = f / aspect; out[1] = 0; out[2] = 0; out[3] = 0;
+    out[4] = 0; out[5] = f; out[6] = 0; out[7] = 0;
+    out[8] = 0; out[9] = 0; out[10] = (far + near) * nf; out[11] = -1;
+    out[12] = 0; out[13] = 0; out[14] = 2 * far * near * nf; out[15] = 0;
+    return out;
   }
 
   lookAt(ex: number, ey: number, ez: number, tx: number, ty: number, tz: number): number[] {
+    return this.lookAtInto(new Array(16), ex, ey, ez, tx, ty, tz) as number[];
+  }
+
+  lookAtInto(
+    out: number[] | Float32Array,
+    ex: number, ey: number, ez: number,
+    tx: number, ty: number, tz: number,
+  ): typeof out {
     let zx = ex - tx;
     let zy = ey - ty;
     let zz = ez - tz;
@@ -23,19 +39,25 @@ export class RenderMath {
     const yx = zy * xz - zz * xy;
     const yy = zz * xx - zx * xz;
     const yz = zx * xy - zy * xx;
-    return [
-      xx, yx, zx, 0,
-      xy, yy, zy, 0,
-      xz, yz, zz, 0,
-      -(xx * ex + xy * ey + xz * ez),
-      -(yx * ex + yy * ey + yz * ez),
-      -(zx * ex + zy * ey + zz * ez),
-      1,
-    ];
+    out[0] = xx; out[1] = yx; out[2] = zx; out[3] = 0;
+    out[4] = xy; out[5] = yy; out[6] = zy; out[7] = 0;
+    out[8] = xz; out[9] = yz; out[10] = zz; out[11] = 0;
+    out[12] = -(xx * ex + xy * ey + xz * ez);
+    out[13] = -(yx * ex + yy * ey + yz * ez);
+    out[14] = -(zx * ex + zy * ey + zz * ez);
+    out[15] = 1;
+    return out;
   }
 
   multiply(a: number[], b: number[]): number[] {
-    const out = new Array(16);
+    return this.multiplyInto(new Array(16), a, b) as number[];
+  }
+
+  multiplyInto(
+    out: number[] | Float32Array,
+    a: ArrayLike<number>,
+    b: ArrayLike<number>,
+  ): typeof out {
     for (let c = 0; c < 4; c++) {
       for (let r = 0; r < 4; r++) {
         out[c * 4 + r] =
@@ -63,11 +85,20 @@ export class RenderMath {
   }
 
   ortho(l: number, r: number, b: number, t: number, n: number, f: number): number[] {
-    return [
-      2 / (r - l), 0, 0, 0,
-      0, 2 / (t - b), 0, 0,
-      0, 0, -2 / (f - n), 0,
-      -(r + l) / (r - l), -(t + b) / (t - b), -(f + n) / (f - n), 1,
-    ];
+    return this.orthoInto(new Array(16), l, r, b, t, n, f) as number[];
+  }
+
+  orthoInto(
+    out: number[] | Float32Array,
+    l: number, r: number, b: number, t: number, n: number, f: number,
+  ): typeof out {
+    out[0] = 2 / (r - l); out[1] = 0; out[2] = 0; out[3] = 0;
+    out[4] = 0; out[5] = 2 / (t - b); out[6] = 0; out[7] = 0;
+    out[8] = 0; out[9] = 0; out[10] = -2 / (f - n); out[11] = 0;
+    out[12] = -(r + l) / (r - l);
+    out[13] = -(t + b) / (t - b);
+    out[14] = -(f + n) / (f - n);
+    out[15] = 1;
+    return out;
   }
 }

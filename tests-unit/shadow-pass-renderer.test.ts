@@ -43,12 +43,12 @@ function makeShadowPass(config: { pointShadows: number }): ShadowPassRenderer {
   });
 }
 
-function fakeRenderer(): THREE.WebGLRenderer {
+function fakeRenderer(rendered: { count: number }): THREE.WebGLRenderer {
   return {
     compile: () => undefined,
     setRenderTarget: () => undefined,
     clear: () => undefined,
-    render: () => undefined,
+    render: () => { rendered.count++; },
   } as any;
 }
 
@@ -63,7 +63,8 @@ describe("ShadowPassRenderer readiness", () => {
 
   it("requires an atlas frame and then a consumed scene frame", () => {
     const pass = makeShadowPass({ pointShadows: 1 });
-    const renderer = fakeRenderer();
+    const rendered = { count: 0 };
+    const renderer = fakeRenderer(rendered);
     pass.reset(1);
 
     pass.renderPointPass(renderer, 1, false);
@@ -71,11 +72,19 @@ describe("ShadowPassRenderer readiness", () => {
     expect(pass.sceneFrameId).toBe(0);
     expect(pass.ready).toBe(false);
     expect(pass.programsReady).toBe(true);
+    expect(rendered.count).toBe(6);
 
     pass.markSceneFrame(1);
     expect(pass.sceneFrameId).toBe(1);
     pass.renderPointPass(renderer, 1, false);
     expect(pass.frameId).toBe(2);
     expect(pass.ready).toBe(true);
+    expect(rendered.count).toBe(6);
+
+    pass.invalidateCasters();
+    pass.renderPointPass(renderer, 1, false);
+    expect(pass.frameId).toBe(3);
+    expect(pass.ready).toBe(false);
+    expect(rendered.count).toBe(12);
   });
 });

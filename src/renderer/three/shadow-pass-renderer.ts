@@ -24,9 +24,13 @@ export interface ShadowPassOptions {
   pointWidth: number;
   pointHeight: number;
   perspective(fov: number, aspect: number, near: number, far: number): number[];
+  perspectiveInto?(out: number[] | Float32Array, fov: number, aspect: number, near: number, far: number): void;
   lookAt(eyeX: number, eyeY: number, eyeZ: number, targetX: number, targetY: number, targetZ: number): number[];
+  lookAtInto?(out: number[] | Float32Array, eyeX: number, eyeY: number, eyeZ: number, targetX: number, targetY: number, targetZ: number): void;
   multiply(a: number[], b: number[]): number[];
+  multiplyInto?(out: number[] | Float32Array, a: ArrayLike<number>, b: ArrayLike<number>): void;
   ortho(left: number, right: number, bottom: number, top: number, near: number, far: number): number[];
+  orthoInto?(out: number[] | Float32Array, left: number, right: number, bottom: number, top: number, near: number, far: number): void;
   getConfig(): any;
 }
 
@@ -39,15 +43,40 @@ export class ShadowPassRenderer {
   private pointSceneFrameId = 0;
   private pointReady = false;
   private pointProgramsReady = false;
-  private pointKey = "";
+  private pointKeyCount = -1;
+  private pointKeyValid = false;
+  private readonly pointKeyPos: Float32Array;
+  private readonly pointKeyCol: Float32Array;
+  private casterRevisionValue = 0;
+  private renderedCasterRevision = -1;
+  private pointRenderedCasterRevision = -1;
+  private sunRevision = 0;
+  private renderedSunRevision = -1;
+  private readonly sunView = new Float32Array(16);
+  private readonly sunProjection = new Float32Array(16);
+  private readonly sunMVP = new Float32Array(16);
+  private readonly pointProjection = new Float32Array(16);
+  private readonly pointFaceView = new Float32Array(16);
+  private readonly pointMVP = new Float32Array(16);
+  private readonly depthMeshes: THREE.Mesh[] = [];
+  private readonly swappedMaterials: Array<[THREE.Mesh, THREE.Material | THREE.Material[]]> = [];
+  private readonly hiddenMeshes: THREE.Mesh[] = [];
+  private readonly hiddenGroups: Array<[THREE.Group, boolean]> = [];
+  private readonly depthGroups: THREE.Group[];
+  private readonly disabledGroups: THREE.Group[];
 
   constructor(options: ShadowPassOptions) {
     this.options = options;
+    this.pointKeyPos = new Float32Array(options.maxPointLights * 4);
+    this.pointKeyCol = new Float32Array(options.maxPointLights * 3);
+    this.depthGroups = [options.terrainGroup, options.spriteGroup, options.overheadGroup];
+    this.disabledGroups = [options.waterGroup, options.dropGroup, options.weatherGroup];
   }
 
   get revision(): number { return this.pointRevision; }
   get frameId(): number { return this.pointFrameId; }
   get sceneFrameId(): number { return this.pointSceneFrameId; }
+  get casterRevision(): number { return this.casterRevisionValue; }
   get ready(): boolean { return this.pointReady; }
   get programsReady(): boolean { return this.pointProgramsReady; }
   get uniforms(): Record<string, { value: any }> { return this.options.uniforms; }
@@ -55,13 +84,24 @@ export class ShadowPassRenderer {
 
   invalidatePrograms(): void { this.pointProgramsReady = false; }
 
+  invalidateCasters(): void {
+    this.casterRevisionValue++;
+    this.pointReady = false;
+    this.pointSceneFrameId = 0;
+  }
+
   reset(pointShadows: number): void {
+    this.casterRevisionValue++;
     this.pointRevision++;
     this.pointFrameId = 0;
     this.pointSceneFrameId = 0;
     this.pointReady = pointShadows <= 0;
     this.pointProgramsReady = false;
-    this.pointKey = "";
+    this.pointKeyCount = -1;
+    this.pointKeyValid = false;
+    this.renderedCasterRevision = -1;
+    this.pointRenderedCasterRevision = -1;
+    this.renderedSunRevision = -1;
   }
 
   resetContext(pointShadows: number): void {
@@ -83,32 +123,42 @@ export class ShadowPassRenderer {
     const wpx = map.width * tile, hpx = map.height * tile, top = (maxH + 2) * tile;
     const cx = wpx / 2, cy = top / 2, cz = hpx / 2;
     const dist = Math.hypot(wpx, top, hpx);
-    const view = lookAt(cx + dir[0] * dist, cy + dir[1] * dist, cz + dir[2] * dist, cx, cy, cz);
+    if (this.options.lookAtInto) this.options.lookAtInto(this.sunView, cx + dir[0] * dist, cy + dir[1] * dist, cz + dir[2] * dist, cx, cy, cz);
+    else this.sunView.set(lookAt(cx + dir[0] * dist, cy + dir[1] * dist, cz + dir[2] * dist, cx, cy, cz));
     let l = Infinity, r = -Infinity, b = Infinity, t = -Infinity, zMin = Infinity, zMax = -Infinity;
     for (const x of [0, wpx]) {
       for (const y of [0, top]) {
         for (const z of [0, hpx]) {
-          const vx = view[0] * x + view[4] * y + view[8] * z + view[12];
-          const vy = view[1] * x + view[5] * y + view[9] * z + view[13];
-          const vz = view[2] * x + view[6] * y + view[10] * z + view[14];
+          const vx = this.sunView[0] * x + this.sunView[4] * y + this.sunView[8] * z + this.sunView[12];
+          const vy = this.sunView[1] * x + this.sunView[5] * y + this.sunView[9] * z + this.sunView[13];
+          const vz = this.sunView[2] * x + this.sunView[6] * y + this.sunView[10] * z + this.sunView[14];
           l = Math.min(l, vx); r = Math.max(r, vx); b = Math.min(b, vy); t = Math.max(t, vy);
           zMin = Math.min(zMin, vz); zMax = Math.max(zMax, vz);
         }
       }
     }
     const pad = tile;
-    uniforms.uSunMVP.value.fromArray(multiply(ortho(l - pad, r + pad, b - pad, t + pad, -zMax - pad, -zMin + pad), view));
+    if (this.options.orthoInto) this.options.orthoInto(this.sunProjection, l - pad, r + pad, b - pad, t + pad, -zMax - pad, -zMin + pad);
+    else this.sunProjection.set(ortho(l - pad, r + pad, b - pad, t + pad, -zMax - pad, -zMin + pad));
+    if (this.options.multiplyInto) this.options.multiplyInto(this.sunMVP, this.sunProjection, this.sunView);
+    else this.sunMVP.set(multiply(this.sunProjection as unknown as number[], this.sunView as unknown as number[]));
+    uniforms.uSunMVP.value.fromArray(this.sunMVP);
+    this.sunRevision++;
   }
 
   renderSun(renderer: THREE.WebGLRenderer, strengthScale = 1): void {
     this.ensureShadowTarget();
     const { uniforms, depthMVP, scene, camera } = this.options;
-    depthMVP.value.copy(uniforms.uSunMVP.value);
-    this.withDepthMaterials(() => {
-      renderer.setRenderTarget(this.shadowRT);
-      renderer.clear(true, true, false);
-      renderer.render(scene, camera);
-    });
+    if (this.renderedCasterRevision !== this.casterRevisionValue || this.renderedSunRevision !== this.sunRevision) {
+      depthMVP.value.copy(uniforms.uSunMVP.value);
+      this.withDepthMaterials(() => {
+        renderer.setRenderTarget(this.shadowRT);
+        renderer.clear(true, true, false);
+        renderer.render(scene, camera);
+      });
+      this.renderedCasterRevision = this.casterRevisionValue;
+      this.renderedSunRevision = this.sunRevision;
+    }
     uniforms.uShadowMap.value = this.shadowRT!.depthTexture;
     uniforms.uShadowStrength.value = this.options.getConfig().shadows * strengthScale;
   }
@@ -120,7 +170,7 @@ export class ShadowPassRenderer {
       this.pointRT!.viewport.set(0, 0, pointWidth, pointHeight);
       renderer.setRenderTarget(this.pointRT);
       renderer.clear(true, true, false);
-      const hidden: THREE.Mesh[] = [];
+      this.hiddenMeshes.length = 0;
       for (let i = 0; i < count; i++) {
         const lx = lightPos[i * 4], ly = lightPos[i * 4 + 1], lz = lightPos[i * 4 + 2];
         const range = Math.max(lightPos[i * 4 + 3], pointNear * 2);
@@ -132,18 +182,22 @@ export class ShadowPassRenderer {
             const dz = Math.max(ud.rect.z0 - lz, 0, lz - ud.rect.z1);
             out = Math.hypot(dx, dz) > range + tile;
           } else if (ud.bound) out = Math.hypot(ud.bound[0] - lx, ud.bound[1] - lz) - ud.bound[2] > range + tile;
-          if (out) { mesh.visible = false; hidden.push(mesh); }
+          if (out) { mesh.visible = false; this.hiddenMeshes.push(mesh); }
         }
-        const proj = this.options.perspective(Math.PI / 2, 1, pointNear, range);
+        if (this.options.perspectiveInto) this.options.perspectiveInto(this.pointProjection, Math.PI / 2, 1, pointNear, range);
+        else this.pointProjection.set(this.options.perspective(Math.PI / 2, 1, pointNear, range));
         for (let f = 0; f < 6; f++) {
           const [R, Uv, F] = PL_FACES[f];
-          depthMVP.value.fromArray(this.options.multiply(proj, faceView(R, Uv, F, lx, ly, lz)));
+          faceViewInto(this.pointFaceView, R, Uv, F, lx, ly, lz);
+          if (this.options.multiplyInto) this.options.multiplyInto(this.pointMVP, this.pointProjection, this.pointFaceView);
+          else this.pointMVP.set(this.options.multiply(this.pointProjection as unknown as number[], this.pointFaceView as unknown as number[]));
+          depthMVP.value.fromArray(this.pointMVP);
           this.pointRT!.viewport.set((f % 3) * pointFace, (i * 2 + (f < 3 ? 0 : 1)) * pointFace, pointFace, pointFace);
           renderer.setRenderTarget(this.pointRT);
           renderer.render(scene, camera);
         }
-        for (const mesh of hidden) mesh.visible = true;
-        hidden.length = 0;
+        for (let j = 0; j < this.hiddenMeshes.length; j++) this.hiddenMeshes[j].visible = true;
+        this.hiddenMeshes.length = 0;
       }
       this.pointRT!.viewport.set(0, 0, pointWidth, pointHeight);
       uniforms.uPLMap.value = this.pointRT!.depthTexture;
@@ -154,15 +208,17 @@ export class ShadowPassRenderer {
   renderPointPass(renderer: THREE.WebGLRenderer, count: number, trace: boolean): number {
     const uniforms = this.options.uniforms;
     const { lightPos, lightCol } = this.options;
-    const nextKey = count > 0
-      ? [count, ...Array.from({ length: count }, (_, i) => [
-        lightPos[i * 4], lightPos[i * 4 + 1], lightPos[i * 4 + 2], lightPos[i * 4 + 3],
-        lightCol[i * 3], lightCol[i * 3 + 1], lightCol[i * 3 + 2],
-      ].join(","))].join(";")
-      : "none";
-    if (nextKey !== this.pointKey) {
+    let keyChanged = count !== this.pointKeyCount || !this.pointKeyValid;
+    if (!keyChanged) {
+      for (let i = 0; i < count * 4 && !keyChanged; i++) keyChanged = this.pointKeyPos[i] !== lightPos[i];
+      for (let i = 0; i < count * 3 && !keyChanged; i++) keyChanged = this.pointKeyCol[i] !== lightCol[i];
+    }
+    if (keyChanged) {
       this.pointRevision++;
-      this.pointKey = nextKey;
+      this.pointKeyCount = count;
+      this.pointKeyValid = true;
+      for (let i = 0; i < count * 4; i++) this.pointKeyPos[i] = lightPos[i];
+      for (let i = 0; i < count * 3; i++) this.pointKeyCol[i] = lightCol[i];
       this.pointReady = false;
       this.pointSceneFrameId = 0;
     } else if (count > 0 && this.pointFrameId > 0 && this.pointSceneFrameId === this.pointFrameId) {
@@ -171,10 +227,16 @@ export class ShadowPassRenderer {
     this.ensurePointTarget();
     uniforms.uPLMap.value = this.pointRT!.depthTexture;
     if (count <= 0) return 0;
+    const needsRender = keyChanged || this.pointRenderedCasterRevision !== this.casterRevisionValue || this.pointFrameId === 0;
+    if (!needsRender) {
+      this.pointFrameId++;
+      return 0;
+    }
     this.ensurePrograms(renderer);
     const start = trace ? performance.now() : 0;
     this.renderPoint(renderer, count);
     this.pointFrameId++;
+    this.pointRenderedCasterRevision = this.casterRevisionValue;
     return trace ? performance.now() - start : 0;
   }
 
@@ -228,21 +290,25 @@ export class ShadowPassRenderer {
   }
 
   private withDepthMaterials(fn: (swapped: THREE.Mesh[]) => void): void {
-    const { terrainGroup, spriteGroup, overheadGroup, waterGroup, dropGroup, weatherGroup } = this.options;
-    const swapped: Array<[THREE.Mesh, THREE.Material | THREE.Material[]]> = [];
-    const meshes: THREE.Mesh[] = [];
-    for (const group of [terrainGroup, spriteGroup, overheadGroup]) {
+    this.swappedMaterials.length = 0;
+    this.depthMeshes.length = 0;
+    for (const group of this.depthGroups) {
       for (const child of group.children) {
         const mesh = child as THREE.Mesh;
         if (!mesh.visible) continue;
-        swapped.push([mesh, mesh.material]); meshes.push(mesh); mesh.material = this.depthMaterial(mesh);
+        this.swappedMaterials.push([mesh, mesh.material]);
+        this.depthMeshes.push(mesh);
+        mesh.material = this.depthMaterial(mesh);
       }
     }
-    const wasVisible: Array<[THREE.Group, boolean]> = [];
-    for (const group of [waterGroup, dropGroup, weatherGroup]) { wasVisible.push([group, group.visible]); group.visible = false; }
-    try { fn(meshes); } finally {
-      for (const [group, visible] of wasVisible) group.visible = visible;
-      for (const [mesh, material] of swapped) mesh.material = material;
+    this.hiddenGroups.length = 0;
+    for (const group of this.disabledGroups) {
+      this.hiddenGroups.push([group, group.visible]);
+      group.visible = false;
+    }
+    try { fn(this.depthMeshes); } finally {
+      for (const [group, visible] of this.hiddenGroups) group.visible = visible;
+      for (const [mesh, material] of this.swappedMaterials) mesh.material = material;
     }
   }
 
@@ -260,10 +326,16 @@ const PL_FACES: Array<[number[], number[], number[]]> = [
   [[1, 0, 0], [0, 1, 0], [0, 0, 1]], [[-1, 0, 0], [0, 1, 0], [0, 0, -1]],
 ];
 
-function faceView(R: number[], up: number[], forward: number[], px: number, py: number, pz: number): number[] {
-  return [
-    R[0], up[0], -forward[0], 0, R[1], up[1], -forward[1], 0, R[2], up[2], -forward[2], 0,
-    -(R[0] * px + R[1] * py + R[2] * pz), -(up[0] * px + up[1] * py + up[2] * pz),
-    forward[0] * px + forward[1] * py + forward[2] * pz, 1,
-  ];
+function faceViewInto(
+  out: number[] | Float32Array,
+  R: number[], up: number[], forward: number[],
+  px: number, py: number, pz: number,
+): void {
+  out[0] = R[0]; out[1] = up[0]; out[2] = -forward[0]; out[3] = 0;
+  out[4] = R[1]; out[5] = up[1]; out[6] = -forward[1]; out[7] = 0;
+  out[8] = R[2]; out[9] = up[2]; out[10] = -forward[2]; out[11] = 0;
+  out[12] = -(R[0] * px + R[1] * py + R[2] * pz);
+  out[13] = -(up[0] * px + up[1] * py + up[2] * pz);
+  out[14] = forward[0] * px + forward[1] * py + forward[2] * pz;
+  out[15] = 1;
 }

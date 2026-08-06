@@ -22,7 +22,7 @@ export interface PostProcessFrame {
   near: number;
   far: number;
   distance: number;
-  eye: number[];
+  eye: ArrayLike<number>;
   extra: any;
   worldBaseX: number;
   worldBaseY: number;
@@ -33,6 +33,7 @@ export interface PostProcessFrame {
 }
 
 export class PostProcessRenderer {
+  readonly frame = {} as PostProcessFrame;
   private targetsValue: TargetSet | null = null;
   private readonly camera: THREE.Camera;
   private readonly fov: number;

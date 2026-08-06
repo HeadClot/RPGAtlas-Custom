@@ -26,6 +26,14 @@ export class SpriteRenderer {
   private readonly spritePool: SpriteEntry[] = [];
   private readonly dropPool: DropEntry[] = [];
   private dropTexture: THREE.CanvasTexture | null = null;
+  private readonly stateCanvas: Array<HTMLCanvasElement | null> = [];
+  private readonly stateRx: number[] = [];
+  private readonly stateRy: number[] = [];
+  private readonly statePr: number[] = [];
+  private lastWorldBaseX = NaN;
+  private lastWorldBaseY = NaN;
+  private lastSampleHeight: ((x: number, y: number) => number) | null = null;
+  private lastDropShadows = false;
 
   constructor(private readonly options: SpriteRendererOptions) {}
 
@@ -33,9 +41,27 @@ export class SpriteRenderer {
     return this.spritePool;
   }
 
-  update(sprites: any[], worldBaseX: number, worldBaseY: number, dropShadows: boolean, sampleHeight: (x: number, y: number) => number): void {
+  invalidate(): void {
+    this.lastSampleHeight = null;
+  }
+
+  update(sprites: any[], worldBaseX: number, worldBaseY: number, dropShadows: boolean, sampleHeight: (x: number, y: number) => number): boolean {
     const { tile } = this.options;
-    sprites.sort((a, b) => a.ry - b.ry);
+    let needsSort = false;
+    for (let i = 1; i < sprites.length; i++) {
+      if (sprites[i - 1].ry > sprites[i].ry) { needsSort = true; break; }
+    }
+    if (needsSort) sprites.sort(compareSpriteDepth);
+    let geometryChanged = sprites.length !== this.stateCanvas.length ||
+      worldBaseX !== this.lastWorldBaseX || worldBaseY !== this.lastWorldBaseY ||
+      sampleHeight !== this.lastSampleHeight;
+    for (let i = 0; i < sprites.length && !geometryChanged; i++) {
+      const sprite = sprites[i];
+      geometryChanged = this.stateCanvas[i] !== sprite.canvas ||
+        this.stateRx[i] !== sprite.rx || this.stateRy[i] !== sprite.ry || this.statePr[i] !== sprite.pr;
+    }
+    const visualChanged = geometryChanged || dropShadows !== this.lastDropShadows;
+    if (!visualChanged) return false;
     for (let i = 0; i < sprites.length; i++) {
       const sprite = sprites[i];
       const pooled = this.poolSprite(i);
@@ -68,6 +94,21 @@ export class SpriteRenderer {
     for (let i = dropShadows ? sprites.length : 0; i < this.dropPool.length; i++) {
       this.dropPool[i].mesh.visible = false;
     }
+    this.stateCanvas.length = sprites.length;
+    this.stateRx.length = sprites.length;
+    this.stateRy.length = sprites.length;
+    this.statePr.length = sprites.length;
+    for (let i = 0; i < sprites.length; i++) {
+      this.stateCanvas[i] = sprites[i].canvas;
+      this.stateRx[i] = sprites[i].rx;
+      this.stateRy[i] = sprites[i].ry;
+      this.statePr[i] = sprites[i].pr;
+    }
+    this.lastWorldBaseX = worldBaseX;
+    this.lastWorldBaseY = worldBaseY;
+    this.lastSampleHeight = sampleHeight;
+    this.lastDropShadows = dropShadows;
+    return geometryChanged;
   }
 
   private textureFor(canvas: HTMLCanvasElement): THREE.CanvasTexture {
@@ -141,21 +182,27 @@ export class SpriteRenderer {
     const x1 = x0 + w;
     const yBottom = yTop - h;
     let i = 0;
-    const put = (x: number, y: number, u: number, v: number) => {
-      a[i++] = x; a[i++] = y; a[i++] = z; a[i++] = u; a[i++] = v; a[i++] = tint;
-    };
-    put(x0, yTop, 0, 0); put(x1, yTop, 1, 0); put(x0, yBottom, 0, 1);
-    put(x0, yBottom, 0, 1); put(x1, yTop, 1, 0); put(x1, yBottom, 1, 1);
+    a[i++] = x0; a[i++] = yTop; a[i++] = z; a[i++] = 0; a[i++] = 0; a[i++] = tint;
+    a[i++] = x1; a[i++] = yTop; a[i++] = z; a[i++] = 1; a[i++] = 0; a[i++] = tint;
+    a[i++] = x0; a[i++] = yBottom; a[i++] = z; a[i++] = 0; a[i++] = 1; a[i++] = tint;
+    a[i++] = x0; a[i++] = yBottom; a[i++] = z; a[i++] = 0; a[i++] = 1; a[i++] = tint;
+    a[i++] = x1; a[i++] = yTop; a[i++] = z; a[i++] = 1; a[i++] = 0; a[i++] = tint;
+    a[i++] = x1; a[i++] = yBottom; a[i++] = z; a[i++] = 1; a[i++] = 1; a[i++] = tint;
   }
 
   private writeGroundQuad(a: Float32Array, x0: number, y: number, z0: number, w: number, h: number, tint = 1): void {
     const x1 = x0 + w;
     const z1 = z0 + h;
     let i = 0;
-    const put = (x: number, z: number, u: number, v: number) => {
-      a[i++] = x; a[i++] = y; a[i++] = z; a[i++] = u; a[i++] = v; a[i++] = tint;
-    };
-    put(x0, z0, 0, 0); put(x1, z0, 1, 0); put(x0, z1, 0, 1);
-    put(x0, z1, 0, 1); put(x1, z0, 1, 0); put(x1, z1, 1, 1);
+    a[i++] = x0; a[i++] = y; a[i++] = z0; a[i++] = 0; a[i++] = 0; a[i++] = tint;
+    a[i++] = x1; a[i++] = y; a[i++] = z0; a[i++] = 1; a[i++] = 0; a[i++] = tint;
+    a[i++] = x0; a[i++] = y; a[i++] = z1; a[i++] = 0; a[i++] = 1; a[i++] = tint;
+    a[i++] = x0; a[i++] = y; a[i++] = z1; a[i++] = 0; a[i++] = 1; a[i++] = tint;
+    a[i++] = x1; a[i++] = y; a[i++] = z0; a[i++] = 1; a[i++] = 0; a[i++] = tint;
+    a[i++] = x1; a[i++] = y; a[i++] = z1; a[i++] = 1; a[i++] = 1; a[i++] = tint;
   }
+}
+
+function compareSpriteDepth(a: any, b: any): number {
+  return a.ry - b.ry;
 }

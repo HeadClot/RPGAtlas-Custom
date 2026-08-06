@@ -16,6 +16,8 @@ export class ThreeSceneGraph {
   readonly spriteGroup = new THREE.Group();
   readonly overheadGroup = new THREE.Group();
   readonly weatherGroup = new THREE.Group();
+  private readonly cullGroups: THREE.Group[];
+  private readonly culledChildren: THREE.Object3D[] = [];
 
   constructor(maxLights: number) {
     this.lightPos = new Float32Array(maxLights * 4);
@@ -52,6 +54,7 @@ export class ThreeSceneGraph {
       this.overheadGroup,
       this.weatherGroup,
     );
+    this.cullGroups = [this.terrainGroup, this.waterGroup, this.overheadGroup];
     [
       this.scene,
       this.terrainGroup,
@@ -64,16 +67,25 @@ export class ThreeSceneGraph {
   }
 
   setViewCull(camX: number, camY: number, viewW: number, viewH: number, tile: number, on: boolean): void {
+    if (!on) {
+      for (let i = 0; i < this.culledChildren.length; i++) this.culledChildren[i].visible = true;
+      this.culledChildren.length = 0;
+      return;
+    }
     const margin = 6 * tile;
     const x0 = camX - margin;
     const x1 = camX + viewW + margin;
     const z0 = camY - 10 * tile;
     const z1 = camY + viewH + margin;
-    for (const group of [this.terrainGroup, this.waterGroup, this.overheadGroup]) {
+    for (let i = 0; i < this.culledChildren.length; i++) this.culledChildren[i].visible = true;
+    this.culledChildren.length = 0;
+    for (const group of this.cullGroups) {
       for (const child of group.children) {
         const rect = child.userData.rect;
         if (!rect) continue;
-        child.visible = !on || !(rect.x1 < x0 || rect.x0 > x1 || rect.z1 < z0 || rect.z0 > z1);
+        const outside = rect.x1 < x0 || rect.x0 > x1 || rect.z1 < z0 || rect.z0 > z1;
+        child.visible = !outside;
+        if (outside) this.culledChildren.push(child);
       }
     }
   }
