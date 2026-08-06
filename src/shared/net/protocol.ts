@@ -121,6 +121,9 @@ export type InputIntent =
   | { k: "act" }
   /** Action-RPG melee swing (the `attack` action button). */
   | { k: "attack" }
+  /** Activate an actor's authored Action Combat hotbar slot (0-based). The
+   * host resolves the slot to a Skill or Item and re-checks all authority. */
+  | { k: "ability"; slot: number }
   /** Replace the authoritative field-combat equipment claim. */
   | { k: "loadout"; loadout: PlayerLoadout }
   /** Field-use a consumable `item` on a party member (`target` = actor id;

@@ -733,6 +733,15 @@ import { subTabs } from "../database/shared";
       sx: px.sx || 0, sy: px.sy || 0, lock: !!px.lock };
     const bb = m.battleback || {};
     const bbW = { back1: bb.back1 || "", back2: bb.back2 || "" };
+    const ac = m.actionCombat || {};
+    const acW = {
+      enabled: ac.enabled == null ? true : !!ac.enabled,
+      hotbarSlots: Number(ac.hotbarSlots) || 8,
+      showResources: ac.showResources !== false,
+      allowItems: ac.allowItems !== false,
+      targetingMode: ac.targetingMode || "facing",
+      pauseOnMenu: ac.pauseOnMenu !== false,
+    };
     const hd = m.hd2d || {};
     const hdW = {
       enabled: !!hd.enabled,
@@ -785,6 +794,14 @@ import { subTabs } from "../database/shared";
         h("div", { class: "fld" }, h("span", null, "Encounter troops"), troopBox),
         h("div", { class: "fld" }, h("span", null, "Region encounter pools (paint regions in Region mode)"), regionBox),
         h("div", { class: "fld" }, h("span", null, "Night encounter pool (21:00–5:00; empty = default troops)"), nightBox),
+      ) },
+      { label: "Action Combat", build: () => h("div", null,
+        h("div", { class: "dim" }, "Map-level overrides for System ▸ Action Combat. Enablement defaults to the global system setting when this map has no override."),
+        row(field("Enable on this map", chk(acW, "enabled")), field("Hotbar slots", nIn(acW, "hotbarSlots", 1, 8)),
+          field("Show MP/TP", chk(acW, "showResources")), field("Allow items", chk(acW, "allowItems"))),
+        row(field("Targeting", sel(acW, "targetingMode", [{ v: "facing", l: "Facing" }, { v: "nearest", l: "Nearest" }])),
+          field("Pause on menu", chk(acW, "pauseOnMenu"))),
+        h("div", { class: "dim" }, "Use the System setting for project-wide defaults; this override is useful for safe towns, arenas, or maps with different hotbar rules."),
       ) },
       { label: "HD-2D", build: () => h("div", null,
         h("div", { class: "dim" }, "3D perspective rendering. Off = the classic top-down look."),
@@ -847,6 +864,11 @@ import { subTabs } from "../database/shared";
           { const b1 = String(bbW.back1 || "").trim(), b2 = String(bbW.back2 || "").trim();
             if (b1 || b2) m.battleback = { ...(b1 ? { back1: b1 } : {}), ...(b2 ? { back2: b2 } : {}) };
             else delete m.battleback; }
+          m.actionCombat = {
+            enabled: acW.enabled, hotbarSlots: Math.max(1, Math.min(8, Number(acW.hotbarSlots) || 8)),
+            showResources: acW.showResources, allowItems: acW.allowItems,
+            targetingMode: acW.targetingMode, pauseOnMenu: acW.pauseOnMenu,
+          };
           { const nv = String(notesIn.value || ""); if (nv) m.notes = nv; else delete m.notes; }
           m.hd2d = {
             enabled: hdW.enabled, tilt: hdW.tilt,

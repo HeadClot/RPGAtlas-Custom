@@ -37,8 +37,9 @@ multiplayer configuration. Browser projects use storage adapters; desktop projec
 - `map-editor/` handles classic painting, HD-2D preview, World View, Map Connections, history,
   clipboard, and map rendering.
 - `advanced/` handles unlimited layers, terrain/autotile studio, stamps, zones, and Automap.
-- `database/` handles system, actors, classes, skills, items, enemies, combat profiles, HUD,
-  multiplayer, quests, tilesets, and other project data.
+- `database/` handles system, actors, classes, skills, items, enemies, combat profiles, Action
+  Combat hotbars and real-time ability/state fields, HUD, multiplayer, quests, tilesets, and other
+  project data.
 - `event-editor/` defines event commands, conditions, pages, move routes, Atlas Graph, and quick
   event templates.
 - `tools/assets/`, `tools/content/`, `tools/generators/`, and `tools/plugins/` contain the asset,
@@ -71,7 +72,8 @@ multiplayer configuration. Browser projects use storage adapters; desktop projec
 tests, Beacon Node, and Cloudflare:
 
 - `schema.ts` defines the project and runtime data shapes and migration-compatible defaults.
-- `sim/` contains deterministic world, player, party, collision, timers, and action-combat rules.
+- `sim/` contains deterministic world, player, party, collision, timers, shared Action Combat
+  ability resolution, target selection, resources, cooldowns, state ticking, and combat rules.
 - `net/` contains protocol, transport, room-code, relay, passport, and chat primitives.
 - `map/` contains autotiles, layer composition, map connections, movement/pathfinding, stamps,
   terrain/tile behavior, world graphs, and zones.
@@ -129,8 +131,8 @@ and cutscenes require `--engine-events`, with `--zone-workers` for multi-map sha
 2. The client sends validated input intents through the relay transport.
 3. Beacon owns authoritative movement, collision, presence, event execution where enabled, and
    action-combat outcomes.
-4. Snapshots/deltas reconcile remote players, HP, combat phases, VFX/SFX events, defeat, revive,
-   and map-transfer state.
+4. Snapshots/deltas reconcile remote players, HP, MP/TP, combat phases, active abilities,
+   cooldowns, real-time States, VFX/SFX events, defeat, revive, and map-transfer state.
 
 ### Standalone export
 

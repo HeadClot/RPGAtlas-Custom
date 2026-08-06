@@ -2180,3 +2180,42 @@ PATCH_NOTES.push({
     "Added baseline hash and computed cache-key diagnostics to the E2E workflow.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T10:30:00-06:00",
+  title: "Completed Action Combat editor and database exposure",
+  summary:
+    "Action Combat now resolves authored actor, equipment, enemy, and event-page values consistently across the editor, solo runtime, Node, and Cloudflare hosts.",
+  items: [
+    "Exposed full timing, cooldown, range, hitbox, damage, knockback, stagger, presentation, and Persistent Defeat authoring in the existing database and event tabs.",
+    "Added shared directional, adjacent, and radius hitbox resolution, reset-to-inherited page overrides, resolved previews, and reference/range validation.",
+    "Persisted local Persistent Defeat state through map reloads and saves, and aligned authoritative hit testing, cooldowns, presentation events, and defeat/respawn precedence.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T01:55:00-06:00",
+  title: "Expanded Action-RPG authoring",
+  summary:
+    "Added optional real-time skills, items, states, hotbars, enemy abilities, system/map rules, and shared validation to the Action Combat workflow.",
+  items: [
+    "Added action profiles for Skills and Items, frame-based States, class/actor hotbars and resource defaults, and weighted telegraphed Enemy abilities.",
+    "Added configurable Combat slot 1–8 controls, System and map Action Combat settings, and database editors for all new records.",
+    "Added shared ability resolution, target selection, resource/cooldown checks, state ticking, server intent validation, combat snapshots, and authored map VFX playback.",
+  ],
+});
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T02:00:08-06:00",
+  title: "Documented Action-RPG authoring",
+  summary:
+    "Expanded creator documentation for real-time Skills, Items, States, hotbars, enemy abilities, and map combat rules.",
+  items: [
+    "Updated the Action Combat guide with System/map setup, hotbar authoring, resource and cooldown behavior, real-time States, and troubleshooting.",
+    "Updated Database, Events, and Battles & States guidance with the new Action Combat tabs and 60 Hz frame-based behavior.",
+    "Updated the architecture overview to describe shared ability resolution and combat snapshot fields.",
+  ],
+});

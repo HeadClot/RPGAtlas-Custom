@@ -242,6 +242,10 @@ export class Zone implements ZoneApi {
     const defaults = resolveActorCombat(this.world.proj as Project, player.loadout.actorId, player.loadout);
     player.maxHp = defaults.maxHp;
     player.hp = defaults.maxHp;
+    player.maxMp = defaults.maxMp;
+    player.mp = defaults.maxMp;
+    player.maxTp = defaults.maxTp;
+    player.tp = 0;
     const restored = savedCombat || this.restoredCombatByName.get(name);
     if (restored) {
       const hp = Number(restored.hp);
@@ -250,6 +254,10 @@ export class Zone implements ZoneApi {
       player.hp = Number.isFinite(hp) ? Math.max(0, hp) : player.hp || 100;
       player.maxHp = Number.isFinite(maxHp) ? Math.max(1, maxHp) : player.maxHp || 100;
       player.revive = Number.isFinite(revive) ? Math.max(0, revive) : 0;
+      if (typeof restored.mp === "number") player.mp = Math.max(0, restored.mp);
+      if (typeof restored.maxMp === "number") player.maxMp = Math.max(0, restored.maxMp);
+      if (typeof restored.tp === "number") player.tp = Math.max(0, restored.tp);
+      if (typeof restored.maxTp === "number") player.maxTp = Math.max(1, restored.maxTp);
       if (restored.state) Object.assign(player.combat, restored.state, { hitIds: new Set() });
       player.combat.dead = !!restored.dead;
       player.combat.phase = player.combat.dead ? "dead" : player.combat.phase;
@@ -321,6 +329,7 @@ export class Zone implements ZoneApi {
     return {
       hp: Number(p.hp ?? 0), maxHp: Number(p.maxHp ?? 100),
       dead: !!p.combat.dead, revive: Number(p.revive ?? p.combat.respawn ?? 0),
+      mp: Number(p.mp ?? 0), maxMp: Number(p.maxMp ?? 0), tp: Number(p.tp ?? 0), maxTp: Number(p.maxTp ?? 100),
       state: toCombatNetState(p.combat),
     };
   }
@@ -397,7 +406,7 @@ export class Zone implements ZoneApi {
     if (!member) return;
     if (this.runtime?.ready && !this.runtime.ready()) return;
     if (msg.t === "input") {
-      const isAttack = msg.intent.k === "attack";
+      const isAttack = msg.intent.k === "attack" || msg.intent.k === "ability";
       if (isAttack && msg.seq <= member.lastSeq) return;
       member.lastSeq = Math.max(member.lastSeq, msg.seq);
       if (msg.intent.k === "loadout") {
@@ -415,6 +424,9 @@ export class Zone implements ZoneApi {
       if (pm) member.pending = pm; // latest move/face wins for the next tick
       else if (this.runtime && msg.intent.k === "attack") {
         this.runtime.onAttack?.(pid);
+      }
+      else if (this.runtime && msg.intent.k === "ability") {
+        this.runtime.onAbility?.(pid, msg.intent.slot);
       }
       else if (this.runtime && msg.intent.k === "act") {
         // Action-button interaction (talk to an NPC / open a door) — only a

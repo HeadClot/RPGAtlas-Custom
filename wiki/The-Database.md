@@ -14,22 +14,31 @@ actors, classes, skills, items, and enemies. Tweak as you go.
 ### Actors
 The individual heroes the player controls. Each actor has a **name**, a **class**, a starting
 **level**, a walking **sprite**, and **starting equipment**. Actors join and leave the party via the
-**Change Party** event command.
+**Change Party** event command. The **Action Combat** subtab can override MP/TP capacity and
+regeneration, attack/defense rates, and the actor's eight Skill/Item hotbar slots.
 
 ### Classes
 The template behind an actor: **base stats**, **per-level growth**, **traits** (stat boosts,
 elemental resistances, skill bonuses), which **equipment** they may use, and the **skills they learn**
-at each level. Two actors can share a class or each have their own.
+at each level. The **Action Combat** subtab supplies default hotbar slots, MP/TP rules, attack and
+defense rates, and an optional list of allowed action Skills. Two actors can share a class or each
+have their own.
 
 ### Skills
 Actions used in battle (and sometimes the field). A skill has an **icon**, a type
 (**physical / magical / heal**), a **power**, an **MP cost**, and a **scope** (one enemy, all enemies,
 one ally, the whole party…). Skills can also **inflict or cure [states](Battles-and-States#states)**,
-play a custom **[battle animation](#animations)**, and strike multiple times (**Hits**).
+play a custom **[battle animation](#animations)**, and strike multiple times (**Hits**). The optional
+**Action Combat** subtab makes a Skill usable in real-time map combat with frame timing, cooldown,
+grid hitbox, target mode, MP/TP cost, damage/formula, knockback, stagger, State effect, and
+telegraph/hit/presentation references.
 
 ### Items
 Consumables and key items. Like skills, they have effects, a scope, an icon, and a **price** (for
-shops). Healing potions, antidotes, and quest keys all live here.
+shops). Healing potions, antidotes, and quest keys all live here. Enable the optional **Action
+Combat** map-use profile to put an Item on a hotbar, choose its target and grid behavior, set
+cooldown and resource costs, configure healing/damage or State effects, and choose when it is
+consumed.
 
 ### Weapons
 Equippable arms with parameters (attack power, etc.), an icon, and a price. Which classes can use
@@ -41,7 +50,11 @@ Equippable defense — same idea as weapons (defense parameters, icon, price, cl
 ### Enemies
 The monsters you fight. Each enemy has **stats**, **rewards** (EXP and gold), a **weighted action
 list** (what it tends to do each turn), and a **procedural sprite + color tint**. Twelve distinct
-monster families ship with the engine. See [Battles & States](Battles-and-States).
+monster families ship with the engine. Its **Action Combat** subtab also provides event-page
+defaults and a weighted telegraphed ability list. Each row references an action-enabled Skill and
+can specify weight, cooldown, target mode, and an HP, distance, State, or switch condition. If no
+row is eligible, the simple contact attack remains the fallback. See
+[Battles & States](Battles-and-States).
 
 ### Troops
 **Groups of enemies** that appear together in one battle. A fixed encounter or a random encounter
@@ -57,6 +70,13 @@ the exact runtime the game uses. Assign animations to **skills** and **weapons**
 animation* picker), or show one on the map with the **Play Animation** event command. A skill
 without an animation keeps the engine's classic built-in effects.
 
+### Attack Profiles
+Reusable basic Attack definitions for map Action Combat. Set damage, damage scale, 60 Hz
+wind-up/active/recovery timing, cooldown, range, directional/adjacent/radius hitbox, knockback,
+stagger, and attack/telegraph/hit/hurt/defeat/revive presentation references. Actors, enemies, and
+event pages can reference a profile and then override selected values. For Skills and Items that
+belong on a hotbar, use their separate **Action Combat** subtab instead.
+
 ### Common Events
 Reusable event-command sequences that can be called from map events or scripts. They can also run
 automatically as **Autorun** or **Parallel** processes, optionally gated by a switch. See
@@ -69,7 +89,9 @@ For reusable conversations, branching dialogue, and command-driven cutscenes, us
 Status effects: poison, stun, regen, and the like. Each state has a **per-turn HP change (%)**, an
 **action restriction**, a **duration**, whether it's **removed after battle**, and colors/icons.
 Skills and items reference states to inflict or cure them. See
-[Battles & States](Battles-and-States#states).
+[Battles & States](Battles-and-States#states). The optional **Action Combat** subtab adds duration
+and tick frames, refresh/replace/stack behavior, maximum stacks, damage over time, movement/attack/
+stagger modifiers, crowd-control flags, and resistance for real-time map combat.
 
 ### Switches
 The named **on/off flags** your events read and write. Naming them ("BridgeRepaired",
@@ -102,6 +124,8 @@ Game-wide presentation and rules. This tab is worth a careful look:
 | **System sounds & music themes** | Remappable cursor/confirm/cancel sounds and default music |
 | **Battle view** | **Side view** (animated party sprites) or classic **front view** |
 | **Battle system** | **Turn-based**, **ATB** (active-time gauges), or **CTB** (turn-order timeline) — see [Battles & States](Battles-and-States#the-three-battle-systems) |
+| **Action Combat** | Optional real-time map combat: enablement, 1–8 hotbar slots, MP/TP visibility, map Item use, targeting default, and menu pause behavior |
+| **Controls** | Remappable movement, interaction, Attack, and Combat slot 1–8 actions; new projects bind slots 1–8 to number keys |
 | **Eight-direction movement** | Optionally combine horizontal + vertical input into diagonal tile steps without allowing corner-cutting |
 | **Party followers** | Party members trail the leader on the map |
 | **Minimap** | Corner minimap + quest-tracker HUD in play (M / gamepad Select toggles; per-map opt-out in Map Properties) |
@@ -135,9 +159,13 @@ Every list tab (Actors, Items, Skills, Enemies, …) shares the same toolkit:
 ## A workflow that scales
 
 1. Sketch your **classes** and the **stats** that define your game's math.
-2. Add the **skills** and **items** the player will actually use.
-3. Build **enemies**, then group them into **troops**.
-4. Define **states** if you want status-effect depth.
-5. Name **switches** and **variables** as your story needs them — don't pre-make hundreds.
+2. Add the **skills** and **items** the player will actually use. Enable Action Combat profiles
+   only for records intended for map hotbars.
+3. Set class/actor **Action Combat hotbars**, then map **Combat slot 1–8** controls.
+4. Build **enemies**, then group them into **troops**. Add weighted Action Combat abilities where
+   an enemy needs more than its basic contact attack.
+5. Define **states** if you want status-effect depth; add frame-based Action Combat behavior for
+   map-time poison, stun, buffs, or crowd control.
+6. Name **switches** and **variables** as your story needs them — don't pre-make hundreds.
 
 **Next:** [Battles & States →](Battles-and-States)

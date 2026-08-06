@@ -319,6 +319,16 @@ const RA = {
       respawnFrames: 0,
     };
   },
+  defaultActionCombatSystem() {
+    return {
+      enabled: false,
+      hotbarSlots: 8,
+      showResources: true,
+      allowItems: true,
+      targetingMode: "facing",
+      pauseOnMenu: true,
+    };
+  },
   ACTION_COMBAT_AI: [
     { v: "none", l: "None" },
     { v: "chase", l: "Chase player" },
@@ -471,6 +481,14 @@ const RA = {
     { key: "cancel", label: "Cancel" },
     { key: "dash", label: "Dash" },
     { key: "attack", label: "Attack" },
+    { key: "combat1", label: "Combat slot 1" },
+    { key: "combat2", label: "Combat slot 2" },
+    { key: "combat3", label: "Combat slot 3" },
+    { key: "combat4", label: "Combat slot 4" },
+    { key: "combat5", label: "Combat slot 5" },
+    { key: "combat6", label: "Combat slot 6" },
+    { key: "combat7", label: "Combat slot 7" },
+    { key: "combat8", label: "Combat slot 8" },
     { key: "hud", label: "Minimap / HUD" },
   ],
   // Default bindings. keyboard = arrays of KeyboardEvent.code; gamepad = arrays of PAD_BUTTONS
@@ -482,6 +500,8 @@ const RA = {
         left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"],
         ok: ["KeyZ", "Enter", "Space"], cancel: ["KeyX", "Escape"],
         dash: ["ShiftLeft", "ShiftRight"], attack: ["KeyF", "KeyJ"],
+        combat1: ["Digit1"], combat2: ["Digit2"], combat3: ["Digit3"], combat4: ["Digit4"],
+        combat5: ["Digit5"], combat6: ["Digit6"], combat7: ["Digit7"], combat8: ["Digit8"],
         hud: ["KeyM"],
       },
       gamepad: {
@@ -490,6 +510,7 @@ const RA = {
         up: ["dpad_up", "lstick_up"], down: ["dpad_down", "lstick_down"],
         left: ["dpad_left", "lstick_left"], right: ["dpad_right", "lstick_right"],
         ok: ["face_south"], cancel: ["face_east"], dash: ["face_west"], attack: ["face_north"],
+        combat1: [], combat2: [], combat3: [], combat4: [], combat5: [], combat6: [], combat7: [], combat8: [],
         hud: ["select"],
       },
       stickDeadzone: 0.5,
@@ -678,7 +699,7 @@ const RA = {
       defeatSound: "combatDefeat", reviveSound: "combatRevive",
     };
   },
-  FORMAT_VERSION: 3,
+  FORMAT_VERSION: 4,
   migrations: [
     {
       // v0 -> v1: the pre-existing ad-hoc migration (decor2 layer, shadows,
@@ -703,6 +724,12 @@ const RA = {
       // weapon / enemy combat data, and explicit page inheritance markers.
       version: 3,
       migrate(p) { RA._migrateV2toV3(p); },
+    },
+    {
+      // v3 -> v4: optional Action-RPG skills, items, states, hotbars, and
+      // system/map rules. All defaults are disabled or empty.
+      version: 4,
+      migrate(p) { RA._migrateV3toV4(p); },
     },
   ],
   // upgrade older projects in place (adds the decor2 layer, shadows,
@@ -929,6 +956,26 @@ const RA = {
     for (const weapon of p.weapons || []) if (weapon.combat && typeof weapon.combat !== "object") delete weapon.combat;
     for (const enemy of p.enemies || []) if (enemy.actionCombat && typeof enemy.actionCombat !== "object") delete enemy.actionCombat;
   },
+  _migrateV3toV4(p) {
+    const sys = p.system || (p.system = {});
+    sys.actionCombat = Object.assign(RA.defaultActionCombatSystem(), sys.actionCombat || {});
+    for (const actor of p.actors || []) {
+      if (actor.combat && typeof actor.combat !== "object") delete actor.combat;
+      if (actor.combat && !Array.isArray(actor.combat.hotbar)) actor.combat.hotbar = [];
+    }
+    for (const cls of p.classes || []) {
+      if (cls.actionCombat && typeof cls.actionCombat !== "object") delete cls.actionCombat;
+      if (cls.actionCombat && !Array.isArray(cls.actionCombat.hotbar)) cls.actionCombat.hotbar = [];
+    }
+    for (const skill of p.skills || []) if (skill.actionCombat && typeof skill.actionCombat !== "object") delete skill.actionCombat;
+    for (const item of p.items || []) if (item.actionCombat && typeof item.actionCombat !== "object") delete item.actionCombat;
+    for (const state of p.states || []) if (state.actionCombat && typeof state.actionCombat !== "object") delete state.actionCombat;
+    for (const enemy of p.enemies || []) {
+      if (enemy.actionCombat && typeof enemy.actionCombat !== "object") delete enemy.actionCombat;
+      if (enemy.actionCombat && !Array.isArray(enemy.actionCombat.abilities)) enemy.actionCombat.abilities = [];
+    }
+    for (const map of (Array.isArray(p.maps) ? p.maps : [])) if (map.actionCombat && typeof map.actionCombat !== "object") delete map.actionCombat;
+  },
   // v1 -> v2 (Phase 5): gameplay-systems backfills. Idempotent; every field
   // is additive and inert at its default, so a migrated project plays
   // identically until an author opts in.
@@ -1005,6 +1052,11 @@ const RA = {
     // because already-current v2 projects skip the version-gated migrations.
     p.system = p.system && typeof p.system === "object" ? p.system : {};
     p.system.eightDirectionMovement = p.system.eightDirectionMovement === true;
+    p.system.actionCombat = Object.assign(RA.defaultActionCombatSystem(), p.system.actionCombat || {});
+    p.system.actionCombat.hotbarSlots = Math.max(1, Math.min(8, Number(p.system.actionCombat.hotbarSlots) || 8));
+    for (const map of (Array.isArray(p.maps) ? p.maps : [])) if (map.actionCombat && typeof map.actionCombat === "object") {
+      map.actionCombat.hotbarSlots = Math.max(1, Math.min(8, Number(map.actionCombat.hotbarSlots) || p.system.actionCombat.hotbarSlots));
+    }
     // Database ▸ Types lists. Backfill any missing/empty list at every load
     // boundary too, so already-current v2 projects and MZ/MV imports gain
     // lists added after they were saved (currency types, enemy categories and
@@ -1045,6 +1097,7 @@ const DataDefaults = (() => {
       heights: new Array(n).fill(0),   // HD-2D elevation in tile units (visual only; 0 = flat)
       regions: new Array(n).fill(0),   // region tag per tile: 0 = none, 1-63 (Phase 5)
       events: [],
+      actionCombat: {},
     };
   }
 
@@ -1507,6 +1560,7 @@ const DataDefaults = (() => {
         eightDirectionMovement: false,             // optional diagonal grid steps
         hudDesign: RA.defaultHudDesign(),           // visual HUD + message layout
         vehicles: {},                              // Phase 5 vehicles (boat/ship/airship)
+        actionCombat: RA.defaultActionCombatSystem(),
       },
       // Battle animations (Phase 5): keyframed timelines over the battle-fx
       // primitives. `at` is in ticks (60/s); effect durations in ms.

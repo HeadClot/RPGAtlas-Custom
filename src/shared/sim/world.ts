@@ -35,6 +35,9 @@ export function createInitialGameState(): any {
     switches: {},
     vars: {},
     selfSw: {},
+    // Persistent field-combat defeats keyed by "mapId:eventId". Absent in
+    // old saves, so legacy projects remain byte-compatible.
+    combatDefeated: {},
     // Per-player switches (Beacon MP7·B): { [playerId]: { [switchId]: bool } }.
     // Empty ⇒ inert; only the scope:"player" switch command ever writes here.
     pSwitches: {},

@@ -13,7 +13,7 @@ import { touch } from "../persistence";
 import { cmdListWidget } from "../event-editor/command-list";
 import { PARAM_KEYS, listFormTab, nameRefresher, iconPickerField, subTabs } from "./shared";
 import { damageFormulaEditor, extraEffectsEditor } from "./battler-tabs";
-import { combatPresentationFields, combatProfileIdField } from "./combat-tab";
+import { actionAbilityFields, combatAttackOverrideFields, combatPresentationFields, combatProfileIdField } from "./combat-tab";
 
 export const itemsTab = () => listFormTab({
   kind: "items",
@@ -57,6 +57,9 @@ export const itemsTab = () => listFormTab({
     }));
     box.appendChild(h("div", { class: "subhead" }, "Extra effects (optional)"));
     box.appendChild(extraEffectsEditor(e));
+    e.actionCombat = e.actionCombat || {};
+    box.appendChild(actionAbilityFields(e.actionCombat, "Action Combat map-use profile"));
+    box.appendChild(h("div", { class: "dim" }, "When enabled, this item can be assigned to an actor hotbar and used during map combat. Consumption follows the profile's consume-on-start rule."));
   },
 });
 
@@ -78,8 +81,7 @@ export const weaponsTab = () => listFormTab({
     box.appendChild(field("Attack animation", sel(e, "animationId", dbOpts(S.proj.animations || [], "(default FX)"))));
     e.combat = e.combat || {};
     box.appendChild(h("div", { class: "subhead" }, "Action Combat attack settings"));
-    box.appendChild(row(combatProfileIdField(e.combat), field("Damage override", nIn(e.combat, "damage", 0, 99999)), field("Damage scale", nIn(e.combat, "damageScale", 0, 100, 0.05)), field("Range", nIn(e.combat, "range", 1, 16))));
-    box.appendChild(row(field("Wind-up", nIn(e.combat, "windupFrames", 0, 180)), field("Active", nIn(e.combat, "activeFrames", 1, 180)), field("Recovery", nIn(e.combat, "recoveryFrames", 0, 600)), field("Cooldown", nIn(e.combat, "cooldown", 0, 3600)), field("Knockback", nIn(e.combat, "knockbackTiles", 0, 8)), field("Stagger", nIn(e.combat, "staggerFrames", 0, 600))));
+    for (const combatRow of combatAttackOverrideFields(e.combat)) box.appendChild(combatRow);
     box.appendChild(combatPresentationFields(e.combat));
   },
 });

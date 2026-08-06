@@ -17,7 +17,7 @@ import {
   STAT_KEYS, listFormTab, nameRefresher, iconPickerField,
   traitsEditor, subTabs,
 } from "./shared";
-import { combatPresentationFields, combatProfileIdField } from "./combat-tab";
+import { actionAbilityFields, actionStateFields, combatAttackOverrideFields, combatHotbarEditor, combatPresentationFields, combatProfileIdField, actionTargetModeOptions } from "./combat-tab";
 import { resolveActorCombat, resolveEnemyCombat } from "../../shared/sim/combat-profiles";
 
 export const actorsTab = () => listFormTab({
@@ -44,13 +44,18 @@ export const actorsTab = () => listFormTab({
       sel(e, "weapon2Id", dbOpts(S.proj.weapons, "(none)")))));
     e.combat = e.combat || {};
     box.appendChild(h("div", { class: "subhead" }, "Action Combat profile"));
-    box.appendChild(row(combatProfileIdField(e.combat), field("Max HP override", nIn(e.combat, "maxHp", 1, 99999)),
+    for (const combatRow of combatAttackOverrideFields(e.combat)) box.appendChild(combatRow);
+    box.appendChild(row(field("Max HP override", nIn(e.combat, "maxHp", 1, 99999)),
       field("Invulnerability frames", nIn(e.combat, "invulnFrames", 0, 600)), field("Stagger resistance", nIn(e.combat, "staggerResistance", 0, 600))));
     box.appendChild(row(field("Revive frames", nIn(e.combat, "reviveFrames", 0, 36000)), field("Revive HP", nIn(e.combat, "reviveHp", 1, 99999)),
       field("Death behavior", sel(e.combat, "defeatBehavior", [{ v: "checkpoint", l: "Return to checkpoint" }, { v: "respawn", l: "Respawn in place" }, { v: "gameOver", l: "Game over" }]))));
-    box.appendChild(combatPresentationFields(e.combat));
+    box.appendChild(combatPresentationFields(e.combat, "full"));
+    box.appendChild(h("div", { class: "subhead" }, "Action Combat hotbar"));
+    box.appendChild(combatHotbarEditor(e.combat, S.proj.skills, S.proj.items));
+    box.appendChild(row(field("Max MP override", nIn(e.combat, "maxMp", 0, 999999)), field("Max TP override", nIn(e.combat, "maxTp", 0, 999999)),
+      field("MP regen / frame", nIn(e.combat, "mpRegen", 0, 999, 0.01)), field("TP regen / frame", nIn(e.combat, "tpRegen", 0, 999, 0.01))));
     const resolved = resolveActorCombat(S.proj, e.id);
-    box.appendChild(h("div", { class: "dim" }, "Resolved combat: " + resolved.damage.toFixed(1) + " damage · " + resolved.maxHp + " HP · range " + resolved.range + " · profile " + (resolved.profileId || "default")));
+    box.appendChild(h("div", { class: "dim" }, "Resolved combat: " + resolved.damage.toFixed(1) + " damage · " + resolved.maxHp + " HP · " + resolved.hitbox + " range " + resolved.range + " · " + resolved.windupFrames + "/" + resolved.activeFrames + "/" + resolved.recoveryFrames + " frames · cooldown " + resolved.cooldown + " · profile " + (resolved.profileId || "default")));
     rp();
   },
 });
@@ -76,6 +81,7 @@ export const classesTab = () => listFormTab({
       { label: "Stats & curve", build: buildStats },
       { label: "Traits", build: buildTraits },
       { label: "Skills learned", build: buildLearnings },
+      { label: "Action Combat", build: buildActionCombat },
     ]));
 
     function buildStats() {
@@ -138,6 +144,29 @@ export const classesTab = () => listFormTab({
       p.appendChild(lbox);
       return p;
     }
+
+    function buildActionCombat() {
+      e.actionCombat = e.actionCombat || {};
+      const p = h("div");
+      p.appendChild(h("div", { class: "dim" }, "Class defaults apply when an actor does not override them. Skill availability can be restricted here.") );
+      p.appendChild(combatHotbarEditor(e.actionCombat, S.proj.skills, S.proj.items));
+      p.appendChild(row(field("Max MP", nIn(e.actionCombat, "maxMp", 0, 999999)), field("Max TP", nIn(e.actionCombat, "maxTp", 0, 999999)),
+        field("MP regen / frame", nIn(e.actionCombat, "mpRegen", 0, 999, 0.01)), field("TP regen / frame", nIn(e.actionCombat, "tpRegen", 0, 999, 0.01)),
+        field("Attack rate", nIn(e.actionCombat, "attackRate", 0, 2, 0.05)), field("Defense rate", nIn(e.actionCombat, "defenseRate", 0, 2, 0.05))));
+      const allowed = (e.actionCombat.allowedSkillIds = Array.isArray(e.actionCombat.allowedSkillIds) ? e.actionCombat.allowedSkillIds : []);
+      const allowedWrap = h("div", { class: "frow" });
+      for (const skill of S.proj.skills) {
+        const input = h("input", { type: "checkbox", checked: allowed.includes(skill.id) ? "" : undefined, onchange(ev: any) {
+          if (ev.target.checked && !allowed.includes(skill.id)) allowed.push(skill.id);
+          if (!ev.target.checked) e.actionCombat.allowedSkillIds = allowed.filter((id: number) => id !== skill.id);
+          touch();
+        } });
+        allowedWrap.appendChild(field(skill.name, input));
+      }
+      p.appendChild(h("div", { class: "subhead" }, "Allowed action skills (empty = all learned skills)"));
+      p.appendChild(allowedWrap);
+      return p;
+    }
   },
 });
 
@@ -153,6 +182,7 @@ export const skillsTab = () => listFormTab({
     box.appendChild(subTabs("skills", [
       { label: "General", build: buildGeneral },
       { label: "Effects & preview", build: buildEffects },
+      { label: "Action Combat", build: buildActionCombat },
     ]));
 
     function buildGeneral() {
@@ -240,6 +270,11 @@ export const skillsTab = () => listFormTab({
       p.appendChild(h("div", { class: "subhead" }, "Extra effects (optional)"));
       p.appendChild(extraEffectsEditor(e));
       return p;
+    }
+
+    function buildActionCombat() {
+      e.actionCombat = e.actionCombat || {};
+      return actionAbilityFields(e.actionCombat, "Real-time skill profile");
     }
   },
 });
@@ -599,15 +634,51 @@ export const enemiesTab = () => listFormTab({
       p.appendChild(h("div", { class: "dim" }, "Reusable defaults for Action Combat event pages. Pages can inherit these values and override selected settings."));
       p.appendChild(row(combatProfileIdField(e.actionCombat), field("HP", nIn(e.actionCombat, "hp", 1, 99999)), field("Touch damage", nIn(e.actionCombat, "touchDamage", 0, 999)), field("AI", sel(e.actionCombat, "ai", RA.ACTION_COMBAT_AI))));
       p.appendChild(row(field("Cooldown", nIn(e.actionCombat, "attackCooldown", 0, 3600)), field("Telegraph", nIn(e.actionCombat, "attackWindupFrames", 0, 180)), field("Active", nIn(e.actionCombat, "attackActiveFrames", 1, 180)), field("Recovery", nIn(e.actionCombat, "attackRecoveryFrames", 0, 600))));
-      p.appendChild(row(field("Range", nIn(e.actionCombat, "attackRange", 1, 16)), field("Knockback", nIn(e.actionCombat, "knockbackTiles", 0, 8)), field("Stagger", nIn(e.actionCombat, "staggerFrames", 0, 600)), field("Respawn", nIn(e.actionCombat, "respawnFrames", 0, 36000))));
+      p.appendChild(row(field("Range", nIn(e.actionCombat, "attackRange", 1, 16)), field("Hitbox", sel(e.actionCombat, "hitbox", [{ v: "directional", l: "Directional" }, { v: "adjacent", l: "Adjacent" }, { v: "radius", l: "Radius" }])), field("Knockback", nIn(e.actionCombat, "knockbackTiles", 0, 8)), field("Stagger", nIn(e.actionCombat, "staggerFrames", 0, 600)), field("Respawn", nIn(e.actionCombat, "respawnFrames", 0, 36000))));
       p.appendChild(row(field("Invulnerability", nIn(e.actionCombat, "invulnFrames", 0, 600)), field("Persistent defeat", chk(e.actionCombat, "persistentDefeat")), field("Defeat switch", sel(e.actionCombat, "defeatSelfSwitch", [{ v: "", l: "None" }, { v: "A", l: "A" }, { v: "B", l: "B" }, { v: "C", l: "C" }, { v: "D", l: "D" }]))));
-      p.appendChild(combatPresentationFields(e.actionCombat));
+      p.appendChild(combatPresentationFields(e.actionCombat, "full"));
+      const abilities = (e.actionCombat.abilities = Array.isArray(e.actionCombat.abilities) ? e.actionCombat.abilities : []);
+      const abox = h("div", { class: "minilist" });
+      const redrawAbilities = () => {
+        abox.innerHTML = "";
+        abilities.forEach((a: any, i: number) => {
+          a.condition = a.condition || { kind: "always" };
+          const conditionHolder = { v: a.condition.kind || "always" };
+          const conditionOptions: any = [
+            { v: "always", l: "Always" }, { v: "hpBelow", l: "HP below %" }, { v: "hpAbove", l: "HP above %" },
+            { v: "distanceBelow", l: "Distance below" }, { v: "distanceAbove", l: "Distance above" },
+            { v: "stateSelf", l: "Has state" }, { v: "switch", l: "Switch ON" },
+          ];
+          conditionOptions.stringValues = true;
+          const conditionValue = h("span");
+          const redrawCondition = () => {
+            conditionValue.innerHTML = "";
+            if (["hpBelow", "hpAbove"].includes(conditionHolder.v)) conditionValue.append(nIn(a.condition, "pct", 0, 100), h("span", null, "%"));
+            else if (["distanceBelow", "distanceAbove"].includes(conditionHolder.v)) conditionValue.append(nIn(a.condition, "distance", 1, 16), h("span", null, " tiles"));
+            else if (conditionHolder.v === "stateSelf") conditionValue.append(sel(a.condition, "stateId", dbOpts(S.proj.states)));
+            else if (conditionHolder.v === "switch") conditionValue.append(sel(a.condition, "switchId", switchOpts()));
+          };
+          abox.appendChild(h("div", { class: "minirow" },
+            sel(a, "skillId", dbOpts(S.proj.skills)), h("span", null, "weight"), nIn(a, "weight", 1, 99),
+            field("Cooldown", nIn(a, "cooldownFrames", 0, 3600)), field("Target", sel(a, "targetMode", actionTargetModeOptions())),
+            h("span", null, "if"), sel(conditionHolder, "v", conditionOptions, (value: any) => {
+              a.condition = value === "always" ? { kind: "always" } : value === "stateSelf" ? { kind: value, stateId: S.proj.states[0]?.id || 0 } : value === "switch" ? { kind: value, switchId: 1 } : { kind: value, pct: 50, distance: 2 };
+              touch(); redrawAbilities();
+            }), conditionValue,
+            h("button", { class: "mini", onclick() { abilities.splice(i, 1); touch(); redrawAbilities(); } }, "✕")));
+          redrawCondition();
+        });
+        abox.appendChild(h("button", { class: "mini", onclick() { abilities.push({ skillId: S.proj.skills[0]?.id || 0, weight: 1, targetMode: "facing", condition: { kind: "always" } }); touch(); redrawAbilities(); } }, "+ add telegraphed ability"));
+      };
+      p.appendChild(h("div", { class: "subhead" }, "Telegraphed ability list"));
+      p.appendChild(h("div", { class: "dim" }, "Rows reference action-enabled Skills. The runtime weighs valid rows and falls back to the contact attack when none can fire."));
+      redrawAbilities(); p.appendChild(abox);
       const resolved = resolveEnemyCombat(S.proj, { combat: {
         enabled: true, enemyId: e.id, ai: "none", hp: 0, touchDamage: 0,
         knockbackTiles: 1, invulnFrames: 24, defeatSelfSwitch: "", inheritDefaults: true,
         ...e.actionCombat,
       } });
-      if (resolved) p.appendChild(h("div", { class: "dim" }, "Resolved enemy combat: " + resolved.hp + " HP · contact " + resolved.touchDamage + " · range " + resolved.attackRange + " · profile " + (resolved.profileId || "default")));
+      if (resolved) p.appendChild(h("div", { class: "dim" }, "Resolved enemy combat: " + resolved.hp + " HP · contact " + resolved.touchDamage + " · " + resolved.hitbox + " range " + resolved.attackRange + " · " + resolved.attackWindupFrames + "/" + resolved.attackActiveFrames + "/" + resolved.attackRecoveryFrames + " frames · cooldown " + resolved.attackCooldown + " · profile " + (resolved.profileId || "default")));
       return p;
     }
   },
@@ -623,6 +694,7 @@ export const statesTab = () => listFormTab({
     box.appendChild(subTabs("states", [
       { label: "General", build: buildGeneral },
       { label: "Removal", build: buildRemoval },
+      { label: "Action Combat", build: buildActionCombat },
       // M3·B: states can carry traits while active (Silence/Blind-style).
       { label: "Traits", build: () => traitsEditor(e, "No traits. This state only does what General says.") },
     ]));
@@ -648,6 +720,11 @@ export const statesTab = () => listFormTab({
         field("Removed when stunned", chk(e, "removeByRestriction"))));
       p.appendChild(h("div", { class: "dim" }, "“Steps to walk it off” cures the state after that many map steps. “Removed when hit” rolls each time the battler takes HP damage. “Removed when stunned” sheds the state the moment a cannot-act state lands."));
       return p;
+    }
+
+    function buildActionCombat() {
+      e.actionCombat = e.actionCombat || {};
+      return actionStateFields(e.actionCombat);
     }
   },
 });

@@ -23,6 +23,7 @@ describe("createWorld — fresh state", () => {
       switches: {},
       vars: {},
       selfSw: {},
+      combatDefeated: {},
       pSwitches: {}, // per-player switches (Beacon MP7·B); empty ⇒ inert
       topicsUsed: {}, // spent "ask once" dialogue topics; empty ⇒ inert
       quests: {},

@@ -42,10 +42,10 @@ assert.equal(def.stickDeadzone, 0.5);
 // Every action has a keyboard + gamepad binding array. "hud" toggles the
 // minimap/quest-tracker HUD (Phase 5).
 const actions = clone(evaluate("RA.INPUT_ACTIONS")).map((a) => a.key);
-assert.deepEqual(actions, ["up", "down", "left", "right", "ok", "cancel", "dash", "attack", "hud"]);
+assert.deepEqual(actions, ["up", "down", "left", "right", "ok", "cancel", "dash", "attack", "combat1", "combat2", "combat3", "combat4", "combat5", "combat6", "combat7", "combat8", "hud"]);
 for (const a of actions) {
   assert.ok(Array.isArray(def.keyboard[a]) && def.keyboard[a].length, "keyboard binding for " + a);
-  assert.ok(Array.isArray(def.gamepad[a]) && def.gamepad[a].length, "gamepad binding for " + a);
+  if (!a.startsWith("combat")) assert.ok(Array.isArray(def.gamepad[a]) && def.gamepad[a].length, "gamepad binding for " + a);
 }
 
 // 3. PAD_BUTTONS = 16 generic names in W3C Standard Gamepad index order.

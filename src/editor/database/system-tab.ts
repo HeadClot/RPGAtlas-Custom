@@ -25,6 +25,7 @@ export function systemTab() {
   box.appendChild(subTabs("system", [
     { label: "General", build: buildGeneral },
     { label: "Map systems", build: buildMapSystems },
+    { label: "Action Combat", build: buildActionCombat },
     { label: "Screen", build: buildScreen },
     { label: "Visual UI / HUD", build: buildVisualHud },
     { label: "Windows & fonts", build: buildWindowsFonts },
@@ -138,6 +139,21 @@ export function systemTab() {
     }
     p.appendChild(vehicleRows);
     p.appendChild(h("div", { class: "dim" }, "A vehicle needs a sprite AND a map to appear (the boat/ship/airship object sprites ship built in). Players board by facing it and pressing the action key; boats sail shallow water, ships any water, airships fly over everything and land on open ground."));
+    return p;
+  }
+
+  function buildActionCombat() {
+    const p = h("div");
+    const ac: any = (s.actionCombat = Object.assign({
+      enabled: false, hotbarSlots: 8, showResources: true, allowItems: true,
+      targetingMode: "facing", pauseOnMenu: true,
+    }, s.actionCombat || {}));
+    p.appendChild(h("div", { class: "dim" }, "Global rules for optional real-time map combat. Individual maps can override these values.") );
+    p.appendChild(row(field("Enable Action Combat", chk(ac, "enabled")), field("Hotbar slots", nIn(ac, "hotbarSlots", 1, 8)),
+      field("Show MP/TP resources", chk(ac, "showResources")), field("Allow map item use", chk(ac, "allowItems"))));
+    p.appendChild(row(field("Default targeting", sel(ac, "targetingMode", [{ v: "facing", l: "Facing" }, { v: "nearest", l: "Nearest" }])),
+      field("Pause while menu is open", chk(ac, "pauseOnMenu"))));
+    p.appendChild(h("div", { class: "dim" }, "Controls ▸ Combat slot 1–8 are configurable independently and default to number keys 1–8."));
     return p;
   }
 

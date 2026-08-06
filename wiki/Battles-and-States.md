@@ -174,6 +174,12 @@ Each state controls:
 examples to build: Poison, Stun/Paralyze, Regen, Sleep, Silence (seal the Magic type with a state
 trait), and Berserk.
 
+For real-time map combat, open the State's **Action Combat** subtab and enable its frame-based
+profile. Duration and tick interval use the same 60 Hz clock as action timing. Configure refresh,
+replace, or stacking behavior, damage per tick, movement/attack/stagger modifiers, Root, Silence,
+Invulnerable, and resistance. These fields are optional; turn-based duration and removal rules
+remain independent when the Action Combat profile is disabled. See the [Action Combat guide](Action-Combat).
+
 ---
 
 ## Buffs, debuffs & extra effects

@@ -41,6 +41,114 @@ export type Dir = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 /** Item bucket kind used across inventory, shop goods, change-items, etc. */
 export type ItemKind = "item" | "weapon" | "armor";
 
+/** Targeting modes supported by the grid-based real-time action layer. */
+export type ActionTargetMode =
+  | "self" | "facing" | "nearestEnemy" | "allEnemies"
+  | "nearestAlly" | "allAllies" | "radius" | string;
+
+/** One authored skill/item slot on an actor's eight-slot action hotbar. */
+export interface CombatHotbarSlot {
+  kind: "skill" | "item" | string;
+  id: number;
+}
+
+/** Optional real-time action behavior shared by Skills and Items. When absent
+ * the record retains its existing turn-based/menu behavior only. */
+export interface ActionAbilityProfile {
+  enabled?: boolean;
+  windupFrames?: number;
+  activeFrames?: number;
+  recoveryFrames?: number;
+  cooldownFrames?: number;
+  range?: number;
+  hitbox?: "directional" | "adjacent" | "radius" | string;
+  targetMode?: ActionTargetMode;
+  mpCost?: number;
+  tpCost?: number;
+  damage?: number;
+  damageScale?: number;
+  formula?: string;
+  knockbackTiles?: number;
+  staggerFrames?: number;
+  stateId?: number;
+  stateChance?: number;
+  stateOp?: "add" | "remove" | string;
+  consumeOnStart?: boolean;
+  animationId?: number;
+  telegraphAnimationId?: number;
+  hitAnimationId?: number;
+  hurtAnimationId?: number;
+  defeatAnimationId?: number;
+  reviveAnimationId?: number;
+  attackSound?: string;
+  telegraphSound?: string;
+  hitSound?: string;
+  hurtSound?: string;
+  defeatSound?: string;
+  reviveSound?: string;
+}
+
+/** Frame-based state behavior for map/action combat. Existing battle state
+ * fields remain authoritative for turn-based battles. */
+export interface ActionStateProfile {
+  enabled?: boolean;
+  durationFrames?: number;
+  tickIntervalFrames?: number;
+  stacking?: "refresh" | "replace" | "stack" | string;
+  maxStacks?: number;
+  damagePerTick?: number;
+  movementRate?: number;
+  attackRate?: number;
+  staggerRate?: number;
+  root?: boolean;
+  silence?: boolean;
+  invulnerable?: boolean;
+  resistance?: number;
+}
+
+export interface EnemyCombatAbility {
+  skillId: number;
+  weight: number;
+  cooldownFrames?: number;
+  targetMode?: ActionTargetMode;
+  condition?: {
+    kind: "always" | "hpBelow" | "hpAbove" | "distanceBelow" | "distanceAbove" | "stateSelf" | "switch" | string;
+    pct?: number;
+    distance?: number;
+    stateId?: number;
+    switchId?: number;
+  };
+}
+
+export interface CombatStateEffect {
+  stateId: number;
+  remainingFrames: number;
+  tickFrames?: number;
+  stacks?: number;
+}
+
+export interface CombatResourceSnapshot {
+  mp: number;
+  maxMp: number;
+  tp: number;
+  maxTp: number;
+  cooldowns: Record<string, number>;
+  activeAbilityId?: number;
+  activeAbilityKind?: "skill" | "item";
+  states?: CombatStateEffect[];
+}
+
+export interface ClassActionCombatProfile {
+  hotbar?: CombatHotbarSlot[];
+  allowedSkillIds?: number[];
+  maxMp?: number;
+  maxTp?: number;
+  mpRegen?: number;
+  tpRegen?: number;
+  attackRate?: number;
+  defenseRate?: number;
+}
+
 /** The eight battle parameters keyed on class base/growth and equip params.
  *  `luk` (post-1.1) nudges state/debuff chances in battle (MZ luk semantics);
  *  unlike the others it floors at 0, so untouched projects read 0 = neutral. */
@@ -216,6 +324,15 @@ export interface SystemData {
   music: Record<string, string>;
   types: SystemTypes;
   input: InputBindings;
+  /** Global rules for the optional map Action Combat layer. */
+  actionCombat?: {
+    enabled?: boolean;
+    hotbarSlots?: number;
+    showResources?: boolean;
+    allowItems?: boolean;
+    targetingMode?: "facing" | "nearest" | string;
+    pauseOnMenu?: boolean;
+  };
   /** Allow simultaneous horizontal + vertical input to take one diagonal
    *  grid step. Off by default so existing projects keep four-way movement. */
   eightDirectionMovement?: boolean;
@@ -386,15 +503,29 @@ export interface ActorCombatProfile {
   range?: number;
   knockbackTiles?: number;
   staggerFrames?: number;
+  hitbox?: "directional" | "adjacent" | "radius" | string;
   invulnFrames?: number;
   staggerResistance?: number;
   reviveFrames?: number;
   reviveHp?: number;
   defeatBehavior?: "checkpoint" | "respawn" | "gameOver" | string;
   animationId?: number;
+  telegraphAnimationId?: number;
   hitAnimationId?: number;
+  hurtAnimationId?: number;
+  defeatAnimationId?: number;
+  reviveAnimationId?: number;
   attackSound?: string;
+  telegraphSound?: string;
   hitSound?: string;
+  hurtSound?: string;
+  defeatSound?: string;
+  reviveSound?: string;
+  hotbar?: CombatHotbarSlot[];
+  maxMp?: number;
+  maxTp?: number;
+  mpRegen?: number;
+  tpRegen?: number;
 }
 
 export interface Learning {
@@ -410,6 +541,7 @@ export interface ClassDef {
   growth: Params;
   traits: Trait[];
   learnings?: Learning[];
+  actionCombat?: ClassActionCombatProfile;
 }
 
 export type SkillScope = "enemy" | "enemies" | "ally" | "allies" | string;
@@ -485,6 +617,9 @@ export interface Skill {
   /** MZ effect 41 (escape): a party member's use flees the whole battle; an
    *  enemy's use makes that one enemy flee (no rewards from it). */
   escapeBattle?: boolean;
+  /** Optional real-time map action profile; turn-based behavior is unchanged
+   * when this is absent or disabled. */
+  actionCombat?: ActionAbilityProfile;
 }
 
 /** One buff/debuff effect row (MZ effect codes 31–34, M3·B). */
@@ -524,6 +659,7 @@ export interface StateDef {
   /** Trait rows active while the state is on the battler (MZ state traits —
    *  how Silence/Blind work). Joined with the class/enemy traits. */
   traits?: Trait[];
+  actionCombat?: ActionStateProfile;
 }
 
 export interface Item {
@@ -534,6 +670,8 @@ export interface Item {
   hp?: number;
   mp?: number;
   desc?: string;
+  /** Optional real-time map-use profile. */
+  actionCombat?: ActionAbilityProfile;
   /** Revive: an item that can only be used on a fallen (0 HP) ally, bringing
    *  them back to life with `hp` HP restored. Absent = false — ordinary
    *  restoratives never revive. */
@@ -596,9 +734,13 @@ export interface Weapon {
     knockbackTiles?: number;
     staggerFrames?: number;
     animationId?: number;
+    telegraphAnimationId?: number;
     hitAnimationId?: number;
+    telegraphSound?: string;
     attackSound?: string;
     hitSound?: string;
+    /** Optional shape override; absent uses the selected profile. */
+    hitbox?: "directional" | "adjacent" | "radius" | string;
   };
 }
 
@@ -704,8 +846,22 @@ export interface Enemy {
     staggerFrames?: number;
     respawnFrames?: number;
     persistentDefeat?: boolean;
+    hitbox?: "directional" | "adjacent" | "radius" | string;
     defeatSelfSwitch?: "" | "A" | "B" | "C" | "D" | string;
     ai?: "none" | "chase" | string;
+    animationId?: number;
+    telegraphAnimationId?: number;
+    hitAnimationId?: number;
+    hurtAnimationId?: number;
+    defeatAnimationId?: number;
+    reviveAnimationId?: number;
+    attackSound?: string;
+    telegraphSound?: string;
+    hitSound?: string;
+    hurtSound?: string;
+    defeatSound?: string;
+    reviveSound?: string;
+    abilities?: EnemyCombatAbility[];
   };
 }
 
@@ -1646,11 +1802,17 @@ export interface ActionCombat {
   attackRange?: number;
   staggerFrames?: number;
   respawnFrames?: number;
+  /** Keep the defeated event defeated across persisted reloads. */
+  persistentDefeat?: boolean;
+  hitbox?: "directional" | "adjacent" | "radius" | string;
   /** New pages may inherit missing values from the selected enemy/profile. */
   inheritDefaults?: boolean;
   animationId?: number;
   telegraphAnimationId?: number;
   hitAnimationId?: number;
+  hurtAnimationId?: number;
+  defeatAnimationId?: number;
+  reviveAnimationId?: number;
   attackSound?: string;
   telegraphSound?: string;
   hitSound?: string;
@@ -1923,6 +2085,15 @@ export interface GameMap {
   /** Hide the corner minimap on this map (Phase 5): false = hidden;
    *  absent/true = shown when system.minimap is on. */
   minimap?: boolean;
+  /** Per-map overrides for System ▸ Action Combat. */
+  actionCombat?: {
+    enabled?: boolean;
+    hotbarSlots?: number;
+    showResources?: boolean;
+    allowItems?: boolean;
+    targetingMode?: "facing" | "nearest" | string;
+    pauseOnMenu?: boolean;
+  };
   /** Free-form author notes for this map (Phase 3 Stage E). Editor-only:
    *  purely additive, absent = no note; the engine never reads it. */
   notes?: string;

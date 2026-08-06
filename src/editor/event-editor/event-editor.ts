@@ -24,7 +24,7 @@ import { buildCmdRows, cmdListWidget } from "./command-list";
 import { cmdSummary, mountForm } from "./command-defs";
 import { graphEditorWidget } from "./graph-editor";
 import { compileGraph, decompileCommands } from "../../shared/events/event-graph";
-import { attackProfileOptions, combatPresentationFields } from "../database/combat-tab";
+import { attackProfileOptions, combatPresentationFields, combatResetButton } from "../database/combat-tab";
 import { resolveEnemyCombat, validateCombatProject } from "../../shared/sim/combat-profiles";
 
   // ============================ event editor ============================
@@ -357,7 +357,14 @@ import { resolveEnemyCombat, validateCombatProject } from "../../shared/sim/comb
           propRow("Enabled", chk(pg.combat, "enabled")),
           propRow("Enemy", sel(pg.combat, "enemyId", dbOpts(S.proj.enemies, "(none)"))),
           propRow("Inherit enemy/profile defaults", chk(pg.combat, "inheritDefaults")),
-          propRow("Attack profile", sel(pg.combat, "profileId", attackProfileOptions())),
+          h("div", { class: "prop-row" }, h("span", { class: "prop-label" }, "Overrides"), combatResetButton(pg.combat, [
+            "profileId", "ai", "hp", "touchDamage", "knockbackTiles", "invulnFrames", "attackCooldown",
+            "attackWindupFrames", "attackActiveFrames", "attackRecoveryFrames", "attackRange", "staggerFrames",
+            "respawnFrames", "persistentDefeat", "hitbox", "defeatSelfSwitch", "animationId", "telegraphAnimationId",
+            "hitAnimationId", "hurtAnimationId", "defeatAnimationId", "reviveAnimationId", "attackSound",
+            "telegraphSound", "hitSound", "hurtSound", "defeatSound", "reviveSound",
+          ])),
+          propRow("Attack profile", (() => { const input = sel(pg.combat, "profileId", attackProfileOptions()); if (pg.combat.profileId == null) input.value = "0"; return input; })()),
           h("div", { class: "subhead" }, "Enemy AI"),
           propRow("AI", sel(pg.combat, "ai", RA.ACTION_COMBAT_AI || [{ v: "none", l: "None" }])),
           propRow("HP override", nIn(pg.combat, "hp", 0, 9999)),
@@ -370,12 +377,14 @@ import { resolveEnemyCombat, validateCombatProject } from "../../shared/sim/comb
           propRow("Active frames", nIn(pg.combat, "attackActiveFrames", 1, 180)),
           propRow("Recovery frames", nIn(pg.combat, "attackRecoveryFrames", 0, 600)),
           propRow("Attack range", nIn(pg.combat, "attackRange", 1, 8)),
+          propRow("Hitbox", sel(pg.combat, "hitbox", [{ v: "directional", l: "Directional" }, { v: "adjacent", l: "Adjacent" }, { v: "radius", l: "Radius" }])),
           propRow("Stagger frames", nIn(pg.combat, "staggerFrames", 0, 180)),
           propRow("Respawn frames", nIn(pg.combat, "respawnFrames", 0, 3600)),
+          propRow("Persistent defeat", chk(pg.combat, "persistentDefeat")),
           propRow("Defeat switch", sel(pg.combat, "defeatSelfSwitch",
             [{ v: "", l: "(erase event)" }, { v: "A", l: "Self-Switch A" }, { v: "B", l: "Self-Switch B" }, { v: "C", l: "Self-Switch C" }, { v: "D", l: "Self-Switch D" }])),
           h("div", { class: "subhead" }, "Combat presentation"),
-          combatPresentationFields(pg.combat),
+          combatPresentationFields(pg.combat, "full"),
           h("div", { class: "dim" },
             "Players use the remappable Attack action to swing. Telegraph, active, and recovery frames make enemy contact attacks readable. Enemy AI controls extra movement such as chasing; Touch damage controls legacy immediate contact. In messages, use \\input[attack] for an input-aware prompt. HP 0 uses the selected enemy's database HP.")),
       ], combatBadge);
@@ -385,7 +394,7 @@ import { resolveEnemyCombat, validateCombatProject } from "../../shared/sim/comb
         const resolved = resolveEnemyCombat(S.proj, pg);
         const warnings = validateCombatProject({ ...S.proj, maps: [{ id: 0, name: "Current map", events: [{ id: ev.id, name: ev.name, pages: [pg] }] }] } as any);
         resolvedCombat.textContent = resolved
-          ? "Resolved enemy: " + resolved.hp + " HP · contact " + resolved.touchDamage + " · range " + resolved.attackRange + " · profile " + (resolved.profileId || "default")
+          ? "Resolved enemy: " + resolved.hp + " HP · contact " + resolved.touchDamage + " · " + resolved.hitbox + " range " + resolved.attackRange + " · " + resolved.attackWindupFrames + "/" + resolved.attackActiveFrames + "/" + resolved.attackRecoveryFrames + " frames · cooldown " + resolved.attackCooldown + " · profile " + (resolved.profileId || "default")
           : "No resolved Action Combat enemy.";
         if (warnings.length) resolvedCombat.textContent += " · " + warnings.length + " validation warning(s)";
       };
