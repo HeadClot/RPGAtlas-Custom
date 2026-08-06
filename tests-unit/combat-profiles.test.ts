@@ -5,10 +5,10 @@ import { resolveActorCombat, resolveEnemyCombat, validateCombatProject } from ".
 const project: any = {
   system: { sounds: { combatHit: {} } },
   animations: [{ id: 2, name: "Slash" }],
-  attackProfiles: [{ id: 4, name: "Practice slash", damage: 3, damageScale: 1, windupFrames: 2, activeFrames: 3, recoveryFrames: 4, range: 2 }],
+  attackProfiles: [{ id: 4, name: "Practice slash", damage: 3, damageScale: 1, windupFrames: 2, activeFrames: 3, recoveryFrames: 4, range: 2, hitbox: "radius", animationId: 2, telegraphAnimationId: 2, hurtAnimationId: 2, defeatAnimationId: 2, reviveAnimationId: 2, attackSound: "combatHit", telegraphSound: "combatHit", hitSound: "combatHit", hurtSound: "combatHit", defeatSound: "combatHit", reviveSound: "combatHit" }],
   classes: [{ id: 1, base: { mhp: 80, atk: 5 } }],
   actors: [{ id: 1, name: "Hero", classId: 1, weaponId: 1, armorId: 1, combat: { profileId: 4, maxHp: 90 } }],
-  weapons: [{ id: 1, name: "Sword", params: { atk: 7 }, combat: { range: 3, damageScale: 2 } }],
+  weapons: [{ id: 1, name: "Sword", params: { atk: 7 }, combat: { range: 3, damageScale: 2, hitbox: "adjacent", telegraphAnimationId: 2, telegraphSound: "combatHit" } }],
   armors: [{ id: 1, name: "Mail", params: { def: 2 }, combat: { invulnFrames: 30, staggerResistance: 25 } }],
   enemies: [{ id: 1, name: "Slime", stats: { mhp: 20 }, actionCombat: { profileId: 4, hp: 12, attackRange: 3 } }],
 };
@@ -25,8 +25,34 @@ describe("action-combat profile resolution", () => {
   });
 
   it("combines class, actor, weapon, and armor combat data", () => {
-    expect(resolveActorCombat(project, 1)).toMatchObject({ maxHp: 90, profileId: 4, range: 3, invulnFrames: 30, staggerResistance: 25 });
+    expect(resolveActorCombat(project, 1)).toMatchObject({ maxHp: 90, profileId: 4, range: 3, hitbox: "adjacent", telegraphAnimationId: 2, telegraphSound: "combatHit", invulnFrames: 30, staggerResistance: 25 });
     expect(resolveActorCombat(project, 1).damage).toBe(30);
+  });
+
+  it("uses sparse profile IDs and preserves explicit zero/blank overrides", () => {
+    const resolved = resolveActorCombat({ ...project, actors: [{ ...project.actors[0], combat: { damage: 0, damageScale: 0, attackSound: "" } }] }, 1, { actorId: 1 });
+    expect(resolved.profileId).toBe(0);
+    expect(resolved.damage).toBe(0);
+    expect(resolved.damageScale).toBe(0);
+    expect(resolved.attackSound).toBe("");
+    const page = resolveEnemyCombat(project, { combat: {
+      enabled: true, enemyId: 1, ai: "none", hp: 0, touchDamage: 0,
+      knockbackTiles: 1, invulnFrames: 24, defeatSelfSwitch: "", inheritDefaults: true,
+      profileId: 0, attackRange: 1, attackActiveFrames: 1, attackWindupFrames: 0,
+      attackRecoveryFrames: 0, attackCooldown: 45, staggerFrames: 10, respawnFrames: 0,
+      attackSound: "",
+    } });
+    expect(page).toMatchObject({ profileId: 4, attackRange: 3, hitbox: "radius", attackSound: "" });
+  });
+
+  it("inherits enemy presentation and validates persistent defeat conflicts", () => {
+    const resolved = resolveEnemyCombat({ ...project, enemies: [{ ...project.enemies[0], actionCombat: { ...project.enemies[0].actionCombat, persistentDefeat: true, respawnFrames: 30, hurtAnimationId: 2 } }] }, { combat: {
+      enabled: true, enemyId: 1, ai: "none", hp: 0, touchDamage: 0, knockbackTiles: 1,
+      invulnFrames: 24, defeatSelfSwitch: "", inheritDefaults: true, attackActiveFrames: 1,
+    } });
+    expect(resolved).toMatchObject({ persistentDefeat: true, hurtAnimationId: 2 });
+    const issues = validateCombatProject({ ...project, enemies: [{ ...project.enemies[0], actionCombat: { profileId: 4, persistentDefeat: true, respawnFrames: 30 } }] });
+    expect(issues.some((issue) => issue.message.includes("Persistent Defeat"))).toBe(true);
   });
 
   it("reports missing references and invalid authored values", () => {

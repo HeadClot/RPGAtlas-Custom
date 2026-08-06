@@ -386,15 +386,24 @@ export interface ActorCombatProfile {
   range?: number;
   knockbackTiles?: number;
   staggerFrames?: number;
+  hitbox?: "directional" | "adjacent" | "radius" | string;
   invulnFrames?: number;
   staggerResistance?: number;
   reviveFrames?: number;
   reviveHp?: number;
   defeatBehavior?: "checkpoint" | "respawn" | "gameOver" | string;
   animationId?: number;
+  telegraphAnimationId?: number;
   hitAnimationId?: number;
+  hurtAnimationId?: number;
+  defeatAnimationId?: number;
+  reviveAnimationId?: number;
   attackSound?: string;
+  telegraphSound?: string;
   hitSound?: string;
+  hurtSound?: string;
+  defeatSound?: string;
+  reviveSound?: string;
 }
 
 export interface Learning {
@@ -596,9 +605,13 @@ export interface Weapon {
     knockbackTiles?: number;
     staggerFrames?: number;
     animationId?: number;
+    telegraphAnimationId?: number;
     hitAnimationId?: number;
+    telegraphSound?: string;
     attackSound?: string;
     hitSound?: string;
+    /** Optional shape override; absent uses the selected profile. */
+    hitbox?: "directional" | "adjacent" | "radius" | string;
   };
 }
 
@@ -704,8 +717,21 @@ export interface Enemy {
     staggerFrames?: number;
     respawnFrames?: number;
     persistentDefeat?: boolean;
+    hitbox?: "directional" | "adjacent" | "radius" | string;
     defeatSelfSwitch?: "" | "A" | "B" | "C" | "D" | string;
     ai?: "none" | "chase" | string;
+    animationId?: number;
+    telegraphAnimationId?: number;
+    hitAnimationId?: number;
+    hurtAnimationId?: number;
+    defeatAnimationId?: number;
+    reviveAnimationId?: number;
+    attackSound?: string;
+    telegraphSound?: string;
+    hitSound?: string;
+    hurtSound?: string;
+    defeatSound?: string;
+    reviveSound?: string;
   };
 }
 
@@ -1646,11 +1672,17 @@ export interface ActionCombat {
   attackRange?: number;
   staggerFrames?: number;
   respawnFrames?: number;
+  /** Keep the defeated event defeated across persisted reloads. */
+  persistentDefeat?: boolean;
+  hitbox?: "directional" | "adjacent" | "radius" | string;
   /** New pages may inherit missing values from the selected enemy/profile. */
   inheritDefaults?: boolean;
   animationId?: number;
   telegraphAnimationId?: number;
   hitAnimationId?: number;
+  hurtAnimationId?: number;
+  defeatAnimationId?: number;
+  reviveAnimationId?: number;
   attackSound?: string;
   telegraphSound?: string;
   hitSound?: string;

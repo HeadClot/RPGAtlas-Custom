@@ -119,20 +119,27 @@ Event pages can also act as real-time map enemies. In the page's **Action Combat
 - Pick an **Enemy** from the Database. HP 0 uses that enemy's database HP.
 - Pick an **AI** behavior. **None** keeps the normal event movement; **Chase player** makes the
   enemy close distance when the player is nearby.
-- Choose an **Attack Profile** or inherit the enemy's default profile. Profiles control wind-up,
-  active and recovery frames, cooldown, range, hitbox shape, damage, stagger, knockback, and
-  presentation effects.
-- Set optional **Touch damage**, **Knockback**, **Stagger**, **Invuln frames**, **Respawn**, and
-  **Persistent defeat** behavior.
+- Choose an **Attack Profile** or inherit the enemy's default profile. Profiles control damage,
+  scaling, wind-up, active and recovery frames, cooldown, range, hitbox shape, stagger, knockback,
+  and attack/hit/hurt/defeat/revive presentation effects.
+- Override **Touch damage**, **Knockback**, **Stagger**, **Invuln frames**, timing, range, hitbox,
+  **Respawn**, and **Persistent defeat** behavior. The page also exposes telegraph, hurt, defeat,
+  and revive VFX/SFX selectors.
+- Use **Reset page overrides** to delete sparse override keys and return the page to the effective
+  enemy/profile value. This is a reset-to-inherited operation, not a write of a new default.
 - Choose a **Defeat switch** if you want the event to change pages when defeated; otherwise it erases
   for the current play session.
 
-During play, use the remappable **Attack** action on the map to swing the sword. A swing checks the
-tile in front of the player plus its short-lived visual collider, damages each enemy once, flashes
-the target, and applies knockback when the next tile is open. The enemy's telegraph, hit, hurt,
-defeat, and revive effects come from its resolved Action Combat settings. Enemies with **Touch
-damage** can strike from the adjacent tile; assign **Chase player** AI when you want them to actively
-pursue the player.
+During play, use the remappable **Attack** action on the map to swing. The player's resolved actor,
+weapon, armor, and profile values drive timing, cooldown, damage, range, hitbox, knockback, stagger,
+and presentation. Directional attacks preserve the original one-tile sword collider; adjacent
+attacks cover the four cardinal neighbors; radius attacks use a Manhattan diamond. Each target is
+damaged once per swing. The same shared hit test and resolved values are used in solo play, Node,
+and Cloudflare authoritative rooms.
+
+Persistent Defeat takes precedence over Respawn. A configured Defeat Self-Switch still activates,
+while an event without one is erased and its defeat is stored in the game save/server snapshot.
+Legacy pages with `inheritDefaults` set to false retain their authored behavior.
 Defeated action-combat enemies also count for Kill quest objectives that target the same enemy.
 
 For player-facing instructions, write text such as `Press \input[attack] to swing.` The prompt shows

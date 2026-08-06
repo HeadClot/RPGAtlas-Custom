@@ -2180,3 +2180,16 @@ PATCH_NOTES.push({
     "Added baseline hash and computed cache-key diagnostics to the E2E workflow.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T10:30:00-06:00",
+  title: "Completed Action Combat editor and database exposure",
+  summary:
+    "Action Combat now resolves authored actor, equipment, enemy, and event-page values consistently across the editor, solo runtime, Node, and Cloudflare hosts.",
+  items: [
+    "Exposed full timing, cooldown, range, hitbox, damage, knockback, stagger, presentation, and Persistent Defeat authoring in the existing database and event tabs.",
+    "Added shared directional, adjacent, and radius hitbox resolution, reset-to-inherited page overrides, resolved previews, and reference/range validation.",
+    "Persisted local Persistent Defeat state through map reloads and saves, and aligned authoritative hit testing, cooldowns, presentation events, and defeat/respawn precedence.",
+  ],
+});

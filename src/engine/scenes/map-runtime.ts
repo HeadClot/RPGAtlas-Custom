@@ -35,6 +35,7 @@ import { resolvePictureSrc } from "./presentation-runtime.js";
 import { deriveConnections } from "../../shared/map/map-connections.js";
 import {
   applyHurt,
+  attackHitsEntity,
   attackIsActive as sharedAttackIsActive,
   createCombatState,
   markDead,
@@ -685,6 +686,9 @@ function combatEnemy(cfg: any): any {
 function combatMaxHp(cfg: any, enemy: any): number {
   return Math.max(1, Number(cfg && cfg.hp) || Number(enemy && enemy.stats && enemy.stats.mhp) || 1);
 }
+function combatDefeatKey(rt: any): string {
+  return String(G.mapId) + ":" + String(rt?.ev?.id ?? "");
+}
 function combatAi(cfg: any): string {
   return cfg && cfg.ai === "chase" ? "chase" : "none";
 }
@@ -693,6 +697,18 @@ function refreshEventCombat(rt: any): void {
   const enemy = cfg && combatEnemy(cfg);
   if (!cfg || !enemy) {
     rt.combat = null;
+    return;
+  }
+  if (cfg.persistentDefeat && G.combatDefeated && G.combatDefeated[combatDefeatKey(rt)]) {
+    rt.combat = Object.assign(createCombatState(), {
+      pageIndex: rt.pageIndex,
+      enemyId: enemy.id,
+      hp: 0,
+      maxHp: combatMaxHp(cfg, enemy),
+      dead: true,
+      respawn: 0,
+    });
+    rt.erased = true;
     return;
   }
   if (rt.combat && rt.combat.pageIndex === rt.pageIndex && rt.combat.enemyId === enemy.id) return;
@@ -732,7 +748,7 @@ function attackFrame(attack: any): number {
 }
 function attackIsActive(attack: any): boolean {
   const frame = attackFrame(attack);
-  return !!attack && frame >= 3 && frame <= 11;
+  return !!attack && frame >= Number(attack.windup || 0) && frame < Number(attack.windup || 0) + Math.max(1, Number(attack.active || 1));
 }
 function addMapFloatText(text: any, x: any, y: any, color?: any): void {
   mapFloatTexts.push({
@@ -747,11 +763,18 @@ function addMapFloatText(text: any, x: any, y: any, color?: any): void {
 export function startPlayerAttack(): boolean {
   const p = G.player;
   if (!p || p.attack || p.moving) return false;
+  const loadout = p.loadout || browserLoadout();
+  const actor = resolveActorCombat(ctx.proj as any, loadout.actorId, loadout);
   p.combat = p.combat || createCombatState();
-  if (!sharedStartAttack(p.combat, p.dir, 3, 9, 6)) return false;
-  p.attack = { total: 18, framesLeft: 18, dir: p.dir, hitIds: new Set() };
+  if (p.combat.attackCooldown > 0 || !sharedStartAttack(p.combat, p.dir, actor.windupFrames, actor.activeFrames, actor.recoveryFrames)) return false;
+  const total = actor.windupFrames + actor.activeFrames + actor.recoveryFrames;
+  p.combat.attackCooldown = actor.cooldown;
+  p.attack = { total, framesLeft: total, dir: p.dir, windup: actor.windupFrames, active: actor.activeFrames, hitbox: actor.hitbox, range: actor.range, knockbackTiles: actor.knockbackTiles, staggerFrames: actor.staggerFrames, hitIds: new Set() };
   p.animT = (p.animT || 0) + 1;
-  sysSe("miss");
+  sysSe(actor.attackSound || "miss");
+  if (actor.telegraphAnimationId || actor.telegraphSound) {
+    emitLocalCombat({ tick: ctx.globalT || 0, kind: "telegraph", source: Number(p.id) || Number(defaultWorld.roster.local) || 0, target: 0, mapId: G.mapId, x: p.x, y: p.y, dir: p.dir, animationId: actor.telegraphAnimationId, sound: actor.telegraphSound });
+  }
   return true;
 }
 function mapAttackDamage(enemy: any, attacker: any = G.player): number {
@@ -786,22 +809,26 @@ function applyEnemyKnockback(rt: any, dir: any, tiles: any): void {
   if (!canEntityPass(rt, nx, ny)) return;
   rt.combat.knockback = Math.max(0, Number(tiles) || 0) - 1;
   rt.combat.knockbackDir = dir;
-  rt.combat.stagger = Math.max(rt.combat.stagger || 0, 14);
   startMove(rt, dir);
 }
 function defeatMapEnemy(rt: any, cfg: any): void {
   if (!combatReady(rt)) return;
-  markDead(rt.combat, Number(cfg.respawnFrames) || 0);
+  const persistent = !!cfg.persistentDefeat;
+  if (persistent) {
+    G.combatDefeated = G.combatDefeated || {};
+    G.combatDefeated[combatDefeatKey(rt)] = true;
+  }
+  markDead(rt.combat, persistent ? 0 : Number(cfg.respawnFrames) || 0);
   rt.combat.hp = 0;
   onEnemyKilled(rt.combat.enemyId);
   addMapFloatText("DEFEATED", rt.rx + 0.5, rt.ry - 0.1, "#f6e27a");
   emitLocalCombat({ tick: ctx.globalT || 0, kind: "defeat", target: rt.ev.id, mapId: G.mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, animationId: cfg.animationId, sound: cfg.defeatSound });
   sysSe("crit");
-  const sw = Number(cfg.respawnFrames) > 0 ? "" : cfg.defeatSelfSwitch;
+  const sw = persistent ? cfg.defeatSelfSwitch : (Number(cfg.respawnFrames) > 0 ? "" : cfg.defeatSelfSwitch);
   if (sw) {
     G.selfSw[G.mapId + ":" + rt.ev.id + ":" + sw] = true;
     refreshAllPages();
-  } else if (Number(cfg.respawnFrames) <= 0) {
+  } else if (persistent || Number(cfg.respawnFrames) <= 0) {
     rt.erased = true;
   }
 }
@@ -811,33 +838,37 @@ function damageMapEnemy(rt: any, attacker: any = G.player): void {
   const enemy = combatEnemy(cfg);
   const attackerDir = Number(attacker?.dir) || 0;
   const source = Number(attacker?.id) || Number(defaultWorld.roster.local) || 0;
+  const loadout = attacker?.loadout || browserLoadout();
+  const actor = resolveActorCombat(ctx.proj as any, loadout.actorId, loadout);
   const dmg = mapAttackDamage(enemy, attacker);
   rt.combat.hp = Math.max(0, rt.combat.hp - dmg);
-  rt.combat.invuln = Math.max(1, Number(cfg.invulnFrames) || 0);
+  rt.combat.invuln = Math.max(0, Number(cfg.invulnFrames) || 0);
   rt.combat.hurtFlash = 12;
-  rt.combat.stagger = Math.max(rt.combat.stagger || 0, 10);
+  rt.combat.stagger = Math.max(rt.combat.stagger || 0, actor.staggerFrames);
   addMapFloatText("-" + dmg, rt.rx + 0.5, rt.ry - 0.15, "#ffd86a");
-  emitLocalCombat({ tick: ctx.globalT || 0, kind: "hit", source, target: rt.ev.id, mapId: G.mapId, eventId: rt.ev.id, attackId: attacker?.combat?.attackId, x: rt.x, y: rt.y, dir: attackerDir, animationId: cfg.hitAnimationId, sound: cfg.hitSound });
-  emitLocalCombat({ tick: ctx.globalT || 0, kind: "damage", source, target: rt.ev.id, mapId: G.mapId, eventId: rt.ev.id, amount: dmg, hpAfter: rt.combat.hp, x: rt.x, y: rt.y, dir: attackerDir, animationId: cfg.hitAnimationId, sound: cfg.hitSound });
+  emitLocalCombat({ tick: ctx.globalT || 0, kind: "hit", source, target: rt.ev.id, mapId: G.mapId, eventId: rt.ev.id, attackId: attacker?.combat?.attackId, x: rt.x, y: rt.y, dir: attackerDir, animationId: actor.hitAnimationId, sound: actor.hitSound });
+  emitLocalCombat({ tick: ctx.globalT || 0, kind: "damage", source, target: rt.ev.id, mapId: G.mapId, eventId: rt.ev.id, amount: dmg, hpAfter: rt.combat.hp, x: rt.x, y: rt.y, dir: attackerDir, animationId: cfg.hurtAnimationId, sound: cfg.hurtSound });
   sysSe("hit");
   if (rt.combat.hp <= 0) {
     defeatMapEnemy(rt, cfg);
   } else {
-    applyEnemyKnockback(rt, attackerDir, Number(cfg.knockbackTiles) || 0);
+    applyEnemyKnockback(rt, attackerDir, actor.knockbackTiles);
   }
 }
 function damagePlayerFromEnemy(rt: any, target: any = G.player): void {
   const cfg = combatConfig(rt.page);
   const dmg = Number(cfg && cfg.touchDamage) || 0;
   const actor = target === G.player ? G.party[0] : null;
+  const loadout = target?.loadout || (actor ? { actorId: actor.actorId || actor.id, level: actor.level, weaponId: actor.weaponId, weapon2Id: actor.weapon2Id, armorId: actor.armorId } : browserLoadout());
+  const resolvedActor = resolveActorCombat(ctx.proj as any, loadout.actorId, loadout);
   if (!target || !target.combat || !dmg || !sharedAttackIsActive(rt.combat) || target.combat.dead || target.combat.invuln > 0 || (target.hurtInvuln || 0) > 0) return;
-  if (!rectsOverlap(entityHurtbox(target), entityHurtbox(rt)) && tileDistance(target, rt) > (Number(cfg.attackRange) || 1)) return;
+  if (!attackHitsEntity(rt, target, rt.dir, cfg.hitbox, cfg.attackRange)) return;
   rt.dir = dirTo(rt.x, rt.y, target.x, target.y);
   const hp = Math.max(0, Number(target.hp ?? actor?.hp ?? target.maxHp ?? 100) - dmg);
   target.hp = hp;
   if (actor) actor.hp = hp;
-  applyHurt(target.combat, 60, Number(cfg.staggerFrames) || 0);
-  target.hurtInvuln = 60;
+  applyHurt(target.combat, resolvedActor.invulnFrames, Number(cfg.staggerFrames) || 0);
+  target.hurtInvuln = resolvedActor.invulnFrames;
   addMapFloatText("-" + dmg, target.rx + 0.5, target.ry - 0.2, "#ff8a8a");
   const targetId = Number(target.id) || (target === G.player ? Number(defaultWorld.roster.local) || 0 : 0);
   emitLocalCombat({ tick: ctx.globalT || 0, kind: "damage", source: rt.ev.id, target: targetId, mapId: G.mapId, eventId: rt.ev.id, amount: dmg, hpAfter: hp, x: target.x, y: target.y, sound: cfg.hurtSound });
@@ -847,31 +878,33 @@ function damagePlayerFromEnemy(rt: any, target: any = G.player): void {
   ctx.shakeTimer = 12;
   ctx.shakeDuration = 12;
   if (hp <= 0) {
-    const combatActor = resolveActorCombat(ctx.proj as any, (target.loadout || browserLoadout()).actorId, target.loadout || browserLoadout());
+    const combatActor = resolvedActor;
     const reviveFrames = Math.max(1, combatActor.reviveFrames || 300);
     markDead(target.combat, reviveFrames);
     target.revive = reviveFrames;
-    emitLocalCombat({ tick: ctx.globalT || 0, kind: "playerDeath", source: rt.ev.id, target: targetId, mapId: G.mapId, eventId: rt.ev.id, x: target.x, y: target.y, animationId: cfg.animationId, sound: cfg.defeatSound });
+    emitLocalCombat({ tick: ctx.globalT || 0, kind: "playerDeath", source: rt.ev.id, target: targetId, mapId: G.mapId, eventId: rt.ev.id, x: target.x, y: target.y, animationId: combatActor.defeatAnimationId, sound: combatActor.defeatSound });
   }
 }
 export function updateMapCombat(): void {
   const p = G.player;
+  const playerLoadout = p?.loadout || browserLoadout();
+  const playerActor = p ? resolveActorCombat(ctx.proj as any, playerLoadout.actorId, playerLoadout) : null;
   if (p && p.hurtInvuln > 0) p.hurtInvuln--;
   if (p && p.combat) {
-    tickAttack(p.combat, 3, 9);
+    tickAttack(p.combat, playerActor?.windupFrames ?? 3, playerActor?.activeFrames ?? 9);
     if (p.combat.dead && respawnIfReady(p.combat)) {
-      const actor = resolveActorCombat(ctx.proj as any, browserLoadout().actorId, browserLoadout());
+      const actor = playerActor || resolveActorCombat(ctx.proj as any, browserLoadout().actorId, browserLoadout());
       const a = G.party[0];
       if (a) a.hp = actor.reviveHp;
       p.hp = actor.reviveHp; p.maxHp = actor.maxHp; p.revive = 0;
-      emitLocalCombat({ tick: ctx.globalT || 0, kind: "revive", target: p.id || 0, mapId: G.mapId, x: p.x, y: p.y, animationId: actor.hitAnimationId, sound: actor.hitSound });
+      emitLocalCombat({ tick: ctx.globalT || 0, kind: "revive", target: p.id || 0, mapId: G.mapId, x: p.x, y: p.y, animationId: actor.reviveAnimationId, sound: actor.reviveSound });
     }
   }
   if (p && p.attack) {
     if (attackIsActive(p.attack)) {
       for (const rt of ctx.evRTs) {
         if (!combatReady(rt) || p.attack.hitIds.has(rt.ev.id)) continue;
-        if (!swordHitsEntity(p, rt, p.attack.dir)) continue;
+        if (!attackHitsEntity(p, rt, p.attack.dir, p.attack.hitbox, p.attack.range)) continue;
         p.attack.hitIds.add(rt.ev.id);
         damageMapEnemy(rt, p);
       }
@@ -888,17 +921,18 @@ export function updateMapCombat(): void {
   }
   for (const rp of playersOnMap(defaultWorld, G.mapId)) {
     if (rp.combat) {
-      tickAttack(rp.combat, 3, 9);
+      const actor = resolveActorCombat(ctx.proj as any, rp.loadout?.actorId || 1, rp.loadout);
+      tickAttack(rp.combat, actor.windupFrames, actor.activeFrames);
       if (rp.combat.dead && respawnIfReady(rp.combat)) {
         const actor = resolveActorCombat(ctx.proj as any, rp.loadout?.actorId || 1, rp.loadout);
         rp.hp = actor.reviveHp;
         rp.maxHp = actor.maxHp;
         rp.revive = 0;
-        emitLocalCombat({ tick: ctx.globalT || 0, kind: "revive", target: rp.id, mapId: G.mapId, x: rp.x, y: rp.y, animationId: actor.hitAnimationId, sound: actor.hitSound });
+        emitLocalCombat({ tick: ctx.globalT || 0, kind: "revive", target: rp.id, mapId: G.mapId, x: rp.x, y: rp.y, animationId: actor.reviveAnimationId, sound: actor.reviveSound });
       }
       if (sharedAttackIsActive(rp.combat)) {
         for (const rt of ctx.evRTs) {
-          if (!combatReady(rt) || rp.combat.hitIds.has(rt.ev.id) || !swordHitsEntity(rp, rt, rp.combat.dir)) continue;
+          if (!combatReady(rt) || rp.combat.hitIds.has(rt.ev.id) || !attackHitsEntity(rp, rt, rp.combat.dir, actor.hitbox, actor.range)) continue;
           rp.combat.hitIds.add(rt.ev.id);
           damageMapEnemy(rt, rp);
         }
@@ -910,7 +944,7 @@ export function updateMapCombat(): void {
     if (!cfg || !rt.combat) continue;
     if (rt.combat.dead) {
       tickAttack(rt.combat, Number(cfg.attackWindupFrames) || 0, Number(cfg.attackActiveFrames) || 1);
-      if (Number(cfg.respawnFrames) > 0 && respawnIfReady(rt.combat)) {
+      if (!cfg.persistentDefeat && Number(cfg.respawnFrames) > 0 && respawnIfReady(rt.combat)) {
         rt.combat.hp = combatMaxHp(cfg, combatEnemy(cfg));
         rt.erased = false;
         emitLocalCombat({ tick: ctx.globalT || 0, kind: "respawn", target: rt.ev.id, mapId: G.mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, sound: cfg.reviveSound });
@@ -924,7 +958,7 @@ export function updateMapCombat(): void {
         tileDistance(target, rt) <= (Number(cfg.attackRange) || 1)) {
       rt.dir = dirTo(rt.x, rt.y, target.x, target.y);
       sharedStartAttack(rt.combat, rt.dir, Number(cfg.attackWindupFrames) || 0, Number(cfg.attackActiveFrames) || 1, Number(cfg.attackRecoveryFrames) || 0);
-      rt.combat.attackCooldown = Number(cfg.attackCooldown) || 45;
+      rt.combat.attackCooldown = Number(cfg.attackCooldown) || 0;
       emitLocalCombat({ tick: ctx.globalT || 0, kind: "telegraph", source: rt.ev.id, target: Number(target.id) || Number(defaultWorld.roster.local) || 0, mapId: G.mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, dir: rt.dir, animationId: cfg.telegraphAnimationId, sound: cfg.telegraphSound });
     }
     if (target === p) damagePlayerFromEnemy(rt, p);

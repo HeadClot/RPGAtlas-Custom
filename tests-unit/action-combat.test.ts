@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyHurt,
+  attackHitsEntity,
   attackIsActive,
   createCombatState,
   markDead,
@@ -66,6 +67,15 @@ describe("shared action combat", () => {
       { x: 4, y: 3, rx: 4, ry: 3 },
       2,
     )).toBe(false);
+  });
+
+  it("resolves authored directional, adjacent, and radius hitboxes", () => {
+    const attacker = { x: 2, y: 3, rx: 2, ry: 3 };
+    expect(attackHitsEntity(attacker, { x: 4, y: 3, rx: 4, ry: 3 }, 2, "directional", 2)).toBe(true);
+    expect(attackHitsEntity(attacker, { x: 2, y: 2, rx: 2, ry: 2 }, 2, "adjacent", 1)).toBe(true);
+    expect(attackHitsEntity(attacker, { x: 3, y: 4, rx: 3, ry: 4 }, 2, "adjacent", 1)).toBe(false);
+    expect(attackHitsEntity(attacker, { x: 3, y: 4, rx: 3, ry: 4 }, 2, "radius", 2)).toBe(true);
+    expect(attackHitsEntity(attacker, { x: 5, y: 3, rx: 5, ry: 3 }, 2, "radius", 2)).toBe(false);
   });
 
   it("applies invulnerability and stagger monotonically", () => {

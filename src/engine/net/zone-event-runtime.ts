@@ -74,6 +74,7 @@ import { DIR_OFFSET, isPassable, type MapCollision } from "../../shared/sim/coll
 import { advanceRoute, eventMayStep, type RouteOps } from "../../shared/map/move-route.js";
 import {
   applyHurt,
+  attackHitsEntity,
   attackIsActive,
   createCombatState,
   markDead,
@@ -278,16 +279,16 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
 
   function defeatEvent(rt: any, cfg: ResolvedEnemyCombat): void {
     if (!rt.combat || rt.combat.dead) return;
-    markDead(rt.combat, cfg.respawnFrames);
+    markDead(rt.combat, cfg.persistentDefeat ? 0 : cfg.respawnFrames);
     rt.combat.hp = 0;
     recordCombat({ tick: world.tick, kind: "defeat", target: rt.ev.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, animationId: cfg.animationId, sound: cfg.defeatSound });
     // A defeat self-switch is permanent authored defeat. Respawn is the
     // alternate authored behavior and keeps the event on the field.
-    const sw = Number(cfg.respawnFrames) > 0 ? "" : cfg.defeatSelfSwitch;
+    const sw = Number(cfg.respawnFrames) > 0 && !cfg.persistentDefeat ? "" : cfg.defeatSelfSwitch;
     if (sw) {
       G.selfSw[mapId + ":" + rt.ev.id + ":" + sw] = true;
       refreshAllPages();
-    } else if (Number(cfg.respawnFrames) <= 0) {
+    } else if (Number(cfg.respawnFrames) <= 0 || cfg.persistentDefeat) {
       rt.erased = true;
       rt.page = null;
       rt.pageIndex = -1;
@@ -297,15 +298,16 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
   function hitEvent(player: any, rt: any): void {
     const cfg = combatConfig(rt);
     if (!cfg || !rt.combat || rt.combat.dead || rt.combat.invuln > 0) return;
+    const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
     const dmg = playerAttackDamage(player, rt);
     rt.combat.hp = Math.max(0, Number(rt.combat.hp || 100) - dmg);
-    recordCombat({ tick: world.tick, kind: "hit", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, attackId: player.combat.attackId, x: rt.x, y: rt.y, dir: player.combat.dir, animationId: cfg.hitAnimationId, sound: cfg.hitSound });
-    recordCombat({ tick: world.tick, kind: "damage", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, amount: dmg, hpAfter: Math.max(0, rt.combat.hp), attackId: player.combat.attackId, x: rt.x, y: rt.y, sound: cfg.hurtSound });
-    applyHurt(rt.combat, cfg.invulnFrames, cfg.staggerFrames || 10);
+    recordCombat({ tick: world.tick, kind: "hit", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, attackId: player.combat.attackId, x: rt.x, y: rt.y, dir: player.combat.dir, animationId: actor.hitAnimationId, sound: actor.hitSound });
+    recordCombat({ tick: world.tick, kind: "damage", source: player.id, target: rt.ev.id, mapId, eventId: rt.ev.id, amount: dmg, hpAfter: Math.max(0, rt.combat.hp), attackId: player.combat.attackId, x: rt.x, y: rt.y, animationId: cfg.hurtAnimationId, sound: cfg.hurtSound });
+    applyHurt(rt.combat, cfg.invulnFrames, actor.staggerFrames);
     if (rt.combat.hp <= 0) defeatEvent(rt, cfg);
     else {
-      if (cfg.knockbackTiles > 0 && !rt.moving && knockbackStep(rt, player.combat.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) {
-        rt.combat.knockback = Math.max(0, Number(cfg.knockbackTiles) || 0) - 1;
+      if (actor.knockbackTiles > 0 && !rt.moving && knockbackStep(rt, player.combat.dir, (x, y) => canEntityPass(rt, x, y), (dir) => startMove(rt, dir))) {
+        rt.combat.knockback = Math.max(0, Number(actor.knockbackTiles) || 0) - 1;
         rt.combat.knockbackDir = player.combat.dir;
       }
     }
@@ -317,13 +319,14 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     rt.combat.hitIds.add(player.id);
     player.hp = Math.max(0, Number(player.hp || 100) - Math.max(0, cfg.touchDamage));
     recordCombat({ tick: world.tick, kind: "damage", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, amount: Math.max(0, cfg.touchDamage), hpAfter: player.hp, attackId: rt.combat.attackId, x: player.x, y: player.y, sound: cfg.hurtSound });
-    applyHurt(player.combat, 60, cfg.staggerFrames || 0);
+    const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
+    applyHurt(player.combat, actor.invulnFrames, cfg.staggerFrames || 0);
     if (player.hp <= 0) {
       const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
       const reviveFrames = Math.max(1, actor.reviveFrames || 300);
       markDead(player.combat, reviveFrames);
       player.revive = reviveFrames;
-      recordCombat({ tick: world.tick, kind: "playerDeath", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, x: player.x, y: player.y, animationId: cfg.animationId, sound: cfg.defeatSound });
+      recordCombat({ tick: world.tick, kind: "playerDeath", source: rt.ev.id, target: player.id, mapId, eventId: rt.ev.id, x: player.x, y: player.y, animationId: actor.defeatAnimationId, sound: actor.defeatSound });
     }
   }
 
@@ -331,6 +334,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
     const players = [...world.roster.players.values()];
     for (const player of players) {
       if (!player.combat) continue;
+      const actor = resolveActorCombat(world.proj as any, player.loadout?.actorId || 1, player.loadout);
       if (player.combat.dead) {
         tickAttack(player.combat, 0, 0);
         if (respawnIfReady(player.combat)) {
@@ -338,26 +342,26 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
           player.hp = Math.max(1, actor.reviveHp);
           player.maxHp = Math.max(player.maxHp || 0, actor.maxHp);
           player.revive = 0;
-          recordCombat({ tick: world.tick, kind: "revive", target: player.id, mapId, x: player.x, y: player.y, animationId: actor.reviveFrames ? actor.hitAnimationId : 0, sound: actor.hitSound });
+          recordCombat({ tick: world.tick, kind: "revive", target: player.id, mapId, x: player.x, y: player.y, animationId: actor.reviveFrames ? actor.reviveAnimationId : 0, sound: actor.reviveSound });
         }
         continue;
       }
       if (attackIsActive(player.combat)) {
         for (const rt of world.evRTs) {
           if (!rt.combat || rt.combat.dead || player.combat.hitIds.has(rt.ev.id)) continue;
-          if (swordHitsEntity(player, rt, player.combat.dir)) {
+          if (attackHitsEntity(player, rt, player.combat.dir, actor.hitbox, actor.range)) {
             player.combat.hitIds.add(rt.ev.id);
             hitEvent(player, rt);
           }
         }
       }
-      tickAttack(player.combat, 3, 9);
+      tickAttack(player.combat, actor.windupFrames, actor.activeFrames);
     }
     for (const rt of world.evRTs) {
       const cfg = combatConfig(rt);
       if (!cfg || !rt.combat) continue;
       if (rt.combat.dead) {
-        if (Number(cfg.respawnFrames) > 0 && respawnIfReady(rt.combat)) {
+        if (!cfg.persistentDefeat && Number(cfg.respawnFrames) > 0 && respawnIfReady(rt.combat)) {
           rt.combat.hp = cfg.hp;
           rt.erased = false;
           recordCombat({ tick: world.tick, kind: "respawn", target: rt.ev.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, sound: cfg.reviveSound });
@@ -367,8 +371,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       }
       if (attackIsActive(rt.combat)) {
         for (const player of players) {
-          const dist = Math.abs(player.x - rt.x) + Math.abs(player.y - rt.y);
-          if (dist <= (cfg.attackRange || 1)) hitPlayer(rt, player, cfg);
+          if (attackHitsEntity(rt, { ...player, rx: player.rx ?? player.x, ry: player.ry ?? player.y }, rt.dir, cfg.hitbox, cfg.attackRange)) hitPlayer(rt, player, cfg);
         }
       } else if (rt.combat.phase === "idle" && rt.combat.attackCooldown <= 0 && cfg.touchDamage > 0) {
         const target = players.find((p: any) => !p.combat.dead && Math.abs(p.x - rt.x) + Math.abs(p.y - rt.y) <= (cfg.attackRange || 1));
@@ -376,13 +379,12 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
           rt.dir = dirTo(rt.x, rt.y, target.x, target.y);
           rt.combat.hitIds.clear();
           startAttack(rt.combat, rt.dir, cfg.attackWindupFrames, cfg.attackActiveFrames, cfg.attackRecoveryFrames);
-          rt.combat.attackCooldown = cfg.attackCooldown || 45;
+          rt.combat.attackCooldown = cfg.attackCooldown;
           recordCombat({ tick: world.tick, kind: "telegraph", source: rt.ev.id, target: target.id, mapId, eventId: rt.ev.id, x: rt.x, y: rt.y, dir: rt.dir, animationId: cfg.telegraphAnimationId, sound: cfg.telegraphSound });
           // Zero-windup attacks are active immediately on this tick.
           if (attackIsActive(rt.combat)) {
             for (const player of players) {
-              const dist = Math.abs(player.x - rt.x) + Math.abs(player.y - rt.y);
-              if (dist <= (cfg.attackRange || 1)) hitPlayer(rt, player, cfg);
+              if (attackHitsEntity(rt, { ...player, rx: player.rx ?? player.x, ry: player.ry ?? player.y }, rt.dir, cfg.hitbox, cfg.attackRange)) hitPlayer(rt, player, cfg);
             }
           }
         }
@@ -808,6 +810,7 @@ export function createZoneEventRuntime(rtx: ZoneRuntimeContext): ZoneRuntime {
       if (player.combat.attackCooldown > 0) return;
       if (startAttack(player.combat, player.dir, actor.windupFrames, actor.activeFrames, actor.recoveryFrames)) {
         player.combat.attackCooldown = actor.cooldown;
+        recordCombat({ tick: world.tick, kind: "telegraph", source: player.id, target: 0, mapId, x: player.x, y: player.y, dir: player.dir, animationId: actor.telegraphAnimationId, sound: actor.telegraphSound });
       }
     },
 

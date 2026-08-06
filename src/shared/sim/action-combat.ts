@@ -30,6 +30,22 @@ export interface ActionCombatConfig {
   staggerFrames?: number;
   /** Optional delayed respawn for authored persistent enemies. */
   respawnFrames?: number;
+  /** Keep a defeated event defeated across persisted map reloads. */
+  persistentDefeat?: boolean;
+  /** Reusable attack geometry. */
+  hitbox?: "directional" | "adjacent" | "radius" | string;
+  animationId?: number;
+  telegraphAnimationId?: number;
+  hitAnimationId?: number;
+  hurtAnimationId?: number;
+  defeatAnimationId?: number;
+  reviveAnimationId?: number;
+  attackSound?: string;
+  telegraphSound?: string;
+  hitSound?: string;
+  hurtSound?: string;
+  defeatSound?: string;
+  reviveSound?: string;
 }
 
 export interface CombatState {
@@ -93,6 +109,20 @@ export function normalizeActionCombat(source: Partial<ActionCombatConfig> | null
     attackRange: Math.max(1, Number(s.attackRange ?? DEFAULT_ACTION_COMBAT.attackRange) || 1),
     staggerFrames: Math.max(0, Number(s.staggerFrames ?? DEFAULT_ACTION_COMBAT.staggerFrames) || 0),
     respawnFrames: Math.max(0, Number(s.respawnFrames ?? DEFAULT_ACTION_COMBAT.respawnFrames) || 0),
+    persistentDefeat: !!s.persistentDefeat,
+    hitbox: typeof s.hitbox === "string" ? s.hitbox : "directional",
+    animationId: Math.max(0, Number(s.animationId) || 0),
+    telegraphAnimationId: Math.max(0, Number(s.telegraphAnimationId) || 0),
+    hitAnimationId: Math.max(0, Number(s.hitAnimationId) || 0),
+    hurtAnimationId: Math.max(0, Number(s.hurtAnimationId) || 0),
+    defeatAnimationId: Math.max(0, Number(s.defeatAnimationId) || 0),
+    reviveAnimationId: Math.max(0, Number(s.reviveAnimationId) || 0),
+    attackSound: String(s.attackSound ?? ""),
+    telegraphSound: String(s.telegraphSound ?? ""),
+    hitSound: String(s.hitSound ?? ""),
+    hurtSound: String(s.hurtSound ?? ""),
+    defeatSound: String(s.defeatSound ?? ""),
+    reviveSound: String(s.reviveSound ?? ""),
   };
 }
 
@@ -233,12 +263,66 @@ export function swordHitboxAt(x: number, y: number, dir: number): Rect {
   return { x: x + 0.10, y: y + 0.86, w: 0.80, h: 0.62 };
 }
 
+export type CombatHitbox = "directional" | "adjacent" | "radius" | string;
+
+const CARDINAL_DIRS = [0, 1, 2, 3] as const;
+const DIR_OFFSETS: Record<number, [number, number]> = {
+  0: [0, 1], 1: [-1, 0], 2: [1, 0], 3: [0, -1],
+  4: [-1, 1], 5: [1, 1], 6: [-1, -1], 7: [1, -1],
+};
+
+function tileOffset(dir: number, distance: number): [number, number] {
+  const [dx, dy] = DIR_OFFSETS[Number(dir)] || [0, 1];
+  return [dx * distance, dy * distance];
+}
+
+/** Return the hit rectangles used by one authored attack. Directional attacks
+ * retain the original sword geometry at range 1 and extend that geometry
+ * along the facing direction for larger ranges. */
+export function attackHitboxesAt(x: number, y: number, dir: number, hitbox: CombatHitbox = "directional", range = 1): Rect[] {
+  const r = Math.max(1, Math.floor(Number(range) || 1));
+  if (hitbox === "radius") return [];
+  if (hitbox === "adjacent") {
+    return CARDINAL_DIRS.map((d) => swordHitboxAt(x, y, d));
+  }
+  const out: Rect[] = [];
+  for (let distance = 1; distance <= r; distance++) {
+    const [dx, dy] = tileOffset(dir, distance - 1);
+    out.push(swordHitboxAt(x + dx, y + dy, dir));
+  }
+  return out;
+}
+
+/** Shared authored hit test. Radius attacks use the documented Manhattan
+ * diamond; adjacent attacks cover the four immediate cardinal tiles; the
+ * default directional path remains the legacy sword collider. */
+export function attackHitsEntity(
+  attacker: { x: number; y: number; rx: number; ry: number },
+  target: { x: number; y: number; rx: number; ry: number },
+  dir: number,
+  hitbox: CombatHitbox = "directional",
+  range = 1,
+): boolean {
+  const distance = Math.abs(target.x - attacker.x) + Math.abs(target.y - attacker.y);
+  if (hitbox === "radius") return distance > 0 && distance <= Math.max(1, Math.floor(Number(range) || 1));
+  if (hitbox === "adjacent") {
+    return distance === 1 && CARDINAL_DIRS.some((d) => {
+      const [dx, dy] = tileOffset(d, 1);
+      return target.x === attacker.x + dx && target.y === attacker.y + dy;
+    });
+  }
+  if (attackHitboxesAt(attacker.rx, attacker.ry, dir, hitbox, range).some((box) => rectsOverlap(box, entityHurtbox(target)))) return true;
+  const [dx, dy] = tileOffset(dir, 1);
+  for (let step = 1; step <= Math.max(1, Math.floor(Number(range) || 1)); step++) {
+    if (target.x === attacker.x + dx * step && target.y === attacker.y + dy * step) return true;
+  }
+  return false;
+}
+
 export function swordHitsEntity(
   attacker: { x: number; y: number; rx: number; ry: number },
   target: { x: number; y: number; rx: number; ry: number },
   dir: number,
 ): boolean {
-  if (rectsOverlap(swordHitboxAt(attacker.rx, attacker.ry, dir), entityHurtbox(target))) return true;
-  const [dx, dy] = [[0, 1], [-1, 0], [1, 0], [0, -1], [-1, 1], [1, 1], [-1, -1], [1, -1]][dir] || [0, 0];
-  return target.x === attacker.x + dx && target.y === attacker.y + dy;
+  return attackHitsEntity(attacker, target, dir, "directional", 1);
 }

@@ -7,6 +7,7 @@ import type {
   ActionCombat, Actor, AttackProfile, Enemy, Project, Weapon,
 } from "../schema.js";
 import type { PlayerLoadout } from "../net/protocol.js";
+import type { CombatHitbox } from "./action-combat.js";
 
 export interface ResolvedAttackProfile {
   id: number;
@@ -53,9 +54,13 @@ export interface ResolvedEnemyCombat {
   respawnFrames: number;
   persistentDefeat: boolean;
   profileId: number;
+  hitbox: CombatHitbox;
   animationId: number;
   telegraphAnimationId: number;
   hitAnimationId: number;
+  hurtAnimationId: number;
+  defeatAnimationId: number;
+  reviveAnimationId: number;
   attackSound: string;
   telegraphSound: string;
   hitSound: string;
@@ -68,7 +73,9 @@ export interface ResolvedActorCombat {
   actorId: number;
   maxHp: number;
   damage: number;
+  damageScale: number;
   profileId: number;
+  hitbox: CombatHitbox;
   windupFrames: number;
   activeFrames: number;
   recoveryFrames: number;
@@ -83,8 +90,16 @@ export interface ResolvedActorCombat {
   defeatBehavior: string;
   animationId: number;
   hitAnimationId: number;
+  telegraphAnimationId: number;
+  hurtAnimationId: number;
+  defeatAnimationId: number;
+  reviveAnimationId: number;
   attackSound: string;
+  telegraphSound: string;
   hitSound: string;
+  hurtSound: string;
+  defeatSound: string;
+  reviveSound: string;
 }
 
 const DEFAULT_PROFILE: ResolvedAttackProfile = {
@@ -115,9 +130,9 @@ export function resolveAttackProfile(project: Partial<Project>, id = 0): Resolve
     animationId: n(p.animationId, 0), telegraphAnimationId: n(p.telegraphAnimationId, 0),
     hitAnimationId: n(p.hitAnimationId, 0), hurtAnimationId: n(p.hurtAnimationId, 0),
     defeatAnimationId: n(p.defeatAnimationId, 0), reviveAnimationId: n(p.reviveAnimationId, 0),
-    attackSound: String(p.attackSound || ""), telegraphSound: String(p.telegraphSound || ""),
-    hitSound: String(p.hitSound || ""), hurtSound: String(p.hurtSound || ""),
-    defeatSound: String(p.defeatSound || ""), reviveSound: String(p.reviveSound || ""),
+    attackSound: String(p.attackSound ?? ""), telegraphSound: String(p.telegraphSound ?? ""),
+    hitSound: String(p.hitSound ?? ""), hurtSound: String(p.hurtSound ?? ""),
+    defeatSound: String(p.defeatSound ?? ""), reviveSound: String(p.reviveSound ?? ""),
   };
 }
 
@@ -130,10 +145,12 @@ export function resolveEnemyCombat(project: Partial<Project>, page: { combat?: A
   const enemy = (project.enemies || []).find((e) => Number(e.id) === Number(c.enemyId)) as Enemy | undefined;
   const defaults = enemy?.actionCombat || {};
   const inherited = c.inheritDefaults === true;
-  const profileId = Number(c.profileId ?? (inherited ? defaults.profileId : 0)) || 0;
+  const authoredProfileId = Number(c.profileId) || 0;
+  const profileId = authoredProfileId > 0 ? authoredProfileId : (inherited ? Number(defaults.profileId) || 0 : 0);
   const profile = resolveAttackProfile(project, profileId);
   const base: any = inherited ? {
     ...profile,
+    ...defaults,
     enabled: true, enemyId: c.enemyId, ai: defaults.ai ?? "none",
     hp: defaults.hp ?? enemy?.stats?.mhp ?? 100,
     touchDamage: defaults.touchDamage ?? profile.damage,
@@ -178,12 +195,15 @@ export function resolveEnemyCombat(project: Partial<Project>, page: { combat?: A
     attackRecoveryFrames: n(out.attackRecoveryFrames, profile.recoveryFrames, 0, 600),
     attackRange: n(out.attackRange, profile.range, 1, 16), staggerFrames: n(out.staggerFrames, profile.staggerFrames, 0, 600),
     respawnFrames: n(out.respawnFrames, 0, 0, 36000), persistentDefeat: !!out.persistentDefeat,
-    profileId, animationId: n(out.animationId, profile.animationId),
+    profileId, hitbox: String(out.hitbox || profile.hitbox), animationId: n(out.animationId, profile.animationId),
     telegraphAnimationId: n(out.telegraphAnimationId, profile.telegraphAnimationId),
     hitAnimationId: n(out.hitAnimationId, profile.hitAnimationId),
-    attackSound: String(out.attackSound || profile.attackSound), telegraphSound: String(out.telegraphSound || profile.telegraphSound),
-    hitSound: String(out.hitSound || profile.hitSound), hurtSound: String(out.hurtSound || profile.hurtSound),
-    defeatSound: String(out.defeatSound || profile.defeatSound), reviveSound: String(out.reviveSound || profile.reviveSound),
+    hurtAnimationId: n(out.hurtAnimationId, profile.hurtAnimationId),
+    defeatAnimationId: n(out.defeatAnimationId, profile.defeatAnimationId),
+    reviveAnimationId: n(out.reviveAnimationId, profile.reviveAnimationId),
+    attackSound: String(out.attackSound ?? profile.attackSound), telegraphSound: String(out.telegraphSound ?? profile.telegraphSound),
+    hitSound: String(out.hitSound ?? profile.hitSound), hurtSound: String(out.hurtSound ?? profile.hurtSound),
+    defeatSound: String(out.defeatSound ?? profile.defeatSound), reviveSound: String(out.reviveSound ?? profile.reviveSound),
   };
 }
 
@@ -198,7 +218,9 @@ export function resolveActorCombat(project: Partial<Project>, actorId: number, r
   const ac: any = actor?.combat || {};
   const wc: any = weapons.find((w) => w.combat)?.combat || {};
   const arc: any = armor?.combat || {};
-  const profileId = Number(ac.profileId ?? ac.attackProfileId ?? wc.profileId) || 0;
+  const profileId = [ac.profileId, ac.attackProfileId, wc.profileId]
+    .map((value) => Number(value) || 0)
+    .find((value) => value > 0) || 0;
   const profile = resolveAttackProfile(project, profileId);
   const level = Math.max(1, Math.min(99, Number(requestedLoadout?.level ?? (actor as any)?.level) || 1));
   const classStat = (stat: string): number => {
@@ -216,9 +238,11 @@ export function resolveActorCombat(project: Partial<Project>, actorId: number, r
   // database entirely. Preserve the pre-profile action-combat feel with a
   // useful fallback strike instead of making every unconfigured swing deal 1.
   const baseDamage = actor ? profile.damage + classAtk : 10;
+  const damageScale = n(ac.damageScale ?? wc.damageScale ?? profile.damageScale, 1, 0, 100);
   return {
     actorId, maxHp,
-    damage: n(ac.damage, baseDamage) * n(ac.damageScale ?? wc.damageScale ?? profile.damageScale, 1, 0, 100),
+    damage: n(ac.damage, baseDamage) * damageScale,
+    damageScale,
     profileId, windupFrames: n(ac.windupFrames ?? wc.windupFrames, profile.windupFrames, 0, 180),
     activeFrames: n(ac.activeFrames ?? wc.activeFrames, profile.activeFrames, 1, 180),
     recoveryFrames: n(ac.recoveryFrames ?? wc.recoveryFrames, profile.recoveryFrames, 0, 600),
@@ -231,10 +255,19 @@ export function resolveActorCombat(project: Partial<Project>, actorId: number, r
     reviveFrames: n(ac.reviveFrames ?? arc.reviveFrames, 0, 0, 36000),
     reviveHp: n(ac.reviveHp ?? arc.reviveHp, Math.max(1, maxHp / 2)),
     defeatBehavior: String(ac.defeatBehavior || "checkpoint"),
+    hitbox: String(ac.hitbox ?? wc.hitbox ?? profile.hitbox),
     animationId: n(ac.animationId ?? wc.animationId, profile.animationId),
     hitAnimationId: n(ac.hitAnimationId ?? wc.hitAnimationId, profile.hitAnimationId),
-    attackSound: String(ac.attackSound || wc.attackSound || profile.attackSound),
-    hitSound: String(ac.hitSound || wc.hitSound || profile.hitSound),
+    telegraphAnimationId: n(ac.telegraphAnimationId ?? wc.telegraphAnimationId, profile.telegraphAnimationId),
+    hurtAnimationId: n(ac.hurtAnimationId ?? arc.hurtAnimationId, profile.hurtAnimationId),
+    defeatAnimationId: n(ac.defeatAnimationId, profile.defeatAnimationId),
+    reviveAnimationId: n(ac.reviveAnimationId ?? arc.reviveAnimationId, profile.reviveAnimationId),
+    attackSound: String(ac.attackSound ?? wc.attackSound ?? profile.attackSound),
+    telegraphSound: String(ac.telegraphSound ?? wc.telegraphSound ?? profile.telegraphSound),
+    hitSound: String(ac.hitSound ?? wc.hitSound ?? profile.hitSound),
+    hurtSound: String(ac.hurtSound ?? arc.hurtSound ?? profile.hurtSound),
+    defeatSound: String(ac.defeatSound ?? profile.defeatSound),
+    reviveSound: String(ac.reviveSound ?? arc.reviveSound ?? profile.reviveSound),
   };
 }
 
@@ -271,29 +304,77 @@ export function validateCombatProject(project: Partial<Project>): CombatValidati
   const profileIds = new Set(profiles.map((p) => Number(p.id)));
   const animationIds = new Set((project.animations || []).map((a) => Number(a.id)));
   const soundIds = new Set(Object.keys((project.system as any)?.sounds || {}));
-  for (const p of profiles) {
-    const where = "Attack Profile: " + (p.name || p.id);
-    if (Number(p.range ?? 1) < 1 || Number(p.activeFrames ?? 1) < 1) issues.push({ where, message: "Range and active frames must be at least 1", severity: "error" });
+  const checkReferences = (where: string, value: any, allowProfile = true): void => {
+    const profileRef = value?.profileId ?? value?.attackProfileId;
+    if (allowProfile && profileRef && !profileIds.has(Number(profileRef))) {
+      issues.push({ where, message: "references missing attack profile " + profileRef, severity: "error" });
+    }
     for (const key of ["animationId", "telegraphAnimationId", "hitAnimationId", "hurtAnimationId", "defeatAnimationId", "reviveAnimationId"]) {
-      const id = Number((p as any)[key] || 0); if (id && !animationIds.has(id)) issues.push({ where, message: key + " references missing animation " + id, severity: "error" });
+      const id = Number(value?.[key] || 0);
+      if (id && !animationIds.has(id)) issues.push({ where, message: key + " references missing animation " + id, severity: "error" });
     }
     for (const key of ["attackSound", "telegraphSound", "hitSound", "hurtSound", "defeatSound", "reviveSound"]) {
-      const sound = String((p as any)[key] || ""); if (sound && soundIds.size && !soundIds.has(sound)) issues.push({ where, message: key + " references missing system sound " + sound, severity: "warning" });
+      const sound = String(value?.[key] || "");
+      if (sound && !soundIds.has(sound)) issues.push({ where, message: key + " references missing system sound " + sound, severity: "warning" });
     }
+  };
+  const checkNumbers = (where: string, value: any, ranges: Record<string, [number, number]>): void => {
+    for (const [key, [min, max]] of Object.entries(ranges)) {
+      if (value?.[key] == null) continue;
+      const number = Number(value[key]);
+      if (!Number.isFinite(number) || number < min || number > max) {
+        issues.push({ where, message: key + " must be between " + min + " and " + max, severity: "error" });
+      }
+    }
+  };
+  const attackRanges: Record<string, [number, number]> = {
+    damage: [0, 999999], damageScale: [0, 100], windupFrames: [0, 180], activeFrames: [1, 180],
+    recoveryFrames: [0, 600], cooldown: [0, 3600], range: [1, 16], knockbackTiles: [0, 8], staggerFrames: [0, 600],
+  };
+  const enemyRanges: Record<string, [number, number]> = {
+    hp: [0, 999999], touchDamage: [0, 999999], knockbackTiles: [0, 8], invulnFrames: [0, 600],
+    attackCooldown: [0, 3600], attackWindupFrames: [0, 180], attackActiveFrames: [1, 180], attackRecoveryFrames: [0, 600],
+    attackRange: [1, 16], staggerFrames: [0, 600], respawnFrames: [0, 36000],
+  };
+  for (const p of profiles) {
+    const where = "Attack Profile: " + (p.name || p.id);
+    checkNumbers(where, p, attackRanges);
+    checkReferences(where, p, false);
   }
   for (const enemy of project.enemies || []) {
     const p = enemy.actionCombat; if (!p) continue;
-    if (p.profileId && !profileIds.has(Number(p.profileId))) issues.push({ where: "Enemy: " + enemy.name, message: "references missing attack profile " + p.profileId, severity: "error" });
+    const where = "Enemy: " + enemy.name;
+    checkReferences(where, p);
+    checkNumbers(where, p, enemyRanges);
+    if (Number(p.attackRange ?? 1) < 1 || Number(p.attackActiveFrames ?? 1) < 1) issues.push({ where, message: "has invalid attack range or active-frame values", severity: "error" });
+    if (p.persistentDefeat && Number(p.respawnFrames || 0) > 0) issues.push({ where, message: "Persistent Defeat overrides respawn; set respawn frames to 0", severity: "warning" });
   }
   for (const actor of project.actors || []) {
-    const p = actor.combat; if (p?.profileId && !profileIds.has(Number(p.profileId))) issues.push({ where: "Actor: " + actor.name, message: "references missing attack profile " + p.profileId, severity: "error" });
+    const p = actor.combat;
+    const where = "Actor: " + actor.name;
+    if (actor.weaponId && !(project.weapons || []).some((w) => Number(w.id) === Number(actor.weaponId))) issues.push({ where, message: "references missing weapon " + actor.weaponId, severity: "error" });
+    if (actor.weapon2Id && !(project.weapons || []).some((w) => Number(w.id) === Number(actor.weapon2Id))) issues.push({ where, message: "references missing second weapon " + actor.weapon2Id, severity: "error" });
+    if (actor.armorId && !(project.armors || []).some((a) => Number(a.id) === Number(actor.armorId))) issues.push({ where, message: "references missing armor " + actor.armorId, severity: "error" });
+    if (!p) continue;
+    checkReferences(where, p);
+    checkNumbers(where, p, { ...attackRanges, maxHp: [1, 999999], invulnFrames: [0, 600], staggerResistance: [0, 100], reviveFrames: [0, 36000], reviveHp: [1, 999999] });
+  }
+  for (const weapon of project.weapons || []) if (weapon.combat) {
+    checkReferences("Weapon: " + weapon.name, weapon.combat);
+    checkNumbers("Weapon: " + weapon.name, weapon.combat, attackRanges);
+  }
+  for (const armor of project.armors || []) if (armor.combat) {
+    checkReferences("Armor: " + armor.name, armor.combat);
+    checkNumbers("Armor: " + armor.name, armor.combat, { invulnFrames: [0, 600], staggerResistance: [0, 100], reviveFrames: [0, 36000], reviveHp: [1, 999999] });
   }
   for (const map of project.maps || []) for (const ev of map.events || []) for (const page of ev.pages || []) {
     const c = page.combat; if (!c?.enabled) continue;
     const where = map.name + " → " + (ev.name || ev.id);
     if (!c.enemyId || !(project.enemies || []).some((e) => Number(e.id) === Number(c.enemyId))) issues.push({ where, message: "Action Combat has no valid enemy", severity: "error", mapId: map.id, eventId: ev.id });
-    if (c.profileId && !profileIds.has(Number(c.profileId))) issues.push({ where, message: "references missing attack profile " + c.profileId, severity: "error", mapId: map.id, eventId: ev.id });
+    checkReferences(where, c);
+    checkNumbers(where, c, enemyRanges);
     if (c.hp < 0 || Number(c.attackRange ?? 1) < 1 || Number(c.attackActiveFrames ?? 1) < 1) issues.push({ where, message: "has invalid HP, range, or active-frame values", severity: "error", mapId: map.id, eventId: ev.id });
+    if (c.persistentDefeat && Number(c.respawnFrames || 0) > 0) issues.push({ where, message: "Persistent Defeat overrides respawn; set respawn frames to 0", severity: "warning", mapId: map.id, eventId: ev.id });
   }
   return issues;
 }

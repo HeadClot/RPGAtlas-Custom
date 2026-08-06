@@ -180,8 +180,8 @@ assert.doesNotMatch(mapSceneSource, /case\s+["']KeyJ["']/, "map update has no ha
 assert.doesNotMatch(mapRuntimeSource, /case\s+["']KeyJ["']/, "map runtime has no hardcoded J attack branch");
 assert.match(
   mapRuntimeSource,
-  /tileDistance\(target, rt\) > \(Number\(cfg\.attackRange\) \|\| 1\)/,
-  "touch damage uses the configured contact range, defaulting to the adjacent tile",
+  /attackHitsEntity\(rt, target, rt\.dir, cfg\.hitbox, cfg\.attackRange\)/,
+  "touch damage uses the shared configured contact hitbox and range",
 );
 assert.match(mapRuntimeSource, /function combatChaseDir\(rt/, "action-combat enemies have chase AI");
 assert.match(mapRuntimeSource, /combatAi\(cfg\) !== ["']chase["']/, "chase AI is gated by the page combat AI setting");

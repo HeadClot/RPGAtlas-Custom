@@ -46,6 +46,41 @@ Actors, weapons, armor, enemies, and event pages can reference a profile. This l
 reuse the same sword behavior while giving a particular actor or enemy different stats and
 presentation.
 
+### Inheritance and overrides
+
+The effective value is resolved in this order:
+
+`Attack Profile → actor/weapon/armor/enemy database defaults → event-page override`
+
+Only authored page values override a database value when **Inherit enemy/profile defaults** is on.
+The editor keeps seeded legacy page values as compatibility defaults and treats an empty page field
+as an explicit blank where the field supports it. **Reset page overrides** removes the sparse keys so
+the inherited value is visible again. Pages with `inheritDefaults` off continue to use their authored
+legacy values without being filled from database defaults.
+
+Actors expose damage, scaling, timing, cooldown, range, hitbox, knockback, stagger, defensive timing,
+revive behavior, and the complete attack/hurt/defeat/revive presentation contract. Weapons can supply
+attack profile, damage, timing, range, hitbox, knockback, stagger, and attack presentation overrides;
+armor supplies invulnerability, stagger resistance, revive, hurt, and revive presentation overrides.
+Enemy defaults and pages expose the same enemy attack contract, including telegraph, hurt, defeat, and
+revive effects.
+
+The database and event tabs show a resolved-value summary and compact validation feedback. The
+**Inspect** command remains the detailed diagnostic view for missing profile, animation, sound, and
+equipment references.
+
+### Hitbox shapes
+
+All hosts use the same 60 Hz shared hit test:
+
+- **Directional** preserves the original sword collider at range 1 and extends it along the facing
+  direction for larger ranges.
+- **Adjacent** covers the four cardinal neighboring tiles, regardless of facing.
+- **Radius** covers a Manhattan diamond centered on the attacker, excluding the attacker's own tile.
+
+An entity is damaged at most once per attack. Diagonal facing remains supported for legacy movement,
+but the default authored attack remains cardinal directional behavior.
+
 ## Enemy behavior
 
 An enemy's **Action Combat** defaults can be inherited by event pages or overridden per page.
@@ -57,8 +92,9 @@ An enemy's **Action Combat** defaults can be inherited by event pages or overrid
 - **Respawn** sets a delay in frames; zero means no automatic respawn.
 - **Player defeat behavior** can return the player to a checkpoint, respawn in place, or trigger
   game over according to the actor/player combat settings.
-- A defeat self-switch or persistent defeat flag can turn a defeated event into a permanent world
-  change.
+- A defeat self-switch or **Persistent Defeat** flag can turn a defeated event into a permanent world
+  change. Persistent Defeat takes precedence over respawn; defeat switches still activate when one is
+  configured.
 
 Keep the first enemy readable: use a visible telegraph, modest chase range, and enough recovery
 time for the player to dodge or counterattack.
@@ -76,7 +112,7 @@ Persistent worlds use `--engine-events` for authored server-side NPCs, events, a
 Cloudflare Durable Object rooms/worlds use the same shared combat runtime.
 
 Action-combat state is included in supported saves and server snapshots: live HP, defeat/revive
-state, enemy defeat/respawn state, equipment-derived loadouts, and the bounded combat ledger.
+state, persistent enemy defeat state, equipment-derived loadouts, and the bounded combat ledger.
 
 ## Troubleshooting
 
