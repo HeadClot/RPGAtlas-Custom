@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, "phase-*"]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -60,6 +61,23 @@ jobs:
         with:
           path: tests-e2e/__snapshots__/linux
           key: ${{ env.RENDERER_GOLDEN_CACHE_KEY }}
+      - name: Report Linux renderer golden cache status
+        shell: bash
+        env:
+          CACHE_HIT: ${{ steps.renderer-goldens.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          echo "Linux renderer golden cache key: ${RENDERER_GOLDEN_CACHE_KEY}"
+          echo "Cache hit: ${CACHE_HIT:-false}"
+          echo "Workflow event: ${GITHUB_EVENT_NAME}"
+          echo "Git ref: ${GITHUB_REF}"
+          if [[ "${CACHE_HIT:-false}" == "true" ]]; then
+            echo "Using the restored Linux renderer golden cache."
+          elif [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "Cache miss on main; the bootstrap and save steps will seed the cache."
+          else
+            echo "Cache miss outside main; pull requests use the checked-in fallback."
+          fi
       - name: Verify checked-in Linux renderer fallback on PR cache miss
         if: github.event_name == 'pull_request' && steps.renderer-goldens.outputs.cache-hit != 'true'
         shell: bash

@@ -2106,3 +2106,16 @@ PATCH_NOTES.push({
     "Kept Ubuntu-only regeneration and cache saving restricted to main-branch cache misses.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 5, 2026",
+  timestamp: "2026-08-05T20:48:08-06:00",
+  title: "Self-service Linux renderer cache seeding",
+  summary:
+    "CI can now be manually dispatched on main to seed or refresh the Linux renderer golden cache, with explicit cache-status diagnostics for every run.",
+  items: [
+    "Added a workflow_dispatch trigger for deliberate main-branch Linux renderer cache seeding.",
+    "Added cache key, hit/miss, event, and ref diagnostics so skipped bootstrap and save steps are explained in CI logs.",
+    "Preserved checked-in fallback validation for pull requests and main-only cache generation and saving.",
+  ],
+});
