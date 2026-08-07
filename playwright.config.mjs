@@ -68,7 +68,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: /mobile-player\.spec\.mjs/,
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "android-pixel",
+      testMatch: /mobile-player\.spec\.mjs/,
+      use: { ...devices["Pixel 5"] },
     },
   ],
   webServer: {

@@ -2347,3 +2347,16 @@ PATCH_NOTES.push({
     "Point-light shadow goldens keep moving NPCs fixed while continuing to cover terrain and sprite occlusion.",
   ],
 });
+
+PATCH_NOTES.push({
+  date: "August 6, 2026",
+  timestamp: "2026-08-06T14:52:00-06:00",
+  title: "Android-ready exported games",
+  summary:
+    "Exported RPGAtlas games now work as landscape-first installable PWAs on Android touch devices.",
+  items: [
+    "Added transient virtual controls: D-pad movement, A confirm/jump, B cancel/menu, X attack, Y dash, and a HUD toggle.",
+    "Kept tap-to-move, added portrait rotate guidance, safe-area-aware touch targets, and pointer cancellation cleanup.",
+    "Added stable Android PWA manifest metadata plus publishing instructions for Chrome installation and offline replay.",
+  ],
+});

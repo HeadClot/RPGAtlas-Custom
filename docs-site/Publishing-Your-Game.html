@@ -47,6 +47,11 @@
 <hr>
 <h2 id="distribution-ideas">Distribution ideas</h2>
 <ul><li><strong>itch.io</strong> — upload the <strong>Web (.zip)</strong> build as an HTML5 game ("This file will be played in the browser" → done), or offer the EXE/HTML as downloads. The most popular home for indie RPG-maker games.</li><li><strong>Your own site / any static host</strong> — unzip the Web build onto GitHub Pages, Netlify, or any web server. Visitors on Chrome/Edge/Android get an "install app" option, and the game keeps working offline after the first visit.</li><li><strong>A direct file</strong> — share the single HTML (or EXE) via Discord or cloud storage.</li><li><strong>Game jams</strong> — the single-file HTML build is ideal for quick judging.</li></ul>
+<h3 id="android-phones-and-tablets">Android phones and tablets</h3>
+<p>Use <strong>Web / itch.io (.zip)</strong> for Android players. Host the extracted files on HTTPS (or upload the zip to itch.io), then open the game in Chrome. Chrome can offer <strong>Install app</strong> / <strong>Add to Home screen</strong> because the export includes a web-app manifest, icons, and an offline service worker.</p>
+<p>Android player controls are built into the exported game on touch devices:</p>
+<ul><li>The lower-left D-pad moves in the four directions.</li><li>A confirms and jumps, B cancels or opens the menu, X attacks, and Y dashes.</li><li>The HUD button toggles the authored HUD where supported.</li><li>Tapping a destination on the map still uses tap-to-move and pathfinding.</li></ul>
+<p>Games are landscape-first. In portrait, the player shows a rotate-device message until the phone is turned sideways. The authoring editor remains a desktop workflow; Android support covers playing published games.</p>
 <h3 id="a-proper-native-desktop-app">A proper native desktop app</h3>
 <p>Working from the RPGAtlas repo with the Rust toolchain installed, you can package any exported project as a <strong>real native executable</strong> (its own window, no browser at all):</p>
 <pre><code>node scripts/package-game-exe.mjs MyGame.json</code></pre>

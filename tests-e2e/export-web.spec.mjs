@@ -59,6 +59,16 @@ test("Web zip export: itch.io layout, PWA install, full offline replay", async (
   const html = new TextDecoder().decode(files.get("index.html"));
   expect(html).toContain('<link rel="manifest" href="manifest.webmanifest">');
   expect(html).toContain("navigator.serviceWorker.register");
+  expect(html).toContain("viewport-fit=cover");
+  expect(html).toContain("touch-controls");
+  const manifest = JSON.parse(new TextDecoder().decode(files.get("manifest.webmanifest")));
+  expect(manifest).toMatchObject({
+    id: "./index.html",
+    scope: "./",
+    display: "standalone",
+    orientation: "landscape",
+    categories: ["games"],
+  });
   expect(files.get("icon-192.png").slice(0, 4)).toEqual(new Uint8Array([0x89, 0x50, 0x4e, 0x47])); // PNG magic
 
   // 3. Serve the extracted zip and load it like a player would.
